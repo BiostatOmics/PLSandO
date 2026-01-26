@@ -110,7 +110,7 @@ The Correlation Plot projects variables onto a unit circle. The proximity of a v
 
 ```{r}
 # 5. Correlation Plot: Evaluates variable representation and correlations
-pcaPlot(mypca, type = 'corr', shape = 'arrow', colBy = 'contrib', labels = TRUE)
+pcaPlot(mypca, type = 'corr', shape = 'arrow', colBy = 'cos2', labels = TRUE)
 ```
 
 Finally, The R2 Plot provides a bar-chart summary of how much variance of each individual variable is captured by the model in each component. 

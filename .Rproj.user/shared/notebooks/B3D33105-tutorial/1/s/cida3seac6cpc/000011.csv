@@ -1,0 +1,2 @@
+"0","# 1. Scree Plot: Check explained variance"
+"0","pcaPlot(mypca, type = 'scree')"
