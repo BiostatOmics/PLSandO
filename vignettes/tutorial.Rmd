@@ -75,7 +75,7 @@ A PCA model can easily be run by:
 ```{r}
 mypca = pca(iris)
 ```
-## Results Visualiztion
+## Results Visualization
 
 ### Essential Visualization
 
