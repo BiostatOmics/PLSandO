@@ -1,0 +1,32 @@
+
+#Correr los modelos y guardar los resultados para el caso de JK
+
+
+file_list = list.files(path="C:/Users/maide/OneDrive - UPV/estancia/datos_simulados_Rasmus/")
+
+for (i in 2:length(file_list)){
+
+  load(paste0("C:/Users/maide/OneDrive - UPV/estancia/datos_simulados_Rasmus/",file_list[i]))
+  start_t = Sys.time()
+  resJK = pls(X_noisy, Y_noisy)
+  end_t = Sys.time()
+  resJK$time = difftime(end_t, start_t,unit='secs')
+  saveRDS(resJK, file = paste0("C:/Users/maide/OneDrive - UPV/estancia/resultados/JK/",sub("\\.Rdata$", "", file_list[i]),".rds") )
+}
+
+
+#Correr los modelos y guardar los resultados para el caso de model 1
+
+
+file_list = list.files(path="C:/Users/maide/OneDrive - UPV/estancia/datos_simulados_Rasmus/")
+
+for (i in 2:length(file_list)){
+
+  load(paste0("C:/Users/maide/OneDrive - UPV/estancia/datos_simulados_Rasmus/",file_list[i]))
+  start_t = Sys.time()
+  resJK = pls(X_noisy, Y_noisy)
+  end_t = Sys.time()
+  resJK$time = difftime(end_t, start_t,unit='secs')
+  saveRDS(resJK, file = paste0("C:/Users/maide/OneDrive - UPV/estancia/resultados/model1/",sub("\\.Rdata$", "", file_list[i]),".rds") )
+}
+

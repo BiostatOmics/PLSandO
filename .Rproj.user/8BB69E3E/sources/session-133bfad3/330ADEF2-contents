@@ -1,0 +1,130 @@
+# Doubly Robust PLS (Robustness across variables and samples)
+
+# Simrel dataset
+
+load("C:/Users/maide/OneDrive/Escritorio/estancia/simula/Datos_simrel.Rdata")
+
+X = scale(simul$X, scale = F)
+Y = scale(simul$Y, scale = F)
+
+myirpls = IRPLS(X, Y, constant = 1)
+
+
+IRPLS = function(X, Y, ncomp = NULL, constant ){
+
+  #Use the weight function defined by the biweighed function
+
+  #Calculate the PLS algo
+  X = as.matrix(X)
+  Y = as.matrix(Y)
+
+  #To Do: Ver como modificarlo para cuando haya valores perdidos
+
+  if(is.null(ncomp)){
+    ncomp = min(nrow(X)-1, ncol(X))
+  }
+
+  scores = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadings = matrix(0, nrow = ncol(X), ncol = ncomp )
+  scoresY = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadingsY = matrix(0, nrow = ncol(Y), ncol = ncomp )
+  weights = matrix(0, nrow = ncol(X), ncol = ncomp )
+  Stabweights = matrix(0, nrow = ncol(X), ncol = ncomp )
+
+  for (i in 1:ncomp) {
+    it = 1
+
+    u0 = Y[,which.max(apply(Y,2,var))[[1]],drop=FALSE]
+    t0 = X[,which.max(apply(X,2,var))[[1]],drop=FALSE]
+
+    #Iniatially provide the same weight to all observations
+    D = diag(1/nrow(X), nrow = nrow(X))
+
+    phi0 = crossprod(D %*% u0,t0)/crossprod(D%*%t0, t0)
+    phi1 = Inf
+
+    while (sqrt(drop(crossprod(phi1-phi0)))>1e-6 && it < 50){
+
+      if(it!=1) phi0 = phi1
+      it = it + 1
+      iter = 1
+      #Initiate the scores with the variable with the highest variance when there are no NAs with the one with least NAs instead
+      u_old = Y[,which.max(apply(Y,2,var))[[1]],drop=FALSE]
+
+      w_new = crossprod(D%*%X, u_old)/drop(crossprod(u_old))
+      w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+      t_new = X %*% w_new
+
+      c_new = crossprod(D%*%Y, t_new)/drop(crossprod(D%*%t_new, t_new))
+
+      u_new = (Y %*% c_new) / drop(crossprod(c_new))
+
+      p_new = crossprod(D%*%X, t_new)/drop(crossprod(D%*%t_new, t_new))
+
+      while (sqrt(drop(crossprod(u_new-u_old)))>1e-6 && iter<100) {
+        #Update
+        t_old = t_new
+        p_old = p_new
+        c_old = c_new
+        u_old = u_new
+        iter = iter + 1
+
+        #Recalculate T, P, W, U and C
+        w_new = crossprod(D%*%X, u_old)/drop(crossprod(u_old))
+        w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+        t_new = X %*% w_new
+
+        c_new = crossprod(D%*%Y, t_new)/drop(crossprod(D%*%t_new, t_new))
+
+        u_new = (Y %*% c_new) / drop(crossprod(c_new))
+
+        p_new = crossprod(D%*%X, t_new)/drop(crossprod(D%*%t_new,t_new))
+      }
+
+      f = Y - tcrossprod(t_new,c_new) #En irCovSel usan los scores normalizados por lo que pueden ajustar los residuos según el leverage.
+      #To Do: ver si metemos el leverage en el weigthing the las samples
+
+      #Se usa el MAD dividido con la constante 1.4826 que hace que el estimador no esté desviado de la distribución normal. Mirar IRPLS o IrCovSel
+      R = as.vector(f/(constant * mad(f)))
+      D = diag(sapply(R, function(x) ifelse(abs(x)>1, 0, (1-x^2)^2)))
+
+      Stabweights[,i] = Stabweights[,i] + w_new
+
+      phi1 = crossprod(D %*% u_new,t_new)/crossprod(D%*%t_new, t_new)
+
+    }
+
+    loadings[,i] = p_new
+    scores[,i] = t_new
+    loadingsY[,i] = c_new
+    scoresY[,i] = u_new
+    weights[,i] = w_new
+    Stabweights[,i] =  Stabweights[,i]/ (it - 1)
+
+    X = X - tcrossprod(t_new,p_new)
+    Y = Y - tcrossprod(t_new,c_new)
+
+  }
+
+  weightsStar = weights%*%solve(crossprod(loadings, weights))
+  coefficients = tcrossprod(weightsStar, loadingsY)
+  yhat = as.matrix(X) %*% coefficients
+
+  rownames(loadings) = rownames(weights) = rownames(weightsStar) = rownames(coefficients) = rownames(Stabweights) = colnames(X)
+  rownames(loadingsY) = colnames(coefficients) = colnames(Y)
+  rownames(scores) = rownames(scoresY) = rownames(X)
+  colnames(loadings) = colnames(scores)= colnames(scoresY)= colnames(loadingsY)= colnames(weights) = colnames(weightsStar) = colnames(Stabweights) = paste0('p',1:ncomp)
+
+  return(list(scores=scores, loadings = loadings, scoresY=scoresY, loadingsY = loadingsY, weights = weights, weightsStar = weightsStar, Stabweights = Stabweights, coefficients = coefficients ))
+
+  # Look how to introduce the variable selection
+
+}
+
+myirpls2 = IRPLS(X,Y,ncomp=2, constant = 1) #Constant near 1 much shrinkage, constant near 20 makes the shrinkage almost flat
+
+#Can we make the selection of this constant data driven without the need of a cv to select it?
+
+#Ver que medida de importancia tomar en este algoritmo para la selección de variables

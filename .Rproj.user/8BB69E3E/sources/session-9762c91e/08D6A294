@@ -1,0 +1,27 @@
+{
+    "id": "08D6A294",
+    "path": "C:/Users/maide/Dropbox/PLSandO/R/PLSDA.R",
+    "project_path": "R/PLSDA.R",
+    "type": "r_source",
+    "hash": "2361368098",
+    "contents": "",
+    "dirty": false,
+    "created": 1757401832545.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "tempName": "Untitled4",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "516,0",
+        "scrollLine": "511"
+    },
+    "folds": "527|25|563|2|\n567|26|586|2|\n588|26|607|2|\n611|25|624|2|\n626|28|643|2|\n645|28|666|2|\n670|25|684|2|\n688|23|703|2|\n707|24|728|2|\n805|20|811|2|\n815|29|820|2|\n824|26|849|2|\n",
+    "lastKnownWriteTime": 1769421315,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1769421315784,
+    "read_only": false,
+    "read_only_alternatives": []
+}

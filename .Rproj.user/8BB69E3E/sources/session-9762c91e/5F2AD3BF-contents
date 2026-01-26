@@ -1,0 +1,21 @@
+## ver que hace escalado Pareto: raiz cuadrada de la desv tipica
+
+
+
+## Ver como hacer para que se puedan usar T2 outliers para colorear grafico de scores o biplot
+### Poner en la vignette como se haria??
+
+
+## pone rownames en scores como sXXX, donde XXX son rownames originales.
+# cuando no hay rownames en los datos originales
+
+
+## contribucion de cada bloque al PCA o PLS (VIPbloque) --> Maider
+
+## biplot, R2 --> Maider
+
+
+
+
+
+

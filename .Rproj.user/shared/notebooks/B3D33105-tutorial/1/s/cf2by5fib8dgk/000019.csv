@@ -1,0 +1,3 @@
+"0",""
+"0","# 3. Loadings Plot: Variable contributions"
+"0","pcaPlot(mypca, type = 'loadings', shape = 'arrow', colBy = 'contrib', labels = TRUE)"

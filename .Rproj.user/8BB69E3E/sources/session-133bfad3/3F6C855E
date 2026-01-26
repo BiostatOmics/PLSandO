@@ -1,0 +1,27 @@
+{
+    "id": "3F6C855E",
+    "path": "C:/Users/maide/OneDrive/Escritorio/estancia/pruebas algo/prueba7_11_11_25_extension_sparse_17_11_25.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1763380316460.0,
+    "source_on_save": false,
+    "relative_order": 24,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "599,0",
+        "scrollLine": "0"
+    },
+    "folds": "3|32|15|0|\n18|41|33|0|\n35|47|63|0|\n65|43|161|0|\n163|85|264|0|\n268|62|388|0|\n390|104|483|0|\n485|123|530|0|\n532|92|582|0|\n",
+    "lastKnownWriteTime": 1764094493,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1764432917982,
+    "read_only": false,
+    "read_only_alternatives": []
+}

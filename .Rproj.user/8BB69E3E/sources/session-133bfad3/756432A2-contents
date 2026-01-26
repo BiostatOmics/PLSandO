@@ -1,0 +1,3 @@
+
+file_list = list.files(path="C:/Users/maide/OneDrive - UPV/estancia/datos_simulados_Rasmus/")
+

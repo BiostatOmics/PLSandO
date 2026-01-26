@@ -1,0 +1,2 @@
+"0","sd_Y = sd(Y)"
+"0","Y_noisy = Y +rnorm(30, mean = 0, sd = 0.25*sd_Y)"

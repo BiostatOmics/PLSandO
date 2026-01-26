@@ -1,0 +1,4 @@
+"0","datos = merge(df,df2, by=0)"
+"0","datos = datos[order(as.numeric(datos$Row.names)),]"
+"0","rownames(datos) = datos$Row.names"
+"0","datos = datos[,-1]"

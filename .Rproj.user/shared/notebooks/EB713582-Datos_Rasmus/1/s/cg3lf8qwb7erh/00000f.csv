@@ -1,0 +1,4 @@
+"0","Psel_rns = matrix(rnorm(3*20, mean = 0, sd = 1), nrow=3)"
+"0","Pirr_rns = matrix(rnorm(2*20, mean = 0, sd = 1), nrow=2)  "
+"0",""
+"0","Prns = rbind(Psel_rns,Pirr_rns)"

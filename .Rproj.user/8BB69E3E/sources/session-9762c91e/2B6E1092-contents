@@ -1,0 +1,265 @@
+
+data("iris")
+
+x = iris[,-5]
+
+x = Preparing(iris)
+
+mypca = pca(x)
+
+#pintar los plots
+
+pcaPlot(mypca, type = 'scree')
+pcaPlot(mypca, type = 'scores', colBy ='Species' ,labels = FALSE)
+
+var = as.data.frame(factor(c(rep(1, 50), rep(2,50),rep(3, 50))))
+colnames(var) = 'Variable'
+pcaPlot(mypca, type = 'scores', colBy = var ,labels = FALSE)
+pcaPlot(mypca, type = 'scores', colBy = 'Sepal.Length',shapeBy =var ,labels = FALSE)
+
+pcaPlot(mypca, type = 'loadings', shape = 'point', colBy = 'contrib', labels = FALSE)
+pcaPlot(mypca, type = 'corr', shape = 'arrow', colBy = 'contrib', labels = TRUE)
+
+pcaPlot(mypca, type ='biplot')
+pcaPlot(mypca, type ='biplot', colBy = 'Sepal.Length', labels = c(FALSE, TRUE))
+pcaPlot(mypca, type = 'biplot', colBy = 'Sepal.Length',shapeBy =var )
+
+pcaPlot(mypca, type = 'R2')
+
+# new obs
+
+x = iris[1:125,-5]
+xnew = iris[126:150,-5]
+xnew[1, 1] = NA
+xnew[3, 4] = NA
+
+mypca = pca(x)
+
+pcaPlot(mypca, type='scores', newObs = xnew)
+
+xnew = iris[126:150,-5]
+
+pcaPlot(mypca, type='scores', newObs = xnew, colBy = 'Sepal.Length')
+pcaPlot(mypca, type='biplot', newObs = xnew)
+
+x = Preparing(iris)
+obs = sample(1:150,size = 125, replace = F)
+xnew = x$x[-obs,]
+x = x$x[obs,]
+
+mypca2 = pca(x)
+pcaPlot(mypca2, type='scores', newObs = xnew, colBy = 'Species')
+
+x = iris[,-5]
+x[1,1] =NA
+mypca = pca(x, scaling = 'none')
+X2 = imputeNipals(x = mypca, scaled = T)
+
+x = iris[,1:3]
+xnew = iris[,4,drop=FALSE]
+
+mypca = pca(x)
+pcaPlot(mypca, type='loadings', newObs = xnew)
+loadingPlot(mypca, newObs = xnew)
+
+pcaPlot(mypca, type='corr', newObs = xnew)
+corrPlot(mypca, newObs = xnew)
+
+#Valores faltantes
+X = iris[,-5]
+
+X = as.matrix(X)
+X[sample(1:600, 90, replace = FALSE)] = NA
+
+
+P = Preparing(X)
+
+# Blocks
+
+# Crear tres matrices
+mat1 <- matrix(1:9, nrow = 3)
+mat2 <- matrix(10:18, nrow = 3)
+mat3 <- matrix(19:27, nrow = 3)
+
+# Crear una lista que contiene las matrices
+lista_matrices <- list(mat1, mat2, mat3)
+
+# Datasets con NAs
+
+data("airquality")
+
+#con discretas
+
+library(titanic)
+data("titanic_train")
+x = titanic_train[,c(1:3,5:8,10,12)]
+
+data(sacurine)
+sacurine.pca <- opls(sacurine$dataMatrix)
+
+
+# Multiblock -----
+
+
+
+X = list('Petalo' = iris[,c(3,4)], 'Sepalo' = iris[,c(1,2)])
+mypca = pca(X, algo = 'mbpca')
+pcaPlot(mypca, type = 'scree')
+pcaPlot(mypca, type = 'scores')
+pcaPlot(mypca, type = 'scores', colBy = as.data.frame(iris[,5,drop=FALSE]), shapeBy = as.data.frame(iris[,5,drop=FALSE]))
+pcaPlot(mypca, type = 'scores',colBy='Petal.Width', labels = T)
+pcaPlot(mypca, type = 'loadings')
+pcaPlot(mypca, type = 'loadings', colBy = 'contrib', selVars = 1)
+pcaPlot(mypca, type = 'loadings', colBy = 'contrib', labelTop =  0.5)
+pcaPlot(mypca, type = 'biplot')
+pcaPlot(mypca, type = 'biplot', colBy = 'Petal.Width', shapeBy = as.data.frame(iris[,5,drop=FALSE]) )
+
+pcaPlot(mypca, type = 'R2')
+
+X2 = list('Petalo' = iris[1:125,c(3,4)], 'Sepalo' = iris[1:125,c(1,2)])
+Xnew = list('Petalo' = iris[126:150,c(3,4)], 'Sepalo' = iris[126:150,c(1,2)])
+
+mypca2 = pca(X2, algo = 'mbpca')
+
+pcaPlot(mypca2, type = 'scores')
+pcaPlot(mypca2, type = 'scores',newObs = Xnew, labels = T)
+
+
+
+X = iris[,-5]
+prueba_con = pca(X, ncomp=2, scaling = 'softBlock')
+
+
+View(prueba$super_scores)
+View(prueba_con$scores)
+View(prueba_con$loadings)
+View(prueba$block_loadings$Petalo)
+View(prueba$block_loadings$Sepalo)
+
+
+
+### PLS --------------
+
+
+y = scale(iris[,4], scale = F)
+X = scale(iris[,1:3])
+
+roplspls = ropls::opls(X, y = y, scaleC = 'none')
+
+y2 = iris[,4]
+X2 = iris[,1:3]
+X[1,1] = NA
+y[2,1] = NA
+
+roplspls = ropls::opls(X2, y = y2, predI = 3)
+
+
+X = iris[,1:3]
+Y = iris[,4,drop=FALSE]
+
+mypls = pls(X, Y)
+
+plsPlot(mypls, type = 'scree')
+plsPlot(mypls, type = 'scoresX')
+plsPlot(mypls, type = 'coef')
+plsPlot(mypls, type = 'scoresX', colBy = as.data.frame(iris[,5,drop=FALSE]), shapeBy = as.data.frame(iris[,5,drop=FALSE]))
+plsPlot(mypls, type = 'scoresX',colBy='Petal.Width', labels = T)
+plsPlot(mypls, type = 'loadings')
+plsPlot(mypls, type = 'loadings', colBy = 'contrib', selVars = 1)
+plsPlot(mypls, type = 'loadings', colBy = 'contrib', labelTop =  0.5)
+plsPlot(mypls, type = 'biplot')
+plsPlot(mypls, type = 'biplot', colBy = 'Petal.Width', shapeBy = as.data.frame(iris[,5,drop=FALSE]) )
+
+
+### MBPLS -------
+
+X = list('Petalo' = iris[,c(3,4)], 'Sepalo' = iris[,c(1,2)])
+Y = iris[,4,drop=FALSE]
+
+mypls = pls(X, Y, algo = 'mbpls')
+
+prueba = pls(X, Y, scaling = 'hardBlock', algo = 'nipals') #Se cumple que la concatenación y el MB den lo mismo
+
+plsPlot(mypls, type = 'R2vsQ2')
+plsPlot(mypls, type = 'scoresX')
+plsPlot(mypls, type = 'coef')
+plsPlot(mypls, type = 'scoresX', colBy = as.data.frame(iris[,5,drop=FALSE]), shapeBy = as.data.frame(iris[,5,drop=FALSE]))
+plsPlot(mypls, type = 'scoresX',colBy='Petal.Width', labels = T)
+plsPlot(mypls, type = 'loadings')
+plsPlot(mypls, type = 'loadings', colBy = 'contrib', selVars = 1)
+plsPlot(mypls, type = 'loadings', colBy = 'contrib', labelTop =  0.5)
+plsPlot(mypls, type = 'biplot')
+plsPlot(mypls, type = 'biplot', colBy = 'Petal.Width', shapeBy = as.data.frame(iris[,5,drop=FALSE]) )
+
+
+
+## PLS2 ------
+
+
+X = iris[,1:2]
+Y = iris[,3:4]
+
+mypls = pls(X, Y)
+
+plsPlot(mypls, type = 'scoresX',colBy = 'Petal.Length')
+plsPlot(mypls, type = 'scoresY',colBy = 'Petal.Length')
+plsPlot(mypls, type = 'loadings')
+plsPlot(mypls, type = 'loadingsX', colBy = 'contrib')
+plsPlot(mypls, type = 'weights')
+plsPlot(mypls, type = 'linearity')
+plsPlot(mypls, type = 'overfitting')
+plsPlot(mypls, type = 'R2')
+plsPlot(mypls, type = 'coef')
+
+
+###### multilevel -------------
+
+
+design = data.frame(
+  #subj = rep(1:3, each = 50),
+  treat = c(rep('A',75), rep('B',75))
+)
+
+rownames(design) = paste0('r',1:150)
+
+X = iris[,1:4]
+
+mymulti = multilevel(X, design = design)
+
+
+## PLSDA --------------
+
+X = iris[,1:4]
+Y = iris[,5, drop=FALSE]
+
+myplsda = plsda(X,Y)
+
+plsdaPlot(myplsda, type = 'scoresX')
+plsdaPlot(myplsda, type = 'scoresY')
+plsdaPlot(myplsda, type = 'biplot')
+plsdaPlot(myplsda, type = 'loadings')
+plsdaPlot(myplsda, type = 'loadingsX')
+plsdaPlot(myplsda, type = 'weights')
+plsdaPlot(myplsda, type = 'linearity')
+plsdaPlot(myplsda, type = 'overfitting')
+plsdaPlot(myplsda, type = 'R2')
+plsdaPlot(myplsda, type = 'R2vsQ2')
+plsdaPlot(myplsda, type = 'coef')
+plsdaPlot(myplsda, type = 'corr')
+
+
+## Selección de variables -----
+
+x = plsVarSel(mypls,type = 'sMC')
+
+
+
+### multilevel --------
+
+library(mixOmics)
+data(vac18)
+X = vac18$genes
+design = as.data.frame(vac18$sample)
+rownames(design) = rownames(X)
+pca.mul = multilevel(vac18$genes,design = design,ncomp = 2, method = 'pca', scaling = 'standard')
+

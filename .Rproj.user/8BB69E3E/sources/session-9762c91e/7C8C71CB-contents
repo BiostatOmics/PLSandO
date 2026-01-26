@@ -1,0 +1,42 @@
+p.valuejack<-function(pls, datospls,alfa){
+  
+  #pls: modelo PLS generado con la libreria ropls
+  #datospls: matriz de datos utilizada para crear el modelo
+  
+  #Caso de Leave-one-out
+  k=pls@summaryDF$pre
+  coefmod=pls@coefficientMN
+  a=NULL
+  
+  for (i in 1: nrow(datospls)) {
+    
+    pls.opls=suppressWarnings(ropls::opls(datospls[-i,-1,drop=FALSE], scale(datospls[-i,1]), scaleC='none', predI=k,
+                                          info.txtC='none', fig.pdfC='none', crossvalI=1, permI = 0))
+    
+    if(nrow(pls.opls@coefficientMN)<nrow(coefmod)){
+      exclvar=setdiff(rownames(coefmod),rownames(pls.opls@coefficientMN))
+      b<-matrix(0,ncol=1,nrow = length(exclvar))
+      rownames(b)<-exclvar
+      pls.opls@coefficientMN=rbind(pls.opls@coefficientMN,b)
+      
+    }
+    order <- match(rownames(coefmod), rownames(pls.opls@coefficientMN))
+    plscoefficientMN <- pls.opls@coefficientMN[order, ]
+    a=cbind(a,plscoefficientMN)
+  }
+  
+  est = (a-matrix(rep(coefmod, ncol(a)), ncol = ncol(a)))^2
+  estjack = sqrt(((nrow(datospls)-1)/nrow(datospls)) * rowSums(est))
+  
+  pvalor = 2*pt(abs(coefmod/estjack), df = nrow(datospls)-1, lower.tail = FALSE)
+  #calculo de los intervalos de confianza para ver que todo va bien, aún y todo podemos ahorrar esto no es necesario en nuestro caso
+  #res =cbind(pvalor, paste('(',coefmod- qt(1 - (alfa)/ 2, df = nrow(datospls)-1)* estjack,'-', coefmod+ qt(1 - (alfa)/ 2, df = nrow(datospls)-1)* estjack,')' ))
+  #colnames(res) = c('pvalue', 'CI')
+  colnames(pvalor) = c('pvalue')
+  return(pvalor)
+}
+
+
+## Código Sergio
+
+

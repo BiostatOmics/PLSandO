@@ -1,0 +1,13 @@
+"0","df_results$Noise = paste(df_results$NoiseX, df_results$NoiseY, sep='_')
+"
+"2","Aviso: Unknown or uninitialised column: `NoiseX`."
+"2","Aviso: Unknown or uninitialised column: `NoiseY`."
+"1","[1m[33mError[39m in `$<-`:[22m
+[38;5;252m[33m![38;5;252m Assigned data `paste(df_results$NoiseX, df_results$NoiseY, sep = ""_"")` must be compatible with existing data.
+[31m✖[38;5;252m Existing data has 21 rows.
+[31m✖[38;5;252m Assigned data has 0 rows.
+[36mℹ[38;5;252m Only vectors of size 1 are recycled.[39m
+[1mCaused by error in `vectbl_recycle_rhs_rows()`:[22m
+[33m![39m Can't recycle input of size 0 to size 21.
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"

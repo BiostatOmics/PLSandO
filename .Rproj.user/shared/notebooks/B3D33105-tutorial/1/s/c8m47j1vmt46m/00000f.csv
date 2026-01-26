@@ -1,0 +1,2 @@
+"0","# 6. R2 Plot: Explained variance per individual variable"
+"0","pcaPlot(mypca, type = 'R2')"

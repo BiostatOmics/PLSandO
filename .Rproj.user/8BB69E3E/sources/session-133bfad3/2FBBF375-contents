@@ -1,0 +1,357 @@
+# Communality index
+
+nipals_pls = function(X, Y, ncomp = NULL ){
+
+  X = as.matrix(X)
+  Y = as.matrix(Y)
+
+  if(any(is.na(X))||any(is.na(Y))){
+    missNA =  T
+    X_sinNA = X
+    X_sinNA[is.na(X)]= 0
+    C = matrix(1, ncol = ncol(X), nrow = nrow(X) )
+    C[is.na(X)] = 0
+    if(any(is.na(Y))) missNAY = T else missNAY = F
+    Y_sinNA = Y
+    Y_sinNA[is.na(Y)]= 0
+    CY = matrix(1, ncol = ncol(Y), nrow = nrow(Y) )
+    CY[is.na(Y)] = 0
+  }  else missNA = F; missNAY = F
+
+  if(is.null(ncomp)){
+    ncomp = min(nrow(X)-1, ncol(X))
+  }
+
+  scores = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadings = matrix(0, nrow = ncol(X), ncol = ncomp )
+  scoresY = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadingsY = matrix(0, nrow = ncol(Y), ncol = ncomp )
+  weights = matrix(0, nrow = ncol(X), ncol = ncomp )
+
+  for (i in 1:ncomp) {
+    iter = 1
+
+    M = diag(ncol(X)) #matriz de pesos. Ver si tendríamos que dar unos pesos equitativos a priori->Centrar los datos según este peso
+
+    #Initiate the scores with the variable with the highest variance when there are no NAs with the one with least NAs instead
+    if(missNAY){
+      u_old = Y[,1,drop=FALSE]
+      u_old[is.na(u_old)] = 0
+    } else u_old = Y[,which.max(apply(Y,2,var))[[1]],drop=FALSE]
+
+    w_new = if(missNA) crossprod(X_sinNA%*%M, u_old)/drop(t(CY) %*% u_old^2) else crossprod(X%*%M, u_old)/drop(crossprod(u_old))
+    w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+    t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+    c_new = if(missNA)  crossprod(Y_sinNA, t_new) / (t(CY) %*% t_new^2)  else crossprod(Y, t_new)/drop(crossprod(t_new))
+
+    u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+    p_new = if(missNA)  crossprod(X_sinNA, t_new)/(t(C) %*% t_new^2)  else crossprod(X, t_new)/drop(crossprod(t_new))
+
+    comInd = apply(X,2,function(x) (cor(x, t_new))^2)
+    mcom = 1.8*mad(comInd)
+    M = diag(sapply(comInd, function(x) ifelse(x/mcom>1, x, 0)))
+
+    while (sqrt(drop(crossprod(u_new-u_old)))>1e-6 && iter<100) {
+      #Update
+      w_old = w_new
+      t_old = t_new
+      p_old = p_new
+      c_old = c_new
+      u_old = u_new
+      iter = iter + 1
+
+      #Recalculate T, P, W, U and C
+      w_new = if(missNA) crossprod(X_sinNA%*%M, u_old) / drop(t(CY) %*% u_old^2) else crossprod(X%*%M, u_old)/drop(crossprod(u_old))
+      w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+      #Recalculate by importance
+      w_new = if(missNA) crossprod(X_sinNA%*%M, u_old) / drop(t(CY) %*% u_old^2) else crossprod(X%*%M, u_old)/drop(crossprod(u_old))
+      w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+      t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+      c_new = if(missNA) crossprod(Y_sinNA, t_new) / (t(CY) %*% t_new^2)  else crossprod(Y, t_new)/drop(crossprod(t_new))
+
+      u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+      p_new = if(missNA) crossprod(X_sinNA, t_new) / (t(C) %*% t_new^2)  else  crossprod(X, t_new)/drop(crossprod(t_new))
+
+      comInd = apply(X,2,function(x) (cor(x, t_new))^2)
+      mcom = 1.8*mad(comInd)
+      M = diag(sapply(comInd, function(x) ifelse(x/mcom>1, x, 0)))
+
+    }
+    loadings[,i] = p_new
+    scores[,i] = t_new
+    loadingsY[,i] = c_new
+    scoresY[,i] = u_new
+    weights[,i] = w_new
+
+    X = X - tcrossprod(t_new,p_new)
+    Y = Y - tcrossprod(t_new,c_new)
+
+    if(missNA){
+      X_sinNA = X
+      X_sinNA[is.na(X)]= 0
+      Y_sinNA = Y
+      Y_sinNA[is.na(Y)]= 0
+    }
+
+  }
+
+  weightsStar = weights%*%solve(crossprod(loadings, weights))
+  coefficients = tcrossprod(weightsStar, loadingsY)
+  yhat = as.matrix(X) %*% coefficients
+
+  rownames(loadings) = rownames(weights) = rownames(weightsStar) = rownames(coefficients) = colnames(X)
+  rownames(loadingsY) = colnames(coefficients) = colnames(Y)
+  rownames(scores) = rownames(scoresY) = rownames(X)
+  colnames(loadings) = colnames(scores)= colnames(scoresY)= colnames(loadingsY)= colnames(weights) = colnames(weightsStar) = paste0('p',1:ncomp)
+
+  return(list(scores=scores, loadings = loadings, scoresY=scoresY, loadingsY = loadingsY, weights = weights, weightsStar = weightsStar, coefficients = coefficients ))
+}
+
+crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed, method, alpha){
+
+  if(method=='loo') k = nrow(X)
+
+  folds = createFold(X, k, seed)
+
+  preds = array(0, dim=c(nrow(X), ncol(Y), ncomp))
+
+  R2 = PRESS = RMSE = Q2 = numeric(ncomp)
+
+  coef_cv = array(0, dim=c(ncomp, ncol(X),ncol(Y),length(folds)))
+
+  pcoef = vector('list', ncomp)
+
+  for (i in 1:length(folds)){
+
+    ## Scaling X
+
+    Xfold = X[-folds[[i]],,drop=FALSE]
+    Yfold = Y[-folds[[i]],,drop=FALSE]
+
+    if (scaling != 'none') {
+      escalado = Scaling(Xfold, scaling= scaling, blocks = blocks)
+      Xfold = escalado$x
+      centrado = escalado$centering
+      escalado = escalado$scaling
+      Xval = sweep(X[folds[[i]],,drop=FALSE], 2, centrado, FUN = "-")
+      Xval = sweep(Xval, 2, escalado, FUN = "/")
+    } else{
+      escalado = rep(1, times = ncol(Xfold))
+      centrado = rep(0, times = ncol(Xfold))
+      Xval = X[folds[[i]],,drop=FALSE]
+    }
+
+    ## Scaling Y
+
+    if (scalingY != 'none') {
+      escaladoY = Scaling(Yfold, scaling= scalingY, blocks = NULL)
+      Yfold = escaladoY$x
+      centradoY = escaladoY$centering
+      escaladoY = escaladoY$scaling
+    } else{
+      escaladoY = rep(1, times = ncol(y))
+      centradoY = rep(0, times = ncol(y))
+    }
+
+    mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
+
+    for (j in 1:ncomp){
+      coefficients = mypls$weightsStar[,1:j,drop=FALSE] %*% t(mypls$loadingsY[,1:j,drop=FALSE])
+      preds[folds[[i]], , j] = as.matrix(Xval) %*% coefficients
+      coef_cv[j,,,i] = coefficients
+    }
+  }
+
+  #Calculate metrics
+
+  if (scalingY != 'none') {
+    escaladoY = Scaling(Y, scaling= scalingY, blocks = NULL)
+    Y = escaladoY$x
+  }
+
+  if (scaling != 'none') {
+    escalado = Scaling(X, scaling= scaling, blocks = blocks)
+    X = escalado$x
+  }
+
+  plsr2 = nipals_pls(X = X, Y = Y, ncomp = ncomp)
+
+  for (j in 1:ncomp) {
+
+    Ypred = as.matrix(preds[,,j])
+
+    #RMSE
+    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2))
+
+    #R2
+    coefficients = tcrossprod(plsr2$weightsStar[,1:j,drop=FALSE],plsr2$loadingsY[,1:j,drop=FALSE])
+    yhat = as.matrix(X) %*% coefficients
+
+    SCR = sum((Y-yhat)^2)
+    SCT = sum(Y^2)
+    R2[j] = 1- (SCR/SCT)
+
+    #PRESS
+    PRESS[j] = sum((Y - Ypred)^2)
+
+    #Q2
+    Q2[j] = 1- (PRESS[j]/SCT)
+
+    #Jack-knifed pvalues
+    pcoef[[j]] = p.jack(coefficients, coef_cv, j, alpha)
+
+  }
+
+  return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, pcoef = pcoef))
+
+}
+
+pls_cross = function(X, Y, scaling, blocks, scalingY, ncomp = NULL, k = 5, rep = 10, alpha = 0.05, parallel = T){
+
+  if(is.null(ncomp)){
+    ncomp = min(nrow(X)-1, ncol(X))
+  }
+
+  if(nrow(X)<=5){
+    warning("Low number of replicates. Leave-one-out cv will be performed.")
+    method = 'loo'
+  } else method = 'kfold'
+
+  message("\n Running optimization:")
+
+  options(future.globals.maxSize = 4000*1024^2)
+  seed = 1:rep
+  if(!isFALSE(parallel)){
+    if(is.numeric(parallel)){
+      if(.Platform$OS.type == "unix") {
+        future::plan("multicore", workers = parallel)
+      }else{
+        future::plan("multisession", workers = parallel)
+      }
+    } else{
+      nc = future::availableCores() - 1
+      if(.Platform$OS.type == "unix") {
+        future::plan("multicore", workers = nc)
+      }else{
+        future::plan("multisession", workers = nc)
+      }
+      parallel =nc
+    }
+
+    crossVal_res = furrr::future_map(1:rep,
+                                     ~crossVal(.x, X, Y, ncomp, k, scaling, blocks, scalingY, seed[.x], method, alpha),
+                                     .progress = TRUE,.options = furrr::furrr_options(seed = TRUE ) )
+  } else{
+    crossVal_res = purrr::map(1:rep,
+                              ~crossVal(.x, X, Y, ncomp, k, scaling, blocks, scalingY, seed[.x], method, alpha),
+                              .progress = TRUE,.options = furrr::furrr_options(seed = TRUE) )
+  }
+
+  future::plan("sequential")
+
+  return(crossVal_res)
+
+}
+
+createFold = function(X, k, seed = NULL){
+
+  if(!is.null(seed)) set.seed(seed)
+
+  n = nrow(X)
+
+  index = sample(n)
+
+  folds = vector('list', k)
+  for (i in 1:n) {
+    fold_index = ((i-1)%%k) +1
+    folds[[fold_index]] = c(folds[[fold_index]], index[i])
+  }
+
+  return(folds)
+}
+
+### Pruebas del algoritmo desarrollado ----------
+
+#Corn dataset
+
+library(pcv)
+data("corn")
+X = corn$spectra
+Y = corn$moisture
+
+#Calcular el número óptimo de componentes
+
+res_cross = pls_cross(X = X, Y = Y, scaling = 'standard', blocks = NULL, scalingY = 'standard', ncomp = NULL, k = 5, rep = 10, parallel = FALSE) #1h de ejecución
+
+r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
+mean_r2_per_component = apply(r2_array, 1, mean)
+
+q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+mean_q2_per_component = apply(q2_array, 1, mean)
+
+rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+mean_rmse_per_component = apply(rmse_array, 1, mean)
+
+# Improvement of 0.01 in R2 and Q2 positive increment
+r2_diff = diff(mean_r2_per_component)
+q2_diff = diff(mean_q2_per_component)
+
+ncomp = {
+  idx = which(!(diff(mean_r2_per_component) >= 0.01 & diff(mean_q2_per_component) > 0))
+  if (length(idx) == 0) length(mean_r2_per_component) else idx[1]}
+
+plsr_fin = nipals_pls(X = X, Y = Y, k = k, scaling = scaling, scalingY = scalingY, ncomp = ncomp)
+
+
+#Habría que mirar alguna manera de que el reweighting sea más agresivo porque de esta manera para correr el ejemplo de los datos de corn le tomaría más de 1h al algoritmo para hacer el cross-validation y el reweighting
+
+
+X = scale(X)
+Y = scale(Y)
+
+plsr_fin = nipals_pls(X = X, Y = Y, ncomp = ncomp)
+
+
+# Simrel dataset
+
+load("C:/Users/maide/OneDrive/Escritorio/estancia/simula/Datos_simrel.Rdata")
+
+X = simul$X
+Y = simul$Y
+
+#Calcular el número óptimo de componentes
+
+res_cross = pls_cross(X = X, Y = Y, scaling = 'center', blocks = NULL, scalingY = 'center', ncomp = NULL, k = 5, rep = 10, parallel = FALSE) #5m de ejecución
+
+r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
+mean_r2_per_component = apply(r2_array, 1, mean)
+
+q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+mean_q2_per_component = apply(q2_array, 1, mean)
+
+rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+mean_rmse_per_component = apply(rmse_array, 1, mean)
+
+# Improvement of 0.01 in R2 and Q2 positive increment
+r2_diff = diff(mean_r2_per_component)
+q2_diff = diff(mean_q2_per_component)
+
+ncomp = {
+  idx = which(!(diff(mean_r2_per_component) >= 0.01 & diff(mean_q2_per_component) > 0))
+  if (length(idx) == 0) length(mean_r2_per_component) else idx[1]}
+
+X = scale(X, scale = F)
+Y = scale(Y, scale = F)
+
+plsr_fin = nipals_pls(X = X, Y = Y, ncomp = ncomp)
+
+#Con dos componentes se consigue explicar el 0.78 de la variabilidad. Además los coeficientes de regresión se vuelven a mover en valores que se aproximan a la realidad.
+#Quizás es cosa de ajustar la constante en la bicuadrada pero mediante este approach solo 69 variables se enviaron a cero realmente aunque si que es capaz de apartar del cero
+#aquellas variables que eran significativas en el modelo.

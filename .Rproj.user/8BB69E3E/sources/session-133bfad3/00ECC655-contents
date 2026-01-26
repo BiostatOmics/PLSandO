@@ -1,0 +1,78 @@
+
+#Simular escenarios más diversos para testear el algoritmo
+
+# Escenarios:
+# Samples  RnSel Irr Sel Noisy  NoiseX  NoiseY
+#      10    10  10   10    50     10%    15%
+#      50    50  50   50    100    20%    25%
+#     100   100  100 100    200    30%    35%
+
+Samples = RnSel = Irr = Sel =c(10, 50, 100)
+Noisy = c(75, 150)
+NoiseX = c(0.1, 0.3)
+NoiseY = c(0.15, 0.35)
+
+# Crear todas las combinaciones
+combinaciones_df = expand.grid(
+  Samples = Samples,
+  RnSel = RnSel,
+  Irr = Irr,
+  Sel = Sel,
+  Noisy = Noisy,
+  NoiseX = NoiseX,
+  NoiseY = NoiseY)
+
+#Considerar 3 replicas de cada escenario
+
+#Estructura general de como crear los datos
+
+for (i in 1:nrow(combinaciones_df)) {
+  for (j in 1:3) {
+    set.seed((i - 1) * 3 + j) #Pensar si esto es suficiente
+    N = combinaciones_df$Samples[i]
+    RnSel = combinaciones_df$RnSel[i]
+    Irr = combinaciones_df$Irr[i]
+    Sel = combinaciones_df$Sel[i]
+    Noisy = combinaciones_df$Noisy[i]
+    NoiseX = combinaciones_df$NoiseX[i]
+    NoiseY = combinaciones_df$NoiseY[i]
+
+    Tx = matrix(rnorm(N*3, mean = 0, sd = 1), nrow=N)
+    beta = as.matrix(runif(2, min = 0.05, max = 1.05))
+
+    Y = Tx[,1:2]%*%beta
+
+    Psel_rns = matrix(rnorm(2*RnSel, mean = 0, sd = 1), nrow=2)
+    Pirr_rns = matrix(rnorm(1*RnSel, mean = 0, sd = 1), nrow=1)
+
+    Prns = rbind(Psel_rns,Pirr_rns)
+
+    Pirr_unique = matrix(rnorm(1*Irr, mean = 0, sd = 1), nrow=1)
+    Pirr = rbind(matrix(0,nrow = 2,ncol = Irr), Pirr_unique)
+
+    Psel_unique = matrix(rnorm(2*Sel, mean = 0, sd = 1), nrow=2)
+    Psel = rbind(Psel_unique, matrix(0,nrow = 1,ncol = Sel))
+
+    Pnoise = matrix(0,nrow = 3,ncol = Noisy)
+
+    Px = cbind(Prns, cbind(Pirr,cbind(Psel, Pnoise)))
+
+    X = Tx %*% Px
+
+    sd_Y = sd(Y)
+    Y_noisy = Y +as.matrix(rnorm(N, mean = 0, sd = NoiseY*sd_Y))
+
+    sd_cols = apply(X[,1:(RnSel+Irr+Sel)],2,sd) #exclude noise variables
+    pooled_sd = sqrt(mean(sd_cols^2))
+    X_noisy = X + matrix(rnorm(N*ncol(X), mean = 0, sd = NoiseX*pooled_sd),
+                         nrow = N, ncol = ncol(X))
+
+    save(X_noisy, Y_noisy, file =paste0('C:/Users/maide/OneDrive/Escritorio/estancia/datos_simulados_Rasmus/D',i,'_',j,'.Rdata'))
+  }
+}
+
+combinaciones_df2 = combinaciones_df
+combinaciones_df2$Dataset = paste0('D',1:nrow(combinaciones_df))
+save(combinaciones_df2, file = 'combinaciones.Rdata')
+
+

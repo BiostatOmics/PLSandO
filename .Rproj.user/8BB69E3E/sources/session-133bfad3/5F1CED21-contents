@@ -1,0 +1,136 @@
+---
+title: "Datos_Hastie"
+author: "Maider Aguerralde Martin"
+date: "2025-10-15"
+output: html_document
+---
+
+Los datos se generan a partir de la simulación plateada en el libro BookAdvancedHastie hoja 681.
+
+Se generan siguiendo la simulación planteada pero de manera más reducida.
+
+Igual que en sus datos, vamos a querer simular unos datos que el número de variables exceda el número de observaciones.
+
+En el caso del paper se generaban 5000 variables, en nuestro caso generaremos 50 para 30 observaciones, al igual que en el paper para una única variable respuesta.
+
+La matriz X se genera a partir de unos efectos fijos más una distribución normal 0, 1 que genere un ruido y diferencie las variables entre ellas.
+
+Se consideran dos grupos distintos por lo que se simulan también distintos efectos según la condición en la que nos encontremos.
+
+Solo las 10 primeras variables tendran un efecto claro en la variable respuesta. Las siguientes 20 variables estarán correlacionadas entre ellas pero no tendrán gran relación con la variable respuesta. Las 20 variables restantes serán ruido.
+
+
+```{r}
+
+X_sel = 3 + matrix(rnorm(10*15, mean = 0, sd = 1), nrow=15)
+X_sel2 = 4 + matrix(rnorm(10*15, mean = 0, sd = 1), nrow=15)
+
+XSel = rbind(X_sel, X_sel2)
+
+X_irr = 1.5 + matrix(rnorm(20*15, mean = 0, sd = 1), nrow=15)
+X_irr2 = 5.5 + matrix(rnorm(20*15, mean = 0, sd = 1), nrow=15)
+
+XIrr = rbind(rbind(rbind(X_irr[1:7,],X_irr2[1:7,]),X_irr[8:15,]),X_irr2[8:15,])
+
+XNois = matrix(rnorm(20*30, mean = 0, sd = 1), nrow=30)
+
+X = cbind(cbind(XSel,XIrr),XNois)
+
+Y = rowMeans(XSel) + matrix(rnorm(30, mean = 0, sd = 0.01), nrow=30)
+
+```
+
+
+```{r}
+library(ComplexHeatmap)
+cor_mat = cor(X)
+cor_to_y = apply(X,2,function(x) cor(x, Y))
+
+# Define diverging color scale (-1 to 1)
+col_fun <- circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
+
+# Heatmap of variable-variable correlations
+ht1 <- Heatmap(cor_mat,
+               name = "Correlation",
+               col = col_fun,
+               cluster_rows = FALSE,
+               cluster_columns = FALSE,
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Side heatmap: correlation to y
+ht2 <- Heatmap(matrix(cor_to_y, ncol=1),
+               name = "Corr_to_y",
+               col = col_fun,
+               cluster_rows = FALSE,
+               width = unit(5, "mm"),
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Combine plots
+ht2 + ht1
+```
+```{r}
+library(ComplexHeatmap)
+cor_mat = cor(X[1:15,])
+cor_to_y = apply(X[1:15,],2,function(x) cor(x, Y[1:15,,drop=FALSE]))
+
+# Define diverging color scale (-1 to 1)
+col_fun <- circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
+
+# Heatmap of variable-variable correlations
+ht1 <- Heatmap(cor_mat,
+               name = "Correlation",
+               col = col_fun,
+               cluster_rows = FALSE,
+               cluster_columns = FALSE,
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Side heatmap: correlation to y
+ht2 <- Heatmap(matrix(cor_to_y, ncol=1),
+               name = "Corr_to_y",
+               col = col_fun,
+               cluster_rows = FALSE,
+               width = unit(5, "mm"),
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Combine plots
+ht2 + ht1
+```
+```{r}
+library(ComplexHeatmap)
+cor_mat = cor(X[16:30,])
+cor_to_y = apply(X[16:30,],2,function(x) cor(x, Y[16:30,,drop=FALSE]))
+
+# Define diverging color scale (-1 to 1)
+col_fun <- circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
+
+# Heatmap of variable-variable correlations
+ht1 <- Heatmap(cor_mat,
+               name = "Correlation",
+               col = col_fun,
+               cluster_rows = FALSE,
+               cluster_columns = FALSE,
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Side heatmap: correlation to y
+ht2 <- Heatmap(matrix(cor_to_y, ncol=1),
+               name = "Corr_to_y",
+               col = col_fun,
+               cluster_rows = FALSE,
+               width = unit(5, "mm"),
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Combine plots
+ht2 + ht1
+```
+
+
+```{r}
+save(X,Y, file='datosHastie.Rdata')
+```
+

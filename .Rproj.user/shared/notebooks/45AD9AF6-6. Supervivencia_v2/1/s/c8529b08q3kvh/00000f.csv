@@ -1,0 +1,2 @@
+"0","datos$fecha<-mapply(function(x,y)as.character(max(x,y, na.rm = TRUE)),datos$FActualización,datos$FMuerte)"
+"0","datos$fecha<-as.Date(datos$fecha)"

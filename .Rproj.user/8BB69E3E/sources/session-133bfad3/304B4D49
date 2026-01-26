@@ -1,0 +1,28 @@
+{
+    "id": "304B4D49",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1764588083712.0,
+    "source_on_save": false,
+    "relative_order": 37,
+    "properties": {
+        "id": "45cd13abc7bf403089eee6c28ff197bf",
+        "name": "corn",
+        "title": "corn",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1764587722,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1764588083712,
+    "read_only": false,
+    "read_only_alternatives": []
+}

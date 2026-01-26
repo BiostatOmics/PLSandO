@@ -1,0 +1,180 @@
+nipals_pls = function(X, Y, ncomp = NULL ){
+
+  X = as.matrix(X)
+  Y = as.matrix(Y)
+
+  if(any(is.na(X))||any(is.na(Y))){
+    missNA =  T
+    X_sinNA = X
+    X_sinNA[is.na(X)]= 0
+    C = matrix(1, ncol = ncol(X), nrow = nrow(X) )
+    C[is.na(X)] = 0
+    if(any(is.na(Y))) missNAY = T else missNAY = F
+    Y_sinNA = Y
+    Y_sinNA[is.na(Y)]= 0
+    CY = matrix(1, ncol = ncol(Y), nrow = nrow(Y) )
+    CY[is.na(Y)] = 0
+  }  else missNA = F; missNAY = F
+
+  if(is.null(ncomp)){
+    ncomp = min(nrow(X)-1, ncol(X))
+  }
+
+  scores = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadings = matrix(0, nrow = ncol(X), ncol = ncomp )
+  scoresY = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadingsY = matrix(0, nrow = ncol(Y), ncol = ncomp )
+  weights = matrix(0, nrow = ncol(X), ncol = ncomp )
+
+  for (i in 1:ncomp) {
+    iter = 1
+    M = diag(ncol(X)) #matriz de pesos
+    #Initiate the scores with the variable with the highest variance when there are no NAs with the one with least NAs instead
+    if(missNAY){
+      u_old = Y[,1,drop=FALSE]
+      u_old[is.na(u_old)] = 0
+    } else u_old = Y[,which.max(apply(Y,2,var))[[1]],drop=FALSE]
+
+    w_new = if(missNA) crossprod(X_sinNA%*%M, u_old)/drop(t(CY) %*% u_old^2) else crossprod(X%*%M, u_old)/drop(crossprod(u_old))
+    w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+    t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+    c_new = if(missNA)  crossprod(Y_sinNA, t_new) / (t(CY) %*% t_new^2)  else crossprod(Y, t_new)/drop(crossprod(t_new))
+
+    u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+    p_new = if(missNA)  crossprod(X_sinNA, t_new)/(t(C) %*% t_new^2)  else crossprod(X, t_new)/drop(crossprod(t_new))
+
+    while (sqrt(drop(crossprod(u_new-u_old)))>1e-6 && iter<100) {
+      #Update
+      t_old = t_new
+      p_old = p_new
+      c_old = c_new
+      u_old = u_new
+      iter = iter + 1
+
+      Xpred = tcrossprod(t_new, p_new)
+      SCE = colSums(Xpred^2)
+      SCT = colSums(X^2)
+      R2 = SCE/SCT
+      #I = sqrt(abs(w_new/sum(w_new))*as.matrix(R2))
+      #I = ((w_new/sum(w_new))^2)*as.matrix(R2^2)
+      #M = diag(as.vector(I))
+
+      D = sapply(R2/median(R2), function(x) ifelse(x>1,x^2,0))
+      W = sapply(abs(w_new/(median(w_new)+0.000001)), function(x) ifelse(x>1,sqrt(x),0))
+      M = diag(as.vector(D*W))
+
+      #Recalculate T, P, W, U and C
+      w_new = if(missNA) crossprod(X_sinNA%*%M, u_old) / drop(t(CY) %*% u_old^2) else crossprod(X%*%M, u_old)/drop(crossprod(u_old))
+      w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+      t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+      c_new = if(missNA) crossprod(Y_sinNA, t_new) / (t(CY) %*% t_new^2)  else crossprod(Y, t_new)/drop(crossprod(t_new))
+
+      u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+      p_new = if(missNA) crossprod(X_sinNA, t_new) / (t(C) %*% t_new^2)  else  crossprod(X, t_new)/drop(crossprod(t_new))
+
+    }
+    loadings[,i] = p_new
+    scores[,i] = t_new
+    loadingsY[,i] = c_new
+    scoresY[,i] = u_new
+    weights[,i] = w_new
+
+    X = X - tcrossprod(t_new,p_new)
+    Y = Y - tcrossprod(t_new,c_new)
+
+    if(missNA){
+      X_sinNA = X
+      X_sinNA[is.na(X)]= 0
+      Y_sinNA = Y
+      Y_sinNA[is.na(Y)]= 0
+    }
+
+  }
+
+  weightsStar = weights%*%solve(crossprod(loadings, weights))
+  coefficients = tcrossprod(weightsStar, loadingsY)
+  yhat = as.matrix(X) %*% coefficients
+
+  rownames(loadings) = rownames(weights) = rownames(weightsStar) = rownames(coefficients) = colnames(X)
+  rownames(loadingsY) = colnames(coefficients) = colnames(Y)
+  rownames(scores) = rownames(scoresY) = rownames(X)
+  colnames(loadings) = colnames(scores)= colnames(scoresY)= colnames(loadingsY)= colnames(weights) = colnames(weightsStar) = paste0('p',1:ncomp)
+
+  return(list(scores=scores, loadings = loadings, scoresY=scoresY, loadingsY = loadingsY, weights = weights, weightsStar = weightsStar, coefficients = coefficients ))
+}
+
+
+### Pruebas del algoritmo desarrollado ----------
+
+#Corn dataset
+
+library(pcv)
+data("corn")
+X = corn$spectra
+Y = corn$moisture
+
+#Calcular el número óptimo de componentes
+
+res_cross = pls_cross(X = X, Y = Y, scaling = 'standard', blocks = NULL, scalingY = 'standard', ncomp = NULL, k = 5, rep = 10, parallel = FALSE) #7m de ejecución
+
+r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
+mean_r2_per_component = apply(r2_array, 1, mean)
+
+q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+mean_q2_per_component = apply(q2_array, 1, mean)
+
+rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+mean_rmse_per_component = apply(rmse_array, 1, mean)
+
+# Improvement of 0.01 in R2 and Q2 positive increment
+r2_diff = diff(mean_r2_per_component)
+q2_diff = diff(mean_q2_per_component)
+
+ncomp = {
+  idx = which(!(diff(mean_r2_per_component) >= 0.01 & diff(mean_q2_per_component) > 0))
+  if (length(idx) == 0) length(mean_r2_per_component) else idx[1]}
+
+plsr_fin = nipals_pls(X = X, Y = Y, k = k, scaling = scaling, scalingY = scalingY, ncomp = ncomp)
+
+
+# Simrel dataset
+
+load("C:/Users/maide/OneDrive/Escritorio/estancia/simula/Datos_simrel.Rdata")
+
+X = simul$X
+Y = simul$Y
+
+#Calcular el número óptimo de componentes
+
+res_cross = pls_cross(X = X, Y = Y, scaling = 'center', blocks = NULL, scalingY = 'center', ncomp = NULL, k = 5, rep = 10, parallel = FALSE) #20s de ejecución
+
+r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
+mean_r2_per_component = apply(r2_array, 1, mean)
+
+q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+mean_q2_per_component = apply(q2_array, 1, mean)
+
+rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+mean_rmse_per_component = apply(rmse_array, 1, mean)
+
+# Improvement of 0.01 in R2 and Q2 positive increment
+r2_diff = diff(mean_r2_per_component)
+q2_diff = diff(mean_q2_per_component)
+
+ncomp = {
+  idx = which(!(diff(mean_r2_per_component) >= 0.01 & diff(mean_q2_per_component) > 0))
+  if (length(idx) == 0) length(mean_r2_per_component) else idx[1]}
+
+X = scale(X, scale = F)
+Y = scale(Y, scale = F)
+
+plsr_fin = nipals_pls(X = X, Y = Y, ncomp = ncomp) #R2 0.786 with 2 components. No manda los coeficientes a cero como ya sabíamos pero si nos fijamos en las variables que se
+#alejan del cero, la selección que hace es correcta y los coeficientes que les asigna también lo son
+
+

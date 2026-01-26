@@ -1,0 +1,27 @@
+{
+    "id": "C64116FB",
+    "path": "C:/Users/maide/Dropbox/PLSandO/R/PCA.R",
+    "project_path": "R/PCA.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1758026734974.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "297,55",
+        "scrollLine": "290",
+        "docOutlineVisible": "0"
+    },
+    "folds": "337|27|366|2|\n370|23|387|2|\n391|24|425|2|\n429|20|435|2|\n461|23|466|2|\n468|24|473|2|\n475|25|484|2|\n",
+    "lastKnownWriteTime": 1769420602,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1769420602314,
+    "read_only": false,
+    "read_only_alternatives": []
+}

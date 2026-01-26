@@ -1,0 +1,5 @@
+"0","set.seed(132)"
+"0","Psel_rns = matrix(rnorm(2*32, mean = 0, sd = 1), nrow=2)"
+"0","Pirr_rns = matrix(rnorm(1*32, mean = 0, sd = 1), nrow=1)  "
+"0",""
+"0","Prns = rbind(Psel_rns,Pirr_rns)"

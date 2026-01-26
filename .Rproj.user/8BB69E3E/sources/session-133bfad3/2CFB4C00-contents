@@ -1,0 +1,10 @@
+
+library(ropls)
+data(sacurine)
+genderFc <- sacurine$sampleMetadata[, "gender"]
+sacurine.plsda <- opls(sacurine$dataMatrix, genderFc)
+
+
+data(iris)
+
+iris.plsda <- opls(iris[,1:4], iris[,5])

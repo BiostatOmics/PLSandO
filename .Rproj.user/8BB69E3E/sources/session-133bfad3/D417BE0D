@@ -1,0 +1,27 @@
+{
+    "id": "D417BE0D",
+    "path": "C:/Users/maide/OneDrive/Escritorio/estancia/pruebas algo/prueba7_correccion_1_12_25_redcomp.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1764439850387.0,
+    "source_on_save": false,
+    "relative_order": 31,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "36,28",
+        "scrollLine": "0"
+    },
+    "folds": "4|32|16|0|\n19|41|34|0|\n36|47|64|0|\n66|43|162|0|\n164|85|286|0|\n290|70|411|0|\n413|112|510|0|\n512|130|557|0|\n559|92|625|0|\n",
+    "lastKnownWriteTime": 1764705019,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1765289010454,
+    "read_only": false,
+    "read_only_alternatives": []
+}

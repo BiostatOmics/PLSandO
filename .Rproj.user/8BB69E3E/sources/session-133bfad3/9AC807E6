@@ -1,0 +1,27 @@
+{
+    "id": "9AC807E6",
+    "path": "C:/Users/maide/OneDrive - UPV/estancia/modelos_cluster/model1.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1765279886740.0,
+    "source_on_save": false,
+    "relative_order": 35,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "562,0",
+        "scrollLine": "0"
+    },
+    "folds": "3|41|18|0|\n20|47|48|0|\n50|43|146|0|\n148|85|257|0|\n259|67|377|0|\n379|102|472|0|\n474|114|519|0|\n",
+    "lastKnownWriteTime": 1765287395,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1765289697684,
+    "read_only": false,
+    "read_only_alternatives": []
+}

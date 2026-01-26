@@ -1,0 +1,181 @@
+crossVal = function(iter, X, Y, ncomp, k = 5, scaling, scalingY, seed, method){
+  
+  if(method=='loo') k = nrow(X)
+  
+  folds = createFold(X, k, seed)
+  
+  R2 = matrix(0, length(folds), ncomp)
+  Q2 = matrix(0, 1, ncomp)
+  RMSE = matrix(0, nrow(X), ncomp)
+  PRESS = matrix(0, length(folds),ncomp)
+  n = nrow(X)
+  
+  for (i in 1:length(folds)){
+    
+    ## Scaling X
+    
+    if(class(X)!='list' && scaling %in% c('softBlock','hardBlock')) blocks = rep(1, times = ncol(X)) else blocks = NULL
+    
+    if (class(X)=='list') {
+      if (!scaling %in% c("softBlock", "hardBlock")) warning('When blocks are considered we recommend using either softBlock or hardBlock scaling')
+      if (length(unique(sapply(X, nrow)))!=1) return(stop('All blocks must have the same observations'))
+      blocks = rep(seq_along(X), times = sapply(x, nrow) )
+      X = do.call(cbind, X)
+    }
+    
+    Xfold = X[-folds[[i]],,drop=FALSE]
+    Yfold = Y[-folds[[i]],,drop=FALSE]
+    
+    if (scaling != 'none') {
+      escalado = Scaling(Xfold, scaling= scaling, blocks = blocks)
+      Xfold = escalado$x
+      centrado = escalado$centering
+      escalado = escalado$scaling
+      Xval = sweep(X[folds[[i]],,drop=FALSE], 2, centrado, FUN = "-")
+      Xval = sweep(Xval, 2, escalado, FUN = "/")
+    } else{
+      escalado = rep(1, times = ncol(Xfold))
+      centrado = rep(0, times = ncol(Xfold))
+      Xval = X[folds[[i]],,drop=FALSE]
+    }
+    
+    ## Scaling Y
+    
+    if (scalingY != 'none') {
+      escaladoY = Scaling(y, scaling= scalingY, blocks = NULL)
+      y = escaladoY$x
+      centradoY = escaladoY$centering
+      escaladoY = escaladoY$scaling
+      Yval = sweep(Y[folds[[i]],,drop=FALSE], 2, centradoY, FUN = "-")
+      Yval = sweep(Yval, 2, escaladoY, FUN = "/")
+    } else{
+      escaladoY = rep(1, times = ncol(y))
+      centradoY = rep(0, times = ncol(y))
+      Yval = Y[folds[[i]],,drop=FALSE]
+    }
+    
+    mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
+    
+    for (j in 1:ncomp){
+      
+      coefficients = mypls$weightsStar[,j,drop=FALSE] %*% t(mypls$loadingsY[,j,drop=FALSE])
+      Ypred = as.matrix(Xval) %*% coefficients
+      PRESS[i,j] = sum((Yval-Ypred)^2)
+      RMSE[i,j] = sqrt((1/n)*PRESS[i,j])
+      
+      SCE = sum(colSums(Ypred**2))
+      SCT = sum(colSums((Yval-mean(Yval))**2))
+      
+      R2[i,j] = SCE/SCT
+      Q2[i,j] = 1-(PRESS[i,j] / SCT)
+      
+    }
+  }
+  return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE))
+  
+}
+
+
+### Prueba NIPALS
+
+
+nipals_pls = function(X, Y, ncomp = NULL ){
+
+  X = as.matrix(X)
+  Y = as.matrix(Y)
+
+  if(any(is.na(X))||any(is.na(Y))){
+    missNA =  T
+    X_sinNA = X
+    X_sinNA[is.na(X)]= 0
+    C = matrix(1, ncol = ncol(X), nrow = nrow(X) )
+    C[is.na(X)] = 0
+    if(any(is.na(Y))) missNAY = T else missNAY = F
+    Y_sinNA = Y
+    Y_sinNA[is.na(Y)]= 0
+    CY = matrix(1, ncol = ncol(Y), nrow = nrow(Y) )
+    CY[is.na(Y)] = 0
+  }  else missNA = F; missNAY = F
+
+  if(is.null(ncomp)){
+    ncomp = min(nrow(X)-1, ncol(X))
+  }
+
+  scores = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadings = matrix(0, nrow = ncol(X), ncol = ncomp )
+  scoresY = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadingsY = matrix(0, nrow = ncol(Y), ncol = ncomp )
+  weights = matrix(0, nrow = ncol(X), ncol = ncomp )
+
+  for (i in 1:ncomp) {
+    iter = 1
+    #Initiate the scores with the variable with the highest variance when there are no NAs with the one with least NAs instead
+    if(missNAY){
+      u_old = Y[,1,drop=FALSE]
+      u_old[is.na(u_old)] = 0
+    } else u_old = Y[,which.max(apply(Y,2,var))[[1]],drop=FALSE]
+
+    w_new = if(missNA) t(t(u_old) %*% X_sinNA / drop(t(CY) %*% u_old^2)) else crossprod(X, u_old) / drop(crossprod(u_old))
+    w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+    t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+    c_new = if(missNA) t((t(t_new)%*%Y_sinNA) / (t(CY) %*% t_new^2))  else crossprod(Y, t_new)/ drop(crossprod(t_new))
+
+    u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+    p_new = if(missNA) t((t(t_new)%*%X_sinNA)) / (t(C) %*% t_new^2)  else  crossprod(X,t_new) / drop(crossprod(t_new))
+
+    while (sqrt(drop(crossprod(u_new-u_old)))>1e-6 && iter<100) {
+      #Update
+      t_old = t_new
+      p_old = p_new
+      c_old = c_new
+      u_old = u_new
+      iter = iter + 1
+
+      #Recalculate T, P, W, U and C
+      w_new = if(missNA) t(t(u_old) %*% X_sinNA / drop(t(CY) %*% u_old^2)) else crossprod(X, u_old) / drop(crossprod(u_old))
+      w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+      t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+      c_new = if(missNA) t((t(t_new)%*%Y_sinNA) / (t(CY) %*% t_new^2))  else crossprod(Y, t_new)/ drop(crossprod(t_new))
+
+      u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+      p_new = if(missNA) t((t(t_new)%*%X_sinNA)) / (t(C) %*% t_new^2)  else  crossprod(X,t_new) / drop(crossprod(t_new))
+
+    }
+    loadings[,i] = p_new
+    scores[,i] = t_new
+    loadingsY[,i] = c_new
+    scoresY[,i] = u_new
+    weights[,i] = w_new
+
+    X = X - t_new%*%t(p_new)
+    Y = Y - t_new%*%t(c_new)
+
+    if(missNA){
+      X_sinNA = X
+      X_sinNA[is.na(X)]= 0
+      Y_sinNA = Y
+      Y_sinNA[is.na(Y)]= 0
+    }
+
+  }
+
+  weightsStar = weights%*%solve(t(loadings)%*%weights)
+
+  coefficients = weightsStar %*% t(loadingsY)
+
+  rownames(loadings) = rownames(weights) = rownames(weightsStar) = rownames(coefficients) = colnames(X)
+  rownames(loadingsY) = colnames(coefficients) = colnames(Y)
+  rownames(scores) = rownames(scoresY) = rownames(X)
+  colnames(loadings) = colnames(scores)= colnames(scoresY)= colnames(loadingsY)= colnames(weights) = colnames(weightsStar) = paste0('p',1:ncomp)
+
+  return(list(scores=scores, loadings = loadings, scoresY=scoresY, loadingsY = loadingsY, weights = weights, weightsStar = weightsStar, coefficients = coefficients ))
+}
+
+
+

@@ -1,0 +1,7 @@
+"0","## Inicial"
+"0","datos1$Estadio<-factor(datos1$Estadio)"
+"0","datos1$Grupo_etiopatogenico<-factor(datos1$Grupo_etiopatogenico)"
+"0","datos1$Ulceracion<-factor(datos1$Ulceracion)"
+"0","datos1$Satelitosis<-factor(datos1$Satelitosis)"
+"0","datos1$Regresion<-factor(datos1$Regresion)"
+"0","datos1$Invasion_vascular<-factor(datos1$Invasion_vascular)"

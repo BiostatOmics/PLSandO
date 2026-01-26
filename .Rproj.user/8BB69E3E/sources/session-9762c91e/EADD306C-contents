@@ -1,0 +1,582 @@
+---
+title: "Hands on MORE"
+author: "Maider Aguerralde Martin & Ángeles Arzalluz"
+date: "2025-01-20"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+editor_options:
+  chunk_output_type: inline
+---
+
+MORE (Multi-Omics REgulation) is an R package which is designed to infer condition-specific multi-omic regulatory networks. Developed by the BiostatOmics Lab, it is publicly available on the [BiostatOmics GitHub repository](https://github.com/BiostatOmics/MORE/). 
+
+MORE uses either Multiple Linear Regression (MLR) or Partial Least Squares (PLS) to model the expression of the features of a target omic as a function of experimental variables (e.g., disease or treatment) and the target feature's potential regulators. For MLR, it applies advanced variable selection techniques such as ElasticNet or Iterative Sparse Group Lasso, while for PLS, it uses Jack-Knife or Permutation techniques in combination with the Variable Importance in Projection (VIP) to identify the significant regulators of the target omic feature expression in the biological system under study. Additionally, MORE can incorporate prior regulatory knowledge and clinical data.
+
+# Installation
+
+Currently, the package can be directly installed from GitHub using the `devtools` R package by:
+
+```{r, eval=FALSE}
+install.packages("devtools")
+devtools::install_github("BiostatOmics/MORE")
+```
+
+For a more comprehensive overview of MORE functionalities, refer to the User Guide available [here](https://github.com/BiostatOmics/MORE/blob/main/vignettes/UsersGuide.pdf). 
+
+For further information on the methodological details, please read the paper [paper](https://doi.org/10.1093/bib/bbaf270).  
+
+# Load MORE
+
+```{r}
+library(MORE)
+```
+
+# Data {.tabset}
+
+In this tutorial, we will use the [STATegra](https://www.nature.com/articles/s41597-019-0202-7) dataset, available [HERE](https://github.com/BiostatOmics/STATegra_data). A reduced version of this data is included in MORE as example data.
+
+The STATegra dataset contains time-series data for pre-B-cell differentiation in mice, including six time points (0h, 2h, 6h, 12h, 18h, 24h). A set of samples has been subjected to drug-controlled induction of the Ikaros transcription factor, while the Control cells have not and, therefore, will not differentiate into B-cells.
+
+First, load the data as follows:
+
+```{r}
+load('DataSTATegra.RData')
+```
+
+DataSTATegra loads the following objects: 
+
+* `GeneExpressionDE`: RNA-seq data. Matrix with differentially expressed genes across conditions in rows and samples in columns.
+
+* `data.omics`: List including each of the regulatory omics of the RNA-seq. Each omic is included in the list as a matrix with regulators in rows and samples in columns
+
+* `associations`:  List containing pairs of gene-regulator known to interact, based on the literature and/or databases. 
+
+* `edesign`: Matrix including the experimental design for each sample.
+
+**Important:** MORE requires that the GeneExpression matrix and all matrices of the regulatory omics contain data from the same samples and in the same order. If sample labels differ, MORE will assume that samples are in the same order. 
+
+Below, we preview each object to demonstrate how to format input data for MORE.
+
+## GeneExpressionDE
+
+```{r}
+head(GeneExpressionDE)
+```
+
+## data.omics
+
+```{r}
+names(data.omics)
+```
+
+```{r}
+head(data.omics$TF)
+```
+
+## associations
+
+```{r}
+names(associations)
+```
+
+```{r}
+head(associations$TF)
+```
+
+## edesign
+
+```{r}
+head(edesign)
+```
+
+# Running MORE
+
+To run MORE, for any of its possible model types, we use the function `more()`. The user can specify the type of regression model (one of MLR, PLS1, or PLS2) with the parameter `method` and the variable selection method to apply with the `varSel` parameter (EN or ISGL for MLR, or Jack or Perm for PLS1 or PLS2). 
+
+However, some parameters are common for any regression or variable selection technique used:
+
+* `omicType`: A vector with as many elements as the number of omics, indicating whether each omic contains numeric (0) or binary (1) values. If not specified, MORE will automatically detect the omic types. However, the user MUST stop the process if the automatic detection is incorrect.
+
+* `minVariation`: A vector specifying the minimum required variation across conditions for a regulator to be included in the model.
+
+* `scaleType`: Indicates the type of scaling to be used (one of auto, softBlock or hardBlock). 
+
+* `interactions`: By default, it is set to TRUE to allow MORE to test condition-dependent regulatory interactions. This effectively increases the number of predictors in the model but provides condition-specific regulators.
+
+* `parallel`: By default, FALSE. Considers parallelization in numberOfCores-1 when TRUE or the number of cores the user asks for when a number is provided.
+
+**Note:** MLR and PLS1 models create a model for each of the target omic features provided. PLS2 creates a unique model for all the target omic features, but cannot consider prior regulatory knowledge.
+
+In this tutorial, the data we will use has already been partially preprocessed. We will apply low variation filtering thresholds to those regulatory omics that were not/barely filtered and set the threshold to 0 for those that were already filtered.
+
+```{r}
+## omic order: "miRNA"  "DNase"  "Methyl" "TF"
+minVar = c(0, 0.1, 0.1, 0)
+names(minVar) = names(data.omics)
+```
+
+MORE requires a single covariate representing sample conditions. In this dataset, we have information about the time and type of treatment, but we will only create MORE models to compare Ikaros vs control samples.
+
+```{r}
+edesign = edesign[,-1, drop=FALSE]
+```
+
+
+## MLR + EN
+
+This is how an MLR model with ElasticNet variable selection would be run:
+
+```{r,eval=FALSE}
+
+MLRmodel = more(targetData = GeneExpressionDE,
+                regulatoryData = data.omics,
+                associations = associations,
+                condition = edesign,
+                omicType = 0,
+                scaleType = 'auto',
+                interactions = TRUE,
+                minVariation = minVar,
+                varSel = 'EN',
+                alfaEN = NULL,
+                correlation = 0.7,
+                method = 'MLR',
+                parallel = FALSE)
+
+```
+
+```{r, echo=FALSE}
+load('MLRmodel.RData')
+```
+
+### Results
+
+`MLRmodel` output is a list containing the following objects:
+
+```{r}
+names(MLRmodel)
+```
+
+#### ResultsPerTargetF {.tabset}
+
+The list `ResultsPerTargetF` contains one element per target feature (genes in this example). For example, we show the information MORE returns for the gene *ENSMUSG00000000078*:
+
+* `Y`: A data.frame with observed, fitted, and residual values for the target gene.
+
+* `X`: A data.frame containing the predictor variables included in the model.
+
+* `coefficients`: A matrix with the estimated coefficients for the selected regulators. The sign and magnitude of the coefficients indicate the direction and the strength of each association.
+
+* `allRegulators`: A data.frame with all the potential regulators in rows and the following information in the columns: gene, regulator, omic, area (the third optional column in the associations table), filter (whether the regulator has been filtered out of the model, and the reason) and Rel (1 if the model has selected the regulator or 0 if not).
+
+* `relevantRegulators`: A character vector containing the IDs of the relevant regulators selected by the model. If a  “representative” of multicollinear regulators (mc) is detected as relevant, all the correlated regulators are also retrieved.
+
+##### Y
+
+```{r}
+head(MLRmodel$ResultsPerTargetF$ENSMUSG00000000078$Y)
+```
+
+##### X
+
+```{r}
+head(MLRmodel$ResultsPerTargetF$ENSMUSG00000000078$X)
+```
+
+##### coefficients
+
+```{r}
+head(MLRmodel$ResultsPerTargetF$ENSMUSG00000000078$coefficients)
+```
+
+##### allRegulators
+
+```{r}
+head(MLRmodel$ResultsPerTargetF$ENSMUSG00000000078$allRegulators)
+```
+
+Note that some regulator include `_mc1_` followed by a number and letters `R`, `N` and `P` appended to their IDs (e.g. `mc1_1_P`). These suffixes indicate relationships within highly correlated subgroups of regulators. More specifically, the first number indicates the subgroup of highly connected regulators in the correlation network; for example, there may be two clusters of similarly correlated regulators, each of which has included a representative in the model: `mc1_1` and `mc1_2`. The suffix `_R` means that this regulator was selected as the representative for its group, while `_N` and `_P` mean that the regulator is negatively or positively correlated with its representative, respectively.
+
+##### relevantRegulators
+
+```{r}
+head(MLRmodel$ResultsPerTargetF$ENSMUSG00000000078$relevantRegulators)
+```
+
+#### GlobalSummary {.tabset}
+
+The list `GlobalSummary` contains the general results of all the models created. We show the information MORE returns:
+
+* `TargetFNOregu`: A matrix containing information about the genes with no initial regulators.
+
+* `TargetFNOmodel`: A matrix containing information about the genes for which MLR models could not be fitted and the reason why (either an error during MLR fit or a lack of regulators remaining after elastic net variable selection). 
+
+* `GoodnessOfFit`: A matrix that collects the R-squared value, the Root Mean Squared Error (RMSE), the Normalized RMSE (NRMSE), and the number of relevant regulators selected by the model. The NRMSE is calculated by normalizing the RMSE using the range of the response variable ($y_{max} - y_{min}$). This information could help filter results, for instance, by selecting the regulatory models that best explain the gene variance across the conditions.
+
+* `ReguPerTargetF`: A matrix containing, for each omic and gene, the number of initial regulators supplied (-Ini), the number of regulators included in the initial model (-Mod) after the series of filters applied by MORE, and the number of relevant regulators included in the final model (-Rel).
+
+* `GlobalRegulators`: A vector of the most relevant regulators, i.e., those relevant for a larger part of the genes. It selects the third quartile of the regulators after ranking them by the number of regulations they have.
+
+* `HubTargetF`: A vector of genes that accumulate a high number of regulators, according to the MORE models. The third quartile of the gene list ranked by the number of regulators (similar calculation to the one done for GlobalRegulators).
+
+##### TargetFNOregu
+
+```{r}
+head(MLRmodel$GlobalSummary$TargetFNOregu)
+```
+
+##### TargetFNOmodel
+
+```{r}
+head(MLRmodel$GlobalSummary$TargetFNOmodel)
+```
+
+##### GoodnessOfFit
+
+```{r}
+head(MLRmodel$GlobalSummary$GoodnessOfFit)
+```
+
+##### ReguPerTargetF
+
+```{r}
+head(MLRmodel$GlobalSummary$ReguPerTargetF)
+```
+
+##### GlobalRegulators
+
+```{r}
+head(MLRmodel$GlobalSummary$GlobalRegulators)
+```
+
+##### HubTargetF
+
+```{r}
+head(MLRmodel$GlobalSummary$HubTargetF)
+```
+
+
+## MLR + ISGL
+
+To run MORE with Iterative Sparse Group Lasso variable selection, we would run:
+
+```{r,eval=FALSE}
+
+MLRISGLmodel = more(targetData = GeneExpressionDE,
+                regulatoryData = data.omics,
+                associations = associations,
+                condition = edesign,
+                omicType = 0,
+                scaleType = 'auto',
+                interactions = TRUE,
+                minVariation = minVar,
+                varSel = 'ISGL',
+                groupingISGL = 'MF_0.7',
+                method = 'MLR')
+
+```
+
+As shown, we slightly changed the main function's parameters. In this case, we used `groupingISGL` instead of `alfaEN` to change from the EN alfa mixing parameter to the type of approach to consider when creating the groups in the ISGL. In this example, we used the multicollinearity approach (MF) with a correlation threshold of 0.7 to make the groups. Other options:
+
+* `MF_X`: Takes the same approach as in the multicollinearity filter. Grouping the variables which correlate more than X.
+* `PCA_X`: Extracts as many PCA components to explain X percent of the variability of the data and assigns the variables to the component in which they had the highest loadings. 
+
+
+## PLS1 + Jack + VIP
+
+To run MORE with Partial Least Squares (PLS), we slightly change the parameters of the main function. In this case, we use `alfa` instead of `alfaEN` to change from EN alfa mixing parameter to alpha (I type error) threshold to consider a p-value significant. 
+
+In the case of PLS models, we will refer to significant regulators rather than relevant regulators. So outputs like `ResultsPerTargetF$relevantRegulators` change to outputs like `ResultsPerTargetF$significantRegulators`.
+
+To run a PLS model with Jack-Knife as variable selection technique, we can run:
+
+```{r,eval=FALSE}
+
+PLSJackmodel = more(targetData = GeneExpressionDE,
+                regulatoryData = data.omics,
+                associations = associations,
+                condition = edesign,
+                omicType = 0,
+                scaleType = 'auto',
+                interactions = TRUE,
+                minVariation = minVar,
+                varSel = 'Jack',
+                alfa = 0.05,
+                method = 'PLS1')
+
+```
+
+## PLS1 + Perm + VIP
+
+To run a PLS model with Permutation as variable selection technique, we can run:
+
+```{r,eval=FALSE}
+
+PLS1model = more(targetData = GeneExpressionDE,
+                regulatoryData = data.omics,
+                associations = associations,
+                condition = edesign,
+                omicType = 0,
+                scaleType = 'auto',
+                interactions = TRUE,
+                minVariation = minVar,
+                varSel = 'Perm',
+                alfa = 0.05,
+                method = 'PLS1')
+
+```
+
+## PLS2
+
+All the above-presented models compute a unique model for each gene considered. However, when there is no prior regulatory knowledge, it could be beneficial to run a PLS2, which creates a unique model for all the genes. To do so, we run:
+
+```{r,eval=FALSE}
+
+PLS2mmodel = more(targetData = GeneExpressionDE,
+                regulatoryData = data.omics,
+                condition = edesign,
+                omicType = 0,
+                scaleType = 'auto',
+                interactions = TRUE,
+                minVariation = minVar,
+                varSel = 'Perm',
+                alfa = 0.05,
+                method = 'PLS2')
+
+```
+
+# Interpreting MORE results
+
+We will use the results from the PLS model with Jack-Knife variable selection to demonstrate the various functionalities that MORE incorporates.
+
+First, we run the `RegulationPerCondition()` function, which returns a summary of the significant regulations for each gene. We can load the pre-computed results to avoid excessive runtime:
+
+```{r, eval=FALSE}
+regpcond = RegulationPerCondition(PLSJackmodel)
+```
+```{r, echo=FALSE, include=FALSE}
+load('PLSJackmodel.Rdata')
+```
+
+```{r}
+load('RegulationperConditionPLS.RData')
+```
+
+```{r}
+head(regpcond)
+```
+
+Looking at the results of `regpcond`, remember that `Group_0` and `Group_1` correspond to the Control and Ikaros conditions, respectively (as codified in `edesign`). The condition-specific coefficients can be interpreted as follows:
+
+* If two experimental groups have the same coefficients, the regulator has the same effect on the gene in both conditions.
+
+* If the coefficient is 0 in one of the groups, the regulator has no effect on the gene under that condition. 
+
+* Experimental conditions with different, non-zero coefficients indicate that the regulator affects the gene in these conditions, but the magnitude of the effect is not the same for the groups.
+
+```{r, eval=FALSE}
+regpcondMLR = RegulationPerCondition(MLRmodel)
+```
+
+```{r,echo=FALSE, include=FALSE}
+load('RegulationperCondition.RData')
+regpcondMLR = regpcond
+load('RegulationperConditionPLS.RData')
+```
+
+We will also show the output of running the same function to the output of an MLR model with ElasticNet variable selection so that the user can see how information about multicollinearity is added to this output.
+
+```{r}
+head(regpcondMLR)
+```
+
+To further explore the results of MORE, we can start with some summary plots of the computed models. 
+
+The `summaryPlot` function represents the percentage of genes with relevant regulations and the percentage of regulations found to be relevant in each omic, depending on whether the `bytargetF` parameter is set to TRUE or FALSE. We can also stratify the results by filtering by $R^2$, e.g. see the percentage of genes for which the model explains at least 90% of the variance:
+
+```{r}
+summaryPlot(PLSJackmodel, regpcond, filterR2 = 0.9)
+```
+
+```{r}
+summaryPlot(PLSJackmodel, regpcond, byTargetF = FALSE, filterR2 = 0.9)
+```
+
+Notice that transcription factors account for the majority of regulatory relationships and that, when looking at the percentage of regulations, all omic layers have more relevant regulations in the Ikaros condition, indicative of the activation of the gene regulation machinery as a result of the action of this transcription factor.
+
+After this prior study, if one is interested in focusing their efforts on analyzing the regulatory networks of a subset of genes that were better modelled by MORE, they can use `filterR2` to do so.
+
+To create smaller regulatory networks, we will apply the filter previously used in this example ($R^2>0.9$).
+
+In MORE, there are two ways to obtain the subset of genes that showed an $R^2$ above the one the user wants to consider. The first is:
+
+```{r, eval=FALSE}
+regpcond_filtered = RegulationPerCondition(MLRmodel, filterR2 = 0.9)
+```
+
+However, in the cases where MORE found a high amount of significant regulations this can be very time-consuming. So we recommend using this second option specially designed to apply the filter:
+
+```{r}
+regpcond_filtered = FilterRegulationPerCondition(output = PLSJackmodel, outputRegpcond = regpcond, filterR2 = 0.9)
+```
+
+To explore the differential regulators across experimental conditions and omics, MORE incorporates the `differentialRegPlot()` function. It can be applied either to the full set of genes or to those filtered by the $R^2$. In our case, we will apply it to the filtered subset of genes, as we will focus our efforts on analyzing the results for these specific genes. This plot can be easily obtained by:
+
+```{r}
+differentialRegPlot(output = PLSJackmodel, outputRegpcond = regpcond_filtered)
+```
+
+This plot helps us explore the proportion of significant regulators that are shared in the analyzed conditions and the proportion of condition-specific significant regulators by the regulatory omics.
+
+MORE also provides visualization functions to explore gene-regulator relationships for the pairs identified as significant by MORE. 
+
+When no specific regulator is provided, a plot is generated for each gene, displaying all its significant regulators along with the gene’s expression pattern. 
+
+To also show how these plots could help us verify the correlated patterns of the regulators detected by MORE, we will create those plots for the MLR with the ElasticNet models' output.
+
+Since our example gene has many relevant regulators, we will show the regulatory patterns of the Foxo1 TF, which is representative of the mc1_1 group of correlated regulators. In this group, the Gtf2b TF and the mmu-miR-1187 miRNA are positively and negatively correlated regulators with Foxo1, respectively. This results can be observed looking at the expected activation/repression regulatory patterns:
+
+```{r, fig.show='hold', out.width='50%'}
+plotMORE(MLRmodel, targetF = "ENSMUSG00000000078", regulator = "Foxo1", order = TRUE, size = 6)
+
+plotMORE(MLRmodel, targetF = "ENSMUSG00000000078", regulator = "Gtf2b", order = TRUE, size = 6)
+
+plotMORE(MLRmodel, targetF = "ENSMUSG00000000078", regulator = "mmu-miR-1187",  order = TRUE, size = 6)
+```
+
+When more than 50 observations are considered in the data to be analyzed, identifying patterns becomes difficult. For that reason, to simplify the exploration of the patterns, observations are ordered so that their target feature expression is shown in an ascending way; this is easily done by `order = TRUE`. However, in this specific case, as the dataset contains observations that have been measured also in different data points, exploring those patterns without taking into account this temporality makes no sense. For this reason, in this case, these plots should be re-explored in the following way:
+
+```{r, fig.show='hold', out.width='50%'}
+plotMORE(MLRmodel, targetF = "ENSMUSG00000000078", regulator = "Foxo1", order = FALSE, size = 6)
+
+plotMORE(MLRmodel, targetF = "ENSMUSG00000000078", regulator = "Gtf2b", order = FALSE, size = 6)
+
+plotMORE(MLRmodel, targetF = "ENSMUSG00000000078", regulator = "mmu-miR-1187",  order = FALSE, size = 6)
+```
+
+
+Additionally, if a regulator is specified but no gene is provided, MORE will generate plots for all gene–regulator pairs in which that regulator was identified as significant. Let’s do this for miRNA mmu-miR-146a-5p, a miRNA that regulates 4 genes according to the MORE results:
+
+```{r, fig.show='hold', out.width='50%'}
+plotMORE(MLRmodel, targetF = NULL, regulator = "mmu-miR-146a-5p", order = FALSE)
+```
+
+If the relationship between the gene and the regulator is difficult to discern in those plots, we can simplify them and try to see them in a scatterplot. Re-using the previous example:
+
+```{r}
+plotMORE(MLRmodel, targetF = "ENSMUSG00000000078", regulator = "Foxo1", simplify =  TRUE)
+```
+
+Returning to the results of the PLS model, we can explore the Scores and Weight Plots trying to better understand which regulators co-act, their relation to the gene we are analyzing, and the relation of the conditions with the target feature and the regulators.
+
+```{r, fig.show='hold', out.width='50%'}
+plotScores(PLSJackmodel, targetF = "ENSMUSG00000000078")
+plotWeight(PLSJackmodel, targetF = "ENSMUSG00000000078")
+```
+
+Looking at the Score plot, first it can be seen how there is not a clear separation between the conditions in the different dimension. Other dimensions should be explored to see if there is any dimension that could explain better the differences across conditions. Looking at the labels, it can not be seen differences according to the different batches. However, looking at the time points it can be seen some aggrupation of the different time points. According to this results, it would be a good idea to take into account this time points in the experimental design when creating the MORE models or correcting the batch effect previous to creating the models.
+
+Looking at the Weights plot, we can see how a group of TFs co-act together (some of them include Zfp775, Hivep2, Foxo1, Myb, Mef2d, Arid5a,...) there are other groups that can be detected as the pair mmu-miR-3074-1-3p, mmu-miR-466n-3p and others but we won't list all of them. We can also see that in this dimensions we could expect a positive relationship between the regulators of the first group listed and the ENSMUSG00000000078 gene. However, it is important to analyze the rest of the dimensions to have a better idea of the whole model.
+
+Additionally, in MORE, we can easily visualize the regulatory networks inferred by MORE using the following code:
+
+```{r}
+networkMORE(regpcond_filtered, cytoscape = FALSE)
+```
+
+Since these networks can be complex to analyze directly in R, MORE includes an extension to export them for interactive exploration in Cytoscape. To enable this, Cytoscape **MUST** be open and operative before executing:
+
+```{r, eval=FALSE}
+networkMORE(regpcond_filtered, cytoscape = TRUE)
+```
+
+This code creates the following networks:
+
+![Network for Control condition](Group0.png)
+![Network for Ikaros condition](Group1.png)
+
+To look only at the different regulations between conditions, we can create differential regulatory networks by:
+
+```{r , eval=FALSE}
+networkMORE(regpcond_filtered, group1 = '0', group2 = '1', cytoscape = TRUE)
+```
+
+![Differential network Control vs Ikaros](Group_1-Group_0.png)
+
+# Downstream analysis
+
+The MORE package also includes several functional enrichment functionalities to do a complete downstream analysis.
+
+To use them, we first need an annotation file. In this example, we will download the mouse annotation dataset from Gene Ontology. Please note that we need to format the annotation correctly so that it can be used by MORE. We show an example of the format the annotation should have to use it with MORE: 
+
+```{r, include=FALSE}
+library(org.Mm.eg.db)
+library(GO.db)
+library(AnnotationDbi)
+```
+
+```{r}
+gene_ids = keys(org.Mm.eg.db, keytype = "ENSEMBL")
+annotation = AnnotationDbi::select(org.Mm.eg.db,
+                         keys = gene_ids,
+                         columns = c('GO','ENSEMBL'),
+                         keytype = "ENSEMBL")
+
+GOIDs = unique(annotation$GO)
+cl = c('GOID','DEFINITION','TERM')
+go_def = AnnotationDbi::select(GO.db, keys=GOIDs, columns=cl, keytype="GOID")
+colnames(go_def) = c('GO','GO.definition','GO.term')
+
+annotation = merge(annotation, go_def, by = 'GO', all.x = TRUE)
+annotation = annotation[,c(2,1,6,5,3,4)]
+annotation = annotation[-which(is.na(annotation$GO)),,drop=FALSE]
+head(annotation[,1:3],10)
+```
+
+## Over Representation Analysis (ORA)
+
+An ORA can be run either for the hub target features or the target features regulated by the global regulators, indicating TRUE or FALSE, respectively, on the `byHubs` parameter. It can be easily done with the following code, but in this case, we will not run it.
+
+```{r, eval=FALSE}
+
+regincond_ikaros = RegulationInCondition(regpcond_filtered, cond = '1')
+
+ORA_ikaros = oraMORE(MLRmodel,regincond_ikaros, byHubs = TRUE, annotation = annotation)
+
+ORA_ikaros_globtarget = oraMORE(MLRmodel,regincond_ikaros, byHubs = FALSE, annotation = annotation)
+
+```
+
+The reference gene set for the ORA is formed by the target features (genes in this case) given to the MORE model.
+
+## Gene Set Enrichment Analysis (GSEA)
+
+Users can also perform a Gene Set Enrichment Analysis (GSEA) to compare the number of significant/relevant regulators between the two experimental conditions. As in ORA, the reference gene set is formed by the target features. In this case, the analysis can be run as follows:
+
+```{r, include=FALSE, echo=FALSE}
+library(ggplot2)
+library(clusterProfiler)
+```
+
+
+```{r, warning=FALSE}
+
+regincond_control = RegulationInCondition(regpcond_filtered, cond = '0')
+regincond_ikaros = RegulationInCondition(regpcond_filtered, cond = '1')
+gsea_out = gseaMORE(regincond_control,regincond_ikaros,  annotation = annotation,p.adjust.method = 'none')
+clusterProfiler::dotplot(gsea_out,  split=".sign") +  facet_grid(.~.sign, labeller = as_labeller(c(activated = "Ikaros", suppressed = "Control")))
+```
+Finally, users may be interested in exploring the regulatory networks associated with a specific pathway—particularly one identified as altered during the GSEA. MORE makes this analysis straightforward.
+
+For example, in the example we were analizing, we could be interested in the *mitochondrion* pathway, so we can run the following to analyze it:
+
+```{r, eval=FALSE}
+networkMORE(regpcond_filtered, cytoscape = TRUE,annotation = annotation, pathway = 'mitochondrion')
+networkMORE(regpcond_filtered, group1 = '0',group2 = '1', cytoscape = TRUE,annotation = annotation, pathway = 'mitochondrion')
+```
+![Network for Control condition in mitochondrion pathway](Group0Mito.png)
+![Network for Ikaros condition in mitochondrion pathway](Group1Mito.png)
+![Differential network Control vs Ikaros in mitochondrion pathway](Group01Mito.png)

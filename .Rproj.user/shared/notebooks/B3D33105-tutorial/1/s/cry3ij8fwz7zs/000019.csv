@@ -1,0 +1,5 @@
+"0","# Score Plot for each block and the super level. Observations colores by the Petal.Width
+pcaPlot(mb_model, type = 'scree')
+"
+"2","Error in plot_layout(ncol = 2) : could not find function ""plot_layout""
+"

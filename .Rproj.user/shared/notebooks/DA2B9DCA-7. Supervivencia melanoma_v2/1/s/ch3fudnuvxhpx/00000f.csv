@@ -1,0 +1,2 @@
+"0","#Eliminar los pacientes sin seguimiento"
+"0","datos<-datos[-which(datos$meses==0),]"

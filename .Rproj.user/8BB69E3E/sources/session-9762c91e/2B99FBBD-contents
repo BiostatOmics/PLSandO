@@ -1,0 +1,380 @@
+#Crear una función para el computo del f1score en los resultados de MORE
+
+Createf1table = function(signifreg, all_settings, gene){
+  resmat = matrix(0, nrow = 2,ncol=2)
+  all_settings = lapply(all_settings, as.data.frame)
+  #take only the regulators of the gene
+  all_set_gene = lapply(all_settings, function(x) x[which(x[,2]==gene),])
+  #search significant regulators
+  signireg = array(unlist(sapply(all_set_gene, function(x) x[rowSums(is.na(cbind(x[,3],x[,4]))) != 2,1])))
+  #search significant regulators
+  nosignireg = array(unlist(sapply(all_set_gene, function(x) x[!rowSums(is.na(cbind(x[,3],x[,4]))) != 2,1])))
+  #Compute TP
+  resmat[1,1] = length(intersect(signifreg, signireg))
+  #Compute FP
+  resmat[1,2] = length(setdiff(signifreg,signireg))
+  #Compute FN
+  resmat[2,1] = length(setdiff(signireg,signifreg))
+  #Compute TN
+  resmat[2,2] = length(setdiff(nosignireg,signifreg))
+  return(resmat)
+}
+
+ctables = function(signifreg, signireg, nosignireg){
+  resmat = matrix(0, nrow = 2,ncol=2)
+  #Compute TP
+  resmat[1,1] = length(intersect(signifreg, signireg))
+  #Compute FP
+  resmat[1,2] = length(setdiff(signifreg,signireg))
+  #Compute FN
+  resmat[2,1] = length(setdiff(signireg,signifreg))
+  #Compute TN
+  resmat[2,2] = length(setdiff(nosignireg,signifreg))
+  return(resmat)
+}
+
+Createf1tableperomic = function(signifreg, all_settings, gene){
+  resmat = matrix(0, nrow = 2,ncol=2)
+  all_settings = lapply(all_settings, as.data.frame)
+  signifreg = lapply(all_settings, function(x) intersect(x[,'ID'],signifreg))
+  #take only the regulators of the gene
+  all_set_gene = lapply(all_settings, function(x) x[which(x[,'Gene']==gene),])
+  #search significant regulators
+  signireg = lapply(all_set_gene, function(x) x[rowSums(is.na(cbind(x[,'Effect.Group1'],x[,'Effect.Group2']))) != 2,1])
+  names(signireg) = names(all_set_gene)
+  #search significant regulators
+  nosignireg = lapply(all_set_gene, function(x) x[!rowSums(is.na(cbind(x[,'Effect.Group1'],x[,'Effect.Group2']))) != 2,1])
+  names(nosignireg) = names(all_set_gene)
+  oresmat = vector("list", length = length(signireg))
+  names(oresmat) = names(signireg)
+  for (i in 1:length(signireg)){
+    oresmat[[i]] = ctables(signifreg = signifreg[[i]], signireg = signireg[[i]], nosignireg = nosignireg[[i]])
+  }
+  return(oresmat)
+}
+Sumtableperomic = function(tTABLE, nTABLE){
+  tTABLE = lapply(names(tTABLE), function(x) tTABLE[[x]]+nTABLE[[x]])
+  names(tTABLE) = names(nTABLE)
+  return(tTABLE)
+}
+f1s = function(t, epsilon){
+  #takes as argumenta a table in which t[1,1]=TP, t[1,2] = FP, t[2,1]= FN, t[2,2] = TN
+  precision = t[1,1] / (t[1,1]+t[1,2]+epsilon) #correct P predictions relative to total P predictions
+  recall = t[1,1] / (t[1,1]+t[2,1]+epsilon) # correct P predictions relative to total actual positives
+  return((2*precision*recall)/(precision+recall+epsilon))
+}
+
+accuracy = function(t, epsilon){
+  recall = t[1,1] / (t[1,1]+t[2,1]+epsilon)
+  specificity = t[2,2] / (t[2,2]+t[1,2]+epsilon)
+  return((recall*specificity)/2)
+}
+
+
+f1res <- function(output, all_settings,filename){
+
+  mt = matrix(0,2,2)
+  Tt = rep(list(mt), length(output$arguments$regulatoryData))
+  names(Tt) = names(output$arguments$regulatoryData)
+
+  for (i in 1:length(output$ResultsPerGene)){
+    gene = names(output$ResultsPerGene)[i]
+    to = Createf1tableperomic(output$ResultsPerGene[[gene]]$significantRegulators, all_settings, gene)
+    Tt = Sumtableperomic(Tt, to)
+  }
+
+  if(!is.null(output$GlobalSummary$GenesNOmodel)){
+    for (i in 1:nrow(output$GlobalSummary$GenesNOmodel)){
+      gene = output$GlobalSummary$GenesNOmodel[i,1]
+      to = Createf1tableperomic(c(NaN), all_settings, gene)
+      Tt = Sumtableperomic(Tt, to)
+    }
+  }
+  epsilon = 0.00001
+  f1scoro = sapply(Tt, function(x) f1s(x,epsilon = epsilon))
+  accuo = sapply(Tt, function(x) accuracy(x,epsilon = epsilon))
+  TotalTable = Reduce('+',Tt)
+  f1scor = f1s(TotalTable, epsilon = epsilon)
+  accu = accuracy(TotalTable,epsilon = epsilon)
+
+  resu = list(f1score=f1scor, accuracy=accu, f1scoreo=f1scoro,accuracyo=accuo, ctime = output$results$ctime)
+
+  output$results = resu
+
+  saveRDS(output, paste0("E:/MORE_i2sysbio/Stepw/results/tablas/",filename))
+
+}
+
+
+
+## Encontrar el archivo my_settings que corresponde a cada fichero a analizar
+
+setwd("E:/MORE_i2sysbio/Stepw/results")
+
+file_list <- list.files(path="E:/MORE_i2sysbio/Stepw/results")
+
+file_list = file_list[3:38]
+
+for (i in 1:length(file_list)){
+
+  temp_data <- readRDS(file_list[i])
+
+  filename = file_list[i]
+
+  s<-strsplit(file_list[i],'_')[[1]][4]
+  n<-strsplit(file_list[i],'_')[[1]][5]
+
+  name = paste("E:/datos_MOSim/all_settings/my_settings",20,s,n,"rep.rds", sep="_")
+
+  all_settings = readRDS(name)
+  data.omics = temp_data$arguments$regulatoryData
+  #Filter from all_settings regulators that have been removed due to not being DE
+
+  all_settings<-all_settings[-1]
+  all_settings<-lapply(names(all_settings), function(x) all_settings[[x]][all_settings[[x]]$ID %in% rownames(data.omics[[x]]),])
+  names(all_settings)<-names(data.omics)
+
+  #Erase duplicates from Methylation
+  all_settings$`Methyl-seq`<-unique(all_settings$`Methyl-seq`)
+
+  f1res(temp_data,all_settings,filename)
+  cat(filename)
+
+
+}
+
+## Realizar el mismo análisis para PLS2 ####
+
+f1res <- function(output, all_settings,filename){
+
+  mt = matrix(0,2,2)
+  Tt = rep(list(mt), length(output$arguments$regulatoryData))
+  names(Tt) = names(output$arguments$regulatoryData)
+
+  for (i in 1:length(output$ResultsPerGene)){
+    gene = names(output$ResultsPerGene)[i]
+    to = Createf1tableperomic(output$ResultsPerGene[[gene]]$significantRegulators, all_settings, gene)
+    Tt = Sumtableperomic(Tt, to)
+  }
+
+  if(!is.null(output$GlobalSummary$GenesNOmodel)){
+    for (i in 1:nrow(output$GlobalSummary$GenesNOmodel)){
+      gene = output$GlobalSummary$GenesNOmodel[i,1]
+      to = Createf1tableperomic(c(NaN), all_settings, gene)
+      Tt = Sumtableperomic(Tt, to)
+    }
+  }
+  epsilon = 0.00001
+  f1scoro = sapply(Tt, function(x) f1s(x,epsilon = epsilon))
+  accuo = sapply(Tt, function(x) accuracy(x,epsilon = epsilon))
+  TotalTable = Reduce('+',Tt)
+  f1scor = f1s(TotalTable, epsilon = epsilon)
+  accu = accuracy(TotalTable,epsilon = epsilon)
+
+  resu = list(f1score=f1scor, accuracy=accu, f1scoreo=f1scoro,accuracyo=accuo, ctime = output$ctime)
+
+  output$results = resu
+
+  saveRDS(output, paste0("D:/resultados_definitivos/PLS2_TF_mirna/resultados/",filename))
+
+}
+
+
+setwd("D:/resultados_definitivos/PLS2_TF_mirna/")
+
+file_list_done <- list.files(path="D:/resultados_definitivos/PLS2_TF_mirna/resultados")
+
+file_list <- list.files(path="D:/resultados_definitivos/PLS2_TF_mirna/")
+
+file_list = setdiff(file_list,file_list_done)
+
+file_list = file_list[1:110]
+
+for (i in 1:length(file_list)){
+
+  temp_data <- readRDS(file_list[i])
+
+  filename = file_list[i]
+
+  pDEG<-strsplit(file_list[i],'_')[[1]][2]
+  p<-strsplit(file_list[i],'_')[[1]][3]
+  s<-strsplit(file_list[i],'_')[[1]][4]
+  n<-strsplit(file_list[i],'_')[[1]][7]
+
+  if(pDEG=='30'){
+    name = paste("D:/datos_MOSim/all_settings/my_settings_30",p,s,pDEG,"rep.rds", sep = "_")
+  } else{
+    name = paste("D:/datos_MOSim/all_settings/my_settings",p,s,pDEG,"rep.rds", sep="_")
+  }
+
+  all_settings = readRDS(name)
+  data.omics = temp_data$arguments$regulatoryData
+  #Filter from all_settings regulators that have been removed due to not being DE
+
+  all_settings<-all_settings[-1]
+  all_settings = all_settings[c(3,5)]
+  all_settings<-lapply(names(all_settings), function(x) all_settings[[x]][all_settings[[x]]$ID %in% rownames(data.omics[[x]]),])
+  names(all_settings)<-names(data.omics)
+
+  #Take only miRNA and TF the ones that are used
+
+  f1res(temp_data,all_settings,filename)
+
+
+}
+
+setwd("D:/resultados_definitivos/PLS2_TF_mirna/PLS_jack")
+
+file_list_done <- list.files(path="D:/resultados_definitivos/PLS2_TF_mirna/resultados")setwd("D:/resultados_definitivos/PLS2_TF_mirna/")
+
+file_list_done <- list.files(path="D:/resultados_definitivos/PLS2_TF_mirna/resultados")
+
+file_list <- list.files(path="D:/resultados_definitivos/PLS2_TF_mirna/")
+
+file_list = setdiff(file_list,file_list_done)
+
+file_list = file_list[1:110]
+
+for (i in 1:length(file_list)){
+
+  temp_data <- readRDS(file_list[i])
+
+  filename = file_list[i]
+
+  pDEG<-strsplit(file_list[i],'_')[[1]][2]
+  p<-strsplit(file_list[i],'_')[[1]][3]
+  s<-strsplit(file_list[i],'_')[[1]][4]
+  n<-strsplit(file_list[i],'_')[[1]][7]
+
+  if(pDEG=='30'){
+    name = paste("D:/datos_MOSim/all_settings/my_settings_30",p,s,pDEG,"rep.rds", sep = "_")
+  } else{
+    name = paste("D:/datos_MOSim/all_settings/my_settings",p,s,pDEG,"rep.rds", sep="_")
+  }
+
+  all_settings = readRDS(name)
+  data.omics = temp_data$arguments$regulatoryData
+  #Filter from all_settings regulators that have been removed due to not being DE
+
+  all_settings<-all_settings[-1]
+  all_settings = all_settings[c(3,5)]
+  all_settings<-lapply(names(all_settings), function(x) all_settings[[x]][all_settings[[x]]$ID %in% rownames(data.omics[[x]]),])
+  names(all_settings)<-names(data.omics)
+
+  #Take only miRNA and TF the ones that are used
+
+  f1res(temp_data,all_settings,filename)
+
+
+}
+
+file_list <- list.files(path="D:/resultados_definitivos/PLS2_TF_mirna/")
+
+file_list = setdiff(file_list,file_list_done)
+
+file_list = file_list[1:110]
+
+for (i in 1:length(file_list)){
+
+  temp_data <- readRDS(file_list[i])
+
+  filename = file_list[i]
+
+  pDEG<-strsplit(file_list[i],'_')[[1]][2]
+  p<-strsplit(file_list[i],'_')[[1]][3]
+  s<-strsplit(file_list[i],'_')[[1]][4]
+  n<-strsplit(file_list[i],'_')[[1]][7]
+
+  if(pDEG=='30'){
+    name = paste("D:/datos_MOSim/all_settings/my_settings_30",p,s,pDEG,"rep.rds", sep = "_")
+  } else{
+    name = paste("D:/datos_MOSim/all_settings/my_settings",p,s,pDEG,"rep.rds", sep="_")
+  }
+
+  all_settings = readRDS(name)
+  data.omics = temp_data$arguments$regulatoryData
+  #Filter from all_settings regulators that have been removed due to not being DE
+
+  all_settings<-all_settings[-1]
+  all_settings = all_settings[c(3,5)]
+  all_settings<-lapply(names(all_settings), function(x) all_settings[[x]][all_settings[[x]]$ID %in% rownames(data.omics[[x]]),])
+  names(all_settings)<-names(data.omics)
+
+  #Take only miRNA and TF the ones that are used
+
+  f1res(temp_data,all_settings,filename)
+
+
+}
+
+
+setwd("D:/resultados_definitivos/PLS2_TF_mirna/PLS_jack")
+file_list <- list.files(path="D:/resultados_definitivos/PLS2_TF_mirna/PLS_jack")
+
+f1res <- function(output, all_settings,filename){
+
+  mt = matrix(0,2,2)
+  Tt = rep(list(mt), length(output$arguments$regulatoryData))
+  names(Tt) = names(output$arguments$regulatoryData)
+
+  for (i in 1:length(output$ResultsPerGene)){
+    gene = names(output$ResultsPerGene)[i]
+    to = Createf1tableperomic(output$ResultsPerGene[[gene]]$significantRegulators, all_settings, gene)
+    Tt = Sumtableperomic(Tt, to)
+  }
+
+  if(!is.null(output$GlobalSummary$GenesNOmodel)){
+    for (i in 1:nrow(output$GlobalSummary$GenesNOmodel)){
+      gene = output$GlobalSummary$GenesNOmodel[i,1]
+      to = Createf1tableperomic(c(NaN), all_settings, gene)
+      Tt = Sumtableperomic(Tt, to)
+    }
+  }
+  epsilon = 0.00001
+  f1scoro = sapply(Tt, function(x) f1s(x,epsilon = epsilon))
+  accuo = sapply(Tt, function(x) accuracy(x,epsilon = epsilon))
+  TotalTable = Reduce('+',Tt)
+  f1scor = f1s(TotalTable, epsilon = epsilon)
+  accu = accuracy(TotalTable,epsilon = epsilon)
+
+  resu = list(f1score=f1scor, accuracy=accu, f1scoreo=f1scoro,accuracyo=accuo, ctime = output$results$ctime)
+
+  output$results = resu
+
+  saveRDS(output, paste0("D:/resultados_definitivos/PLS2_TF_mirna/PLS_jack/resultados/",filename))
+
+}
+
+
+for (i in 3:length(file_list)){
+
+  temp_data <- readRDS(file_list[i])
+
+  filename = file_list[i]
+
+  pDEG<-strsplit(file_list[i],'_')[[1]][2]
+  p<-strsplit(file_list[i],'_')[[1]][3]
+  s<-strsplit(file_list[i],'_')[[1]][4]
+  n<-strsplit(file_list[i],'_')[[1]][7]
+
+  if(pDEG=='30'){
+    name = paste("D:/datos_MOSim/all_settings/my_settings_30",p,s,pDEG,"rep.rds", sep = "_")
+  } else{
+    name = paste("D:/datos_MOSim/all_settings/my_settings",p,s,pDEG,"rep.rds", sep="_")
+  }
+
+  all_settings = readRDS(name)
+  data.omics = temp_data$arguments$regulatoryData
+  #Filter from all_settings regulators that have been removed due to not being DE
+
+  all_settings<-all_settings[-1]
+  all_settings = all_settings[c(3,5)]
+  all_settings<-lapply(names(all_settings), function(x) all_settings[[x]][all_settings[[x]]$ID %in% rownames(data.omics[[x]]),])
+  names(all_settings)<-names(data.omics)
+
+  #Take only miRNA and TF the ones that are used
+
+  f1res(temp_data,all_settings,filename)
+
+
+}

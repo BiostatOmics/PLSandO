@@ -1,0 +1,3604 @@
+library(shiny)
+library(DT)
+library(readxl)
+library(MORE)
+library(visNetwork)
+library(clusterProfiler)
+library(shinyalert)
+library(ComplexUpset)
+source("helpers.R")
+
+options(shiny.maxRequestSize = 300*1024^2)
+
+# Specify the application port
+options(shiny.host = "0.0.0.0")
+options(shiny.port = 8180)
+
+read_file <- function(file_path) {
+  ext <- tools::file_ext(file_path)
+  if (ext == "csv") {
+    read.csv(file_path, row.names = 1)
+  } else if (ext == "txt") {
+    read.table(file_path, header = TRUE, sep = "\t", row.names = 1)
+  } else if (ext == "xlsx") {
+    read_excel(file_path)
+  } else {
+    NULL
+  }
+}
+
+shiny::addResourcePath('www', '/home/shiny-app/www')
+
+ui <- fluidPage(
+  
+  
+  tags$head(tags$style(HTML("
+      .header-home-image {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        position: relative;
+        height: 50px;
+        padding-top: 0px;
+      }
+        
+      .header-home-image img.more1 {
+        width: 35%;
+        max-width: 300px;
+        top: 10px;
+        margin-top:50px;
+      }
+        
+      .header-home-image img.biostatomics1 {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 150px;
+        height: auto;
+      }
+      
+      .header-home-image img.logoUPV1 {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 200px;
+        height: auto;
+      }
+      
+      .header-Download-Example-Dataset-image {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        height: 50px;
+        padding-top: 80px;
+      }
+      
+      .title{
+        flex-grow: 1;
+        text-align: center;
+      }
+      
+      .images-right{
+      display: flex;
+      }
+      
+      .header-Download-Example-Dataset-image img.more2 {
+        width: 180px;
+        height: auto;
+      }
+      
+      .header-Download-Example-Dataset-image img.biostatomics2 {
+        width: 150px;
+        height: auto;
+      }
+      
+      .header-Download-Example-Dataset-image .title {
+        margin: 0 auto;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        color: #003366;
+        font-family: 'Arial', sans-serif;
+      }
+      
+      .button-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 12px;
+            
+      }
+      .button-container button {
+        width: 200px;
+        height: 50px;
+        font-size: 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+      }
+      .button-container button:hover {
+        background-color: #0056b3;
+      }
+      .text-section {
+            text-align: justify;
+            font-size: 18px;
+            margin-top: 200px;
+            padding: 10px;
+            color: #333;
+      }
+      
+      .text-section-2 {
+            text-align: justify;
+            font-size: 18px;
+            margin-top: 50px;
+            padding: 10px;
+            color: #333;
+      }
+      
+      .text-section-3 {
+            text-align: justify;
+            font-size: 18px;
+            margin-top: 5px;
+            padding: 10px;
+            color: #333;
+      }
+      
+      .download-example-dataset-section {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        margin-top: 40px;
+      }
+      
+      .download-item {
+        text-align: center;
+        width: 200px;
+      }
+      
+      .download-item img {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 10px;
+      }
+      
+      .download-item .shiny-download-link {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        background-color: #007bff;
+        color: white;
+        text-align: center;
+        border-radius: 5px;
+        text-decoration: none;
+      }
+      
+      .download-item .shiny-download-link:hover {
+        background-color: #0056b3;
+      }
+      
+      .text-section-download {
+            text-align: justify;
+            font-size: 18px;
+            margin-top: 20px;
+            padding: 10px;
+            color: #333;
+      }
+      
+      .text-section-download-2 {
+            text-align: justify;
+            font-size: 18px;
+            margin-top: 10px;
+            padding: 10px;
+            color: #333;
+      }
+      
+      .Target-Data-Section {
+            text-align: justify;
+            font-size: 18px;
+            margin-top: 100px;
+            padding: 10px;
+            color: #333;
+      }
+      
+      .title-2-box {
+        border: 1px solid #ccc;
+        padding: 10px;
+        background-color: #98A6D4;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+    
+      .title-2 {
+        font-size: 20px;
+        font-weight: bold;
+        margin-top: 10px;
+        margin-bottom: 0px;
+        color: #003366;
+      }
+      
+      .description-box {
+        border: 1px solid #ccc;
+        padding: 5px;
+        background-color: #CCCCCC;
+        margin-top: 0px;
+        margin-bottom: 20px;
+        text-align: justify;
+      }
+      .text-section-example {
+        text-align: justify;
+        font-size: 20; /* Tamaño de fuente */
+        color: #564D80; /* Color del texto */
+      }
+      .next-button-container {
+      display: flex;
+      justify-content: flex-end; 
+      margin-top: 20px;
+      }
+      .next-button {
+        width: 300px;
+        height: 50px;
+        font-size: 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+      }
+      .next-button:hover {
+        background-color: #0056b3;
+      }
+      .regulatory-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          .regulatory-table th, .regulatory-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+          }
+          .regulatory-table th {
+            background-color: #f2f2f2;
+          }
+          .regulatory-table td a {
+            color: blue;
+            text-decoration: underline;
+            cursor: pointer;
+          }
+          .regulatory-table td {
+            padding-left: 50px;
+          }
+          .regulator-name-box {
+            font-size: 1.2em; /* Tamaño de fuente más grande */
+            font-weight: bold; /* Negrita */
+            color: #003366; /* Color del texto */
+            margin-top: 10px; /* Espacio superior */
+            margin-bottom: 10px; /* Espacio inferior */
+            background-color: #f0f0f0; /* Color de fondo */
+            padding: 10px; /* Espaciado interno */
+            border-radius: 5px; /* Bordes redondeados */
+            text-align: left; /* Alinear el texto a la izquierda */
+            width: fit-content; /* Ajustar el ancho al contenido */
+          }
+        .regulator-name-box {
+    font-size: 1.2em; /* Tamaño de fuente más grande */
+    font-weight: bold; /* Negrita */
+    color: #003366; /* Color del texto */
+    margin-top: 10px; /* Espacio superior */
+    margin-bottom: 10px; /* Espacio inferior */
+    background-color: #f0f0f0; /* Color de fondo */
+    padding: 10px; /* Espaciado interno */
+    border-radius: 5px; /* Bordes redondeados */
+    text-align: left; /* Alinear el texto a la izquierda */
+    width: fit-content; /* Ajustar el ancho al contenido */
+}
+
+.title-box {
+        border: 1px solid #ccc;
+        padding: 10px;
+        background-color: #ccffcc;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+        border-radius: 5px;
+        color: #003366;
+        font-weight: bold;
+}
+      
+    .filter-section {
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+      }
+      .filter-title {
+        font-family: 'Arial', sans-serif;
+        font-size: 20px;
+        color: #333;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .filter-input {
+        margin-bottom: 15px;
+      }
+      
+      .start-button {
+        background-color: #FFA500 !important; /* Color naranja */
+        color: white !important;
+        border: none;
+        border-radius: 5px;
+        width: 200px;
+        height: 50px;
+        font-size: 16px;
+      }
+      .start-button:hover {
+        background-color: #CC8400 !important; /* Color naranja más oscuro */
+      }
+      
+    "))),
+  
+  tabsetPanel(id = "tabset",
+              type = "tabs",
+              tabPanel("Home", div(class = "header-home-image",
+                                   img(src = "www/MORE.png", alt = "More Image", class = "more1"),
+                                   img(src = "www/Biostatomics.jpg", alt = "Biostatomics Image", class = "biostatomics1"),
+                                   img(src = "www/logoUPV.png", alt = "Logo UPV", class = "logoUPV1")),
+                       div(class = "text-section",
+                           p(strong("MORE") ,"(Multi-Omics REgulation) is a tool for generating multi-omic regulatory networks across different phenotypes/experimental conditions, using data from at least two omic modalities (a target omic and a regulatory omic). MORE estimates regulatory networks from your data and facilitates comparison between phenotypes, helping you interpret the regulatory mechanisms they reveal.")),
+                       
+                       div(class = "button-container",
+                           actionButton("download_data", "Download Example Data"),
+                           actionButton("example_data", "Example Data"),
+                           actionButton("start", "Start Using MORE", class = "start-button"),
+                           actionButton("tutorial", "Tutorial")
+                       ),
+                       div(class = "text-section-2",
+                           p(strong("Remember!") ,"This Shiny app offers a simplified version of the MORE methodology. Please refer to the MORE R package on GitHub for additional features, customisation options, and the full analytical workflow. Available below. ")
+                       ),
+                       
+                       tags$script(HTML("function goToPage() {
+                                        window.location.href = https://github.com/BiostatOmics/MORE/}")),
+                       div(class = "button-container",
+                           
+                           tags$a(href = "https://github.com/BiostatOmics/MORE/", 
+                                  HTML('<img src="www/github.jpg" alt="Github Icon" style="width:150px;height:150px;">')))
+                       
+              ),
+              
+              tabPanel("Download Example Dataset", value= "Download Example Dataset", 
+                       div(class = "header-Download-Example-Dataset-image",
+                           img(src = "www/MORE.png", alt = "More Image", class = "more2"),
+                           span(class = "title", "Download Example Dataset"),
+                           img(src = "www/Biostatomics.jpg", alt = "Biostatomics Image", class = "biostatomics2")
+                       ),
+                       div(class = "Dataset Descr", style = "margin-top:50px;", 
+                           div(class = "title-2-box",
+                               span(class = "title-2", "Description of the Example Dataset")),
+                           div(),
+                           div(class= "text-section-download-2", 
+                               p("The example dataset available for download is derived from a study of high-grade serous ovarian carcinoma (HGSOC) patients."),
+                               p("The downloadable ZIP files include the following data:"),
+                               tags$ul(
+                                 tags$li(strong("Target Data:"), " Gene expression matrix (RNA-Seq) for 50 differentially expressed genes across 22 patients."),
+                                 tags$li(strong("Regulatory Omic Data:"), " Matrices containing potential regulators across six molecular levels: lncRNAs, RNA-binding proteins (derived from RNA and proteomics), and transcription factors (derived from RNA, proteomics and phosphoproteomics)."),
+                                 tags$li(strong("Associations:"), " Predefined regulatory relationships between transcription factors and target genes obtained from TFlink and DoRothEA databases."),
+                                 tags$li(strong("Condition:"), "Phenotypic information for each patient, indicating treatment group: complete gross resection (R0)  or neoadjuvant chemotherapy (NACT).")
+                               ),
+                               p("This structure adheres to the data format required by the MORE package for multi-omic regulatory inference."),
+                               br(),
+                               p("You can read the full study at: ",
+                                 a(href = "https://www.cell.com/cell-reports/fulltext/S2211-1247(20)30392-2?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2211124720303922%3Fshowall%3Dtrue", 
+                                   target = "_blank", 
+                                   "Cell Reports article link")
+                               ),
+                       div(class = "title-2-box", style = "margin-top: 50px",
+                           span(class = "title-2", "Downloadable Example Datasets")),
+                       div(class= "text-section-download", 
+                           p("Select the format to download the example data:")
+                       ),
+                       
+                       div(class = "download-example-dataset-section",
+                           div(class = "download-item",
+                               img(src = "www/excel.png"),
+                               downloadButton("download_excel", "Download Excel")
+                           ),
+                           
+                           div(class = "download-item", 
+                               img(src = "www/csv.png"),
+                               downloadButton("download_csv", "Download CSV")
+                           ),
+                           
+                           div(class = "download-item",
+                               img(src = "www/txt.png"),
+                               downloadButton("download_txt", "Download TXT")
+                           )
+                       )
+       
+              ))),
+              
+              tabPanel("Run MORE with Example Dataset", value = "Run MORE with Example Dataset", div(class = "header-Download-Example-Dataset-image",
+                                                            img(src = "www/MORE.png", alt = "More Image", class = "more2"),
+                                                            span(class = "title", "Run MORE with Example Dataset"),
+                                                            img(src = "www/Biostatomics.jpg", alt = "Biostatomics Image", class = "biostatomics2")),
+                       div(class = "Target-Data-Section",
+                           tabsetPanel(type = "tabs",
+                                       
+                                       # Subpestaña Target Data
+                                       tabPanel("Target Data",
+                                                div(class = "title-2-box",
+                                                    span(class = "title-2", "Target Data")
+                                                ),
+                                                div(span(class = "text-section-example", 
+                                                         div(class = "description-box", 
+                                                             span(class = "text-section-example", 
+                                                                  "The", strong("Target Data"), "should consist of expression values for features of the target omic (e.g., gene expression data). Features of the target omic (e.g., genes) must be organised in", strong("rows,"),"and the conditions under which they were measured (e.g., patients) in",strong( "columns."))
+                                                         ),
+                                                         DTOutput("table_target_data")
+                                                ))
+                                       ),
+                                       
+                                       # Subpestaña Regulatory Data & Associations
+                                       tabPanel("Regulatory Data & Associations",
+                                                div(class = "title-2-box",
+                                                    span(class = "title-2", "Regulatory Data & Associations")
+                                                ),
+                                                div(span(class = "text-section-example", 
+                                                         
+                                                         div(class = "description-box", 
+                                                             span(class = "description-box",
+                                                                  "The", strong("regulatory"), "object contains the data for each regulatory omic, with a structure similar to the target data:", strong("regulators in rows"), "and", strong("conditions in columns."))
+                                                         ),
+                                                         
+                                                         
+                                                         div(span(class = "text-section-example", 
+                                                                  div(class = "description-box", 
+                                                                      span(class = "text-section-example",
+                                                                           p("The", strong("associations"), "object contains information about potential associations between target features and regulators. This data must include", strong("two mandatory columns"), "(with an optional third column):"),
+                                                                           tags$ul(
+                                                                             tags$li(strong("First column:"), "Target feature identifiers"),
+                                                                             tags$li(strong("Second column:"), " Regulator identifiers they are associated to"),
+                                                                             tags$li(strong("Third column (optional):"), "Description of the interaction type (e.g., for methylation data, whether a CpG site is located in a promoter region, first exon, etc.)"),
+                                                                           ),
+                                                                           p("Using the associations data", strong("is optional."), "You may omit the associations for a specific omic if you want", strong("all regulators"), "in that omic to be considered as potential regulators of", strong("all target features."), "Helpful when de novo regulations are to be explored."),
+                                                                      )
+                                                                  )
+                                                         )),
+                                                         
+                                                         div(class = "description-box", 
+                                                             span(class = "description-box",
+                                                                  " In this example, there are six different regulatory omics. Only three of the six regulatory omics have data about potential associations.")),
+                                                         
+                                                         tableOutput("regulatory_associations_table")
+                                                )),
+                                                uiOutput("regulatory_tables")
+                                       ),
+                                       
+                                       # Subpestaña Condition
+                                       tabPanel("Condition",
+                                                div(class = "title-2-box",
+                                                    span(class = "title-2", "Condition")
+                                                ),
+                                                div(span(class = "text-section-example", 
+                                                         div(class = "description-box", 
+                                                             span(class = "text-section-example", 
+                                                                  "The",  strong("Condition"), "object describes the condition of each sample, such as treatment groups, disease status, strains, drug doses, etc. The", strong( "row names must exactly match"), "the sample", strong(" names in the Target Data,"), "and they must appear in the same order.")
+                                                         ),
+                                                         DTOutput("table_condition")
+                                                ))
+                                       ),
+                                       tabPanel("Clinic",
+                                                div(class = "title-2-box",
+                                                    span(class = "title-2", "Clinic")
+                                                ),
+                                                div(span(class = "text-section-example", 
+                                                         div(class = "description-box", 
+                                                             span(class = "text-section-example", 
+                                                                  "The",  strong("Clinic"), "object contains the clinical variables, where", strong("rows represent samples"), "and", strong("columns represent clinical variables."), "The row names must", strong("exactly match"), "columns in the Target Data and must be in the same order. This dataset is", strong("completely optional."), "If no clinical data is required for your analysis, simply leave this input blank.")
+                                                         ),
+                                                         div(class = "description-box", 
+                                                             span(class = "text-section-example", 
+                                                                  "In this example no clinical data will be used.")
+                                                         )
+                                                         
+                                                ))
+                                       )
+                           )
+                       ),
+                       tabsetPanel(id = "sub_tabs", type = "tabs", tabPanel(value = "data_format", "Check data format", 
+                                            div(),
+                                            div(class = "text-section-3",
+                                                p("On this page, you can verify whether your uploaded data is correctly formatted. A message will inform you if the data meets the required format. Once confirmed, you can proceed to define whether your regulatory omics contain", strong("binary"), "or", strong("numerical"), "values." ),
+                                                p("You can also apply thresholds to filter out regulators with low-variation :"),
+                                                tags$ul(
+                                                  tags$li("For", strong("numerical regulators,"), "the threshold corresponds to the minimum standard deviation across conditions."),
+                                                  tags$li("For", strong("binary regulators,"), "it refers to the minimum change in proportion across conditions."),
+                                                ),
+                                                p("Regulators that do not meet the specified thresholds will be excluded from the regression models.")
+                                                ),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 1: Verify the Data Format")),
+                                            div(),
+                                            div(class = "text-section-3", 
+                                                p("Click the", strong("Check Format"), "button to validate your data.")),
+                                            div(class = "button-container", actionButton("validate_data_example", "Check data format")),
+                                            textOutput("error_message"),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 2: Select the Data Configuration")),
+                                            div(class = "text-section-3",
+                                            p("For each regulatory omic:"),
+                                            tags$ol(
+                                              tags$li(strong("Specify the data type"), "(numeric or binary) using the dropdown menu under each omic name."),
+                                              tags$li( strong("Set the variation threshold:"), "For numerical omics the minimum standard deviation and for binary omics, the minimum change in proportion. If left blank, a default value of 0 will be used."),
+                                            ),
+                                            p("After setting all values, be sure to click the", strong("Save"), "button to apply your configuration.")),
+                                            div(class = "button-container", actionButton("select_config_example", "Select Configuration")),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 3: Proceed to Model Preparation")),
+                                            div(class = "text-section-3", p("Once your data is validated and configured, click the", strong("Proceed"), "button to continue to the model configuration page.")),
+                                            div(),
+                                            
+                                            
+                                            div(class = "button-container", actionButton("prepare_model_example", "Prepare Your Model"))),
+                                   tabPanel(value = "prepare_model","Prepare your model",
+                                            div(class = "text-section-3", 
+                                                p("On this page, you will configure the predictive model to fit and its parameters. Once your setup is complete, you can run MORE to generate results and build the regulatory networks.")),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 1: Choose the Modeling Method")),
+                                            div(),
+                                            div(class = "text-section-3", 
+                                                p("Select one of the available predictive modeling approaches:"),
+                                                tags$ul(
+                                                  tags$li(strong("MLR (Multiple Linear Regression):"), "A standard method for modeling linear relationships" ),
+                                                  tags$li(strong("PLS (Partial Least Squares):"), "A dimensionality reduction technique for modeling linear relationships" )
+                                                ),
+                                                p("If you're unsure which method to use, we recommend reading the ",
+                                                  a(href = "https://academic.oup.com/bib/article/26/3/bbaf270/8169587", 
+                                                    target = "_blank", 
+                                                    "MORE paper"), "for guidance on model selection."
+                                                )),
+                                            selectInput("method_choice", "Method:", choices = c("PLS", "MLR"), selected = "PLS"),
+                                            conditionalPanel( # Inputs condicionales solo si se elige PLS1
+                                              condition = "input.method_choice == 'PLS'",
+                                              div(class = "title-2-box", span(class = "title-2", "Step 1.1: Set Model Parameters (for PLS only)")),
+                                              div(),
+                                              div(class = "text-section-3", 
+                                                  p("If you selected the", strong("PLS"), ", configure the following two parameters:"),
+                                                  tags$ul(
+                                                    tags$li(strong("Alpha ("),strong(HTML("&alpha;"),"):"), "The significance level to determine whether a regulator is considered important." ),
+                                                    tags$li(strong("VIP (Variable Importance in Projection):"), "Score indicating the contribution of each variable to the prediction." )
+                                                  ),
+                                                  p("A regulator must meet both the α and VIP thresholds to be considered significant")),
+                                                  
+                                              numericInput("alfa", "Alpha value:", value = 0.05, min = 0, max = 1, step = 0.01),
+                                              numericInput("vip", "VIP value:", value = 0.8, min = 0, step = 0.1)),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 2: Run MORE")),
+                                            div(class = "text-section-3",
+                                                p("Click the", strong("RUN MORE"), "button to execute the selected model with the chosen parameters.")),
+                                            div(class = "button-container", actionButton("runMore", "RUN MORE")),
+                                   div(class = "title-2-box", span(class = "title-2", "Optional: Save Your Model")),
+                                   div(),
+                                   div(class = "text-section-3", 
+                                       p("Once the model has been generated, you can", strong("download"), "it for future use. This allows you to skip re-running the analysis if you want to revisit your results later.")),
+                                            downloadButton("download_MORE_example", "Download the model")),
+                                   
+                                   
+                                   tabPanel("Regulation Per Condition",
+                                            div(class = "text-section-3",
+                                                p("On this page, we display a", strong("summary table"), "containing all significant ", strong("regulator–target"), "feature relationships identified by the MORE model (whether MLR or PLS). For each relationship, the table shows the", strong("regression coefficient"),  "linking the regulator to its target feature, which could be different for each experimental condition."),
+                                                p("The results will be used automatically if you’ve just run the model in this session. However, if you’ve previously saved a model, you can upload it here to skip re-running the previous steps and continue your analysis.")),
+                                                div(),
+                                                fileInput("upload_more_model_example", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 1: Run Regulation Per Condition")),
+                                            div(),
+                                            div(class = "text-section-3",
+                                                p("Click the button", strong("Regulation Per Condition"), "to generate and display the summary table."),
+                                                p("Use the search box to find specific target features or regulators."),
+                                                p("In addition,", strong("three summary figures"), "will be displayed:"),
+                                                tags$ul(
+                                                  tags$li("The percentage of significant regulators across regulatory omics and conditions." ),
+                                                  tags$li("The percentage of significant regulations across regulatory omics and conditions." ),
+                                                  tags$li("The differential regulators between conditions." )
+                                                )),
+                                                
+                                            div(class = "button-container", actionButton("runRegulation", "Regulation Per Condition")),
+                                            DTOutput("table_example"),
+                                            plotOutput("summaryPlot_example"),
+                                            plotOutput("summaryPlot2_example"),
+                                            plotOutput("differentialRegPlot_example"),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 2: Explore Target Feature-Regulator Relationships")),
+                                            div(class = "text-section-3", 
+                                                p("Use the dropdown menus to examine specific, significant target feature–regulator relationships.")),
+                                            
+                                            div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                fluidRow(column(6, selectizeInput("selected_target", "Select Target Feature:", choices = NULL, selected = NULL, multiple = FALSE, options = list(maxOptions=100))),
+                                                        column(6, selectizeInput("selected_regulator", "Select Regulator:", choices = NULL, selected = NULL, multiple = FALSE, options = list(maxOptions=100))))),
+                                            br(),
+                                            plotOutput("plot_more_output_example"),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 3: Filter Badly-Modelled Target Features")),
+                                            div(),
+                                            div(class = "text-section-3",
+                                                p("If you wish to focus on more robust results, apply a filter based on", strong("R²,"), "which measures how well the model explains the variation of each target feature."),
+                                                p("First, click", strong(" Update plots with R²"), " to refresh the summary figures based on your selected threshold. "),
+                                                p("Once you’ve identified an appropriate threshold, click ", strong("Filter the model"), "to apply the filter."),
+                                                p("Only features with an R² value above your specified threshold will be kept, allowing you to focus on the most reliably modelled features.")),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         numericInput("R2", "Select R2", value = 0.5, min = 0, max = 1, step = 0.01),
+                                                         div(class = "button-container", actionButton("updatePlot_example", "Update Plot with R2")),
+                                                         div(class = "button-container", actionButton("runRegulationWithR2_example", "Filter the model"))))),
+                                            div(),
+                                            DTOutput("table_example2"),
+                                            plotOutput("summaryPlot_example2"),
+                                            plotOutput("summaryPlot2_example2"),
+                                            
+                                            div(class = "title-2-box", span(class = "title-2", "Optional: Save Regulation Per Condition")),
+                                            div(),
+                                            div(class = "text-section-3",
+                                                p("Once you're satisfied with the results, you can download the summary table to reuse it later without re-running the model.")),
+                                            downloadButton("download_model_example", "Download Regulation Per Condition")),
+                                   
+                                   tabPanel("MORE Network",
+                                            div(class = "text-section-3", 
+                                                p("On this page, you can visualise the regulatory networks generated by the model. You can upload the saved models here to avoid re-running the analysis and continue your exploration seamlessly. To further customise the visualisation, you’ll need to configure a few parameters: ")),
+                                            div(class = "text-section-3", 
+                                                tags$ol(
+                                                  tags$li(strong("Group 1:"),"Select a group for the visualisation of its regulatory network." ),
+                                                  tags$li(strong("Group 2:"),"Optionally, select a group to compare against Group 1. This will enable the generation of", strong("differential networks")," between Group 1 and Group 2"),
+                                                  tags$li(strong("Percentile:"),"Selects the X% most influential regulations to be plotted. It helps with visualisation when huge regulatory networks are created as it reduces visual noise."),
+                                                  tags$li(strong("Pathway:"),"Optionally, select a biological pathway to visualise the regulatory network", strong("involved in that pathway."),  "It", strong("requires an annotation matrix")," to be loaded, with target features in the first column, GO term accession in the second, and GO term name in the third.")
+                                                )),
+                                            div(),
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_example", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_example", "Upload saved Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         actionButton( 
+                                                           inputId = "annotation_selector_button", 
+                                                           label = "Optionally load Annotation Matrix" ))
+                                                         ),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         selectizeInput("Group1", "Select Group 1", choices = NULL),
+                                                         selectizeInput("Group2", "Select Group 2", choices = NULL),
+                                                         numericInput("pc", "Percentile", value = 0.9, min = 0, max = 1, step = 0.01),
+                                                         selectizeInput("pathway_example", "Select Pathway (requires annotation matrix)", choices = NULL)))),
+                                            div(class = "button-container", actionButton("runNetwork_example", "Run networkMORE")),
+                                            div(),
+                                            visNetworkOutput("networkPlot_example", height = "500px"),
+                                            conditionalPanel(
+                                              # Condition to check if Group2 is not 'NULL'
+                                              condition = "Group2 != 'NULL' && Group2 != ''", # Added check for empty string too
+                                              tags$img(src = "www/leyenda.jpg",
+                                                       alt = "Line types",
+                                                       style = "max-width: 400px; height: auto; margin-top: 20px; border: 1px solid #ddd; padding: 5px; background-color: white; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); display: block; margin-left: auto; margin-right: auto;")
+                                            )
+                                            
+                                            ),
+
+                                   tabPanel("Hub target features and Global Regulators",
+                                            div(class = "text-section-3",
+                                                p("On this page, you can explore the", strong("hub target features and global regulators"), "identified by your MORE models."),
+                                                p("A brief summary of the hub target features and global regulators of the model is displayed by default. However, if hub target features and global regulators of a", strong("specific condition"), "are to be explored, select your condition of interest."),
+                                                p("If you want to upload previously run MORE models, please use the buttons below")
+                                                ),
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_example", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_example", "Upload saved Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         selectInput("group_explore", "Select Group:", choices = NULL))),
+                                            div(), # Spacer
+                                            # Updated section for side-by-side data tables
+                                            fluidRow(
+                                              column(width = 6,
+                                                     DTOutput("hub_features_table_explore")),
+                                              column(width = 6,
+                                                     DTOutput("global_regulators_table_explore")))),
+                                   
+                                   
+                                   tabPanel("Over Representation Analysis", 
+                                            div(class = "text-section-3", 
+                                                p("On this page, you can perform", strong("Over Representation Analysis (ORA)"), "based on MORE results with flexible options for defining your target gene set.")),
+                                            div(class = "text-section-3", 
+                                                p("To define the target gene set, you can choose either:"),
+                                                tags$ul(
+                                                  tags$li(strong("Hub target features:"),"The target features that represent highly connected nodes in your regulatory network" ),
+                                                  tags$li(strong("Target features regulated by global regulators")),
+                                                  tags$li(strong("Target features regulated by regulators of an specific regulatory omic"))
+                                                ),
+                                                p("You can also select the", strong("experimental group"), "for which you want to perform the ORA")
+                                                ),
+
+                                            div(class ="text-section-3",
+                                                p("Users can specify an", strong("alpha level cutoff,"), "which sets the threshold for statistical significance."),
+                                                p("Additionally, an adjustment method for multiple testing correction (e.g., FDR) can be selected, ensuring more reliable identification of enriched categories.")),
+                                            div(class = "text-section-3", p(strong("Warning!"),"In this analysis an annotation matrix with target features in the first column, GO term accession in the second, and GO term name in the third is compulsory.")),
+                                            div(),
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_example", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_example", "Upload saved Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         actionButton( 
+                                                           inputId = "annotation_selector_button", 
+                                                           label = "Load Annotation Matrix" ))
+                                            ),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                          checkboxInput("ora_byHubs", "Group by Hubs (byHubs)", value = TRUE),
+                                                          selectizeInput("ora_group", "Select Group", choices = NULL),
+                                                          selectizeInput("ora_byOmic", "Select Omic Type", choices = NULL),
+                                                          numericInput("ora_alpha", "Alpha level", value = 0.05, min = 0, max = 1, step = 0.01),
+                                                          selectizeInput("ora_adj", "Select p-value adjustment method", choices = NULL)))),
+                                            uiOutput("ora_globreg_selector_ui"),
+                                            div(class = "button-container", actionButton("runORA", "Run ORA")),
+                                            DTOutput("ora_table")),
+                                   
+                                   tabPanel("Gene Set Enrichment Analysis",
+                                            div(class = "text-section-3", 
+                                                p("On this page, you can perform a", strong("Gene Set Enrichment Analysis(GSEA)"), "to identify biological pathways that may be altered based on differences in the number of regulators associated with the target features (e.g., genes) within each pathway across experimental conditions.")),
+                                            div(class = "text-section-3", 
+                                                p("For that you’ll need to configure a few parameters:"),
+                                                tags$ol(
+                                                  tags$li(strong("Group 1:"),"Select a group as reference." ),
+                                                  tags$li(strong("Group 2:"),"Select the group to which you will compare it."),
+                                                  tags$li(strong("Alpha level:")," Threshold for statistical significance"),
+                                                  tags$li(strong("p-value Adjustment method:"),"Adjustment method for multiple testing correction (e.g., FDR).")
+                                                )),
+                                            div(class = "text-section-3", p(strong("Warning!"),"In this analysis an annotation matrix with target features in the first column, GO term accession in the second, and GO term name in the third is compulsory.")),
+                                            div(),
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_example", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_example", "Upload saved Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         actionButton( 
+                                                           inputId = "annotation_selector_button", 
+                                                           label = "Load Annotation Matrix" ))
+                                            ),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         selectizeInput("gsea_group1", "Select Group", choices = NULL),
+                                                         selectizeInput("gsea_group2", "Select Group", choices = NULL),
+                                                         numericInput("gsea_alpha", "Alpha level", value = 0.05, min = 0, max = 1, step = 0.01),
+                                                         selectizeInput("gsea_adj", "Select p-value adjustment method", choices = NULL)))),
+                                            div(class = "button-container", actionButton("runGSEA", "Run GSEA")),
+                                            plotOutput("gsea_plot", height = "700px")))),
+              
+              
+              # RUN MORE WITH OWN DATASET
+              tabPanel("Run MORE with Own Dataset", div(class = "header-Download-Example-Dataset-image",
+                                                        img(src = "www/MORE.png", alt = "More Image", class = "more2"),
+                                                        span(class = "title", "Run MORE with Own Dataset"),
+                                                        img(src = "www/Biostatomics.jpg", alt = "Biostatomics Image", class = "biostatomics2")),
+                       div(class = "text-section-3",style = "margin-top:100px;", p(strong("Remember!"),"For more detailed information about the different sections or data formats, please refer to the", strong("Run MORE with Example Dataset"), "section tabs.")),
+                       div(class = "Target-Data-Section",
+                           div(class = "title-2-box",
+                               span(class = "title-2", "Target Data")),
+                           div(span(class = "text-section-example", 
+                                    fileInput("target_data", "Target Data", accept = c(".csv", ".txt", ".xlsx")))),
+                           div(class = "regulatory-data-section", 
+                               div(class = "title-2-box",
+                                   span(class = "title-2", "Regulatory Data & Associations")),
+                               div(span(class = "text-section-example", 
+                                        numericInput("num_omics", "Number of regulatory omics", value = 1, min = 1),
+                                        uiOutput("omics_inputs")))),
+                           
+                           div(class = "Condition-Section",
+                               div(class = "title-2-box",
+                                   span(class = "title-2", "Condition")),
+                               div(span(class = "text-section-example", 
+                                        fileInput("condition_data", "Condition Data", accept = c(".csv", ".txt", ".xlsx")),
+                                        DTOutput("condition_table_own")))),
+                           div(class = "Clinic-Section",
+                               div(class = "title-2-box",
+                                   span(class = "title-2", "Clinic")),
+                               div(span(class = "text-section-example", 
+                                        fileInput("clinic_data", "Clinic Data", accept = c(".csv", ".txt", ".xlsx")))))
+                       ),
+                       tabsetPanel(id = "sub_tabs_2", tabPanel(value = "data_format", "Check data format", 
+                                                             div(),
+                                                             div(class = "title-2-box", span(class = "title-2", "Step 1: Verify the Data Format")),
+                                                             div(class = "button-container", actionButton("validate_data_own", "Check data format")),
+                                                             textOutput("error_message"),
+                                                             div(),
+                                                             div(class = "title-2-box", span(class = "title-2", "Step 2: Select the Data Configuration")),
+                                                             div(class = "button-container", actionButton("select_config_own", "Select Configuration")),
+                                                             div(),
+                                                             div(class = "title-2-box", span(class = "title-2", "Step 3: Proceed to Model Preparation")),
+                                                             div(class = "button-container", actionButton("prepare_model_own", "Prepare Your Model"))),
+                                   tabPanel(value = "prepare_model_own","Prepare your model",
+                                            div(class = "title-2-box", span(class = "title-2", "Step 1: Choose the Modeling Method")),
+                                            selectInput("method_choice", "Method:", choices = c("PLS", "MLR"), selected = "PLS"),
+                                            conditionalPanel( # Inputs condicionales solo si se elige PLS1
+                                              condition = "input.method_choice == 'PLS'",
+                                              div(class = "title-2-box", span(class = "title-2", "Step 1.1: Set Model Parameters (for PLS only)")),
+                                              div(),
+                                              numericInput("alfa", "Alpha value:", value = 0.05, min = 0, max = 1, step = 0.01),
+                                              div(),
+                                              numericInput("vip", "VIP value:", value = 0.8, min = 0, step = 0.1)),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 2: Run MORE")),
+                                            div(class = "button-container", actionButton("runMore_own", "RUN MORE")),
+                                            div(class = "title-2-box", span(class = "title-2", "Optional: Save Your Model")),
+                                            div(),
+                                            downloadButton("download_MORE_own", "Download the model")),
+                                   tabPanel("Regulation Per Condition",
+                                            br(),
+                                                fileInput("upload_more_model_own", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                            
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 1: Run Regulation Per Condition")),
+                                            div(),
+                                            div(class = "button-container", actionButton("runRegulation_own", "Regulation Per Condition")),
+                                            DTOutput("table_own"),
+                                            plotOutput("summaryPlot_own"),
+                                            plotOutput("summaryPlot2_own"),
+                                            plotOutput("differentialRegPlot_own"),
+                                            div(),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 2: Explore Target Feature-Regulator Relationships")),
+                                           
+                                            div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                fluidRow(column(6, selectizeInput("selected_target_own", "Select Target Feature:", choices = NULL,selected = NULL,multiple = FALSE, options = list(maxOptions=100))),
+                                                         column(6, selectizeInput("selected_regulator_own", "Select Regulator:", choices = NULL,selected = NULL,multiple = FALSE, options = list(maxOptions=100))))),
+                                            br(),
+                                            plotOutput("plot_more_output_own"),
+                                            div(class = "title-2-box", span(class = "title-2", "Step 3: Filter Badly-Modelled Target Features")),
+                                            div(),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         numericInput("R2_own", "Select R2", value = 0.5, min = 0, max = 1, step = 0.01),
+                                                         div(class = "button-container", actionButton("updatePlot_own", "Update Plot with R2")),
+                                                         div(class = "button-container", actionButton("runRegulationWithR2_own", "Filter the model"))))),
+                                            div(),
+                                            DTOutput("table_own2"),
+                                            plotOutput("summaryPlot_own2"),
+                                            plotOutput("summaryPlot2_own2"),
+                                            
+                                            div(class = "title-2-box", span(class = "title-2", "Optional: Save Regulation Per Condition")),
+                                            div(),
+                                            downloadButton("download_model_own", "Download Regulation Per Condition")
+                                   ),
+                                   tabPanel("MORE Network",
+                                            br(),
+                                            div(),
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_own", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_own", "Upload Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         actionButton( 
+                                                           inputId = "annotation_selector_button", 
+                                                           label = "Optionally load Annotation Matrix" ))
+                                            ),
+                                            div(),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         selectInput("Group1_own", "Select Group 1", choices = NULL),
+                                                         selectInput("Group2_own", "Select Group 2", choices = NULL),
+                                                         numericInput("pc_own", "Percentile", value = 0.9, min = 0, max = 1, step = 0.01),
+                                                         selectizeInput("pathway_own", "Select Pathway (requires annotation matrix)", choices = NULL)))),
+                                            
+                                            div(class = "button-container", actionButton("runNetwork", "Run networkMORE")),
+                                            div(),
+                                            visNetworkOutput("networkPlot_own", height = "500px"),
+                                            conditionalPanel(
+                                              # Condition to check if Group2 is not 'NULL'
+                                              condition = "Group2_own != '' && Group2_own != 'NULL'", # Added check for empty string too
+                                              tags$img(src = "www/leyenda.jpg",
+                                                       alt = "Line types",
+                                                       style = "max-width: 400px; height: auto; margin-top: 20px; border: 1px solid #ddd; padding: 5px; background-color: white; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); display: block; margin-left: auto; margin-right: auto;")
+                                            )
+                                            ),
+                                   tabPanel("Hub target features and Global Regulators",
+                                            br(),
+                                            div(), # Spacer
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_own", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_own", "Upload saved Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         selectInput("group_explore_own", "Select Group:", choices = NULL))),
+                                            div(), # Spacer
+                                            # Updated section for side-by-side data tables
+                                            fluidRow(
+                                              column(width = 6,
+                                                     
+                                                     DTOutput("hub_features_table_explore_own")),
+                                              column(width = 6,
+                                                     
+                                                     DTOutput("global_regulators_table_explore_own")))),
+                                   tabPanel("Over Representation Analysis", 
+                                            br(),
+
+                                            div(),
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_own", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_own", "Upload saved Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         actionButton( 
+                                                           inputId = "annotation_selector_button", 
+                                                           label = "Load Annotation Matrix" ))
+                                            ),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         checkboxInput("ora_byHubs_own", "Group by Hubs (byHubs)", value = TRUE),
+                                                         selectizeInput("ora_group_own", "Select Group", choices = NULL),
+                                                         selectizeInput("ora_byOmic_own", "Select Omic Type", choices = NULL),
+                                                         numericInput("ora_alpha_own", "Alpha level", value = 0.05, min = 0, max = 1, step = 0.01),
+                                                         selectizeInput("ora_adj_own", "Select p-value adjustment method", choices = NULL)))),
+                                            uiOutput("ora_globreg_selector_ui_own"),
+                                            div(class = "button-container", actionButton("runORA_own", "Run ORA")),
+                                            DTOutput("ora_table_own")),
+                                   tabPanel("Gene Set Enrichment Analysis",
+                                            br(),
+
+                                            div(),
+                                            fluidRow(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         fileInput("upload_more_model_own", "Upload saved MORE model (.rds)", accept = ".rds"),
+                                                         fileInput("upload_model_own", "Upload saved Regulation Per Condition (.rds)", accept = ".rds"),
+                                                         actionButton( 
+                                                           inputId = "annotation_selector_button", 
+                                                           label = "Load Annotation Matrix" ))
+                                            ),
+                                            fluidRow(
+                                              column(width = 12,
+                                                     div(style = "display: flex; justify-content: center; align-items: center; gap: 120px;",
+                                                         selectizeInput("gsea_group1_own", "Select Group", choices = NULL),
+                                                         selectizeInput("gsea_group2_own", "Select Group", choices = NULL),
+                                                         numericInput("gsea_alpha_own", "Alpha level", value = 0.05, min = 0, max = 1, step = 0.01),
+                                                         selectizeInput("gsea_adj_own", "Select p-value adjustment method", choices = NULL)))),
+                                            div(class = "button-container", actionButton("runGSEA_own", "Run GSEA")),
+                                            plotOutput("gsea_plot_own", height = "700px")))),
+              
+              # PESTAÑA MORE VIDEOTUTORIAL
+              #tabPanel("MORE Videotutorial", div(class = "header-Download-Example-Dataset-image",
+               ##                                  img(src = "MORE.png", alt = "More Image", class = "more2"),
+                #                                 span(class = "title", "MORE Videotutorial"),
+                 #                                img(src = "Biostatomics.jpg", alt = "Biostatomics Image", class = "biostatomics2")))
+              ))
+              
+              
+server <- function(input, output, session) {
+  
+  data_storage_example <- reactiveValues(
+    target = NULL,
+    condition = NULL,
+    regulatory = list(),
+    associations = list()
+  )
+  
+  omicType <- reactiveVal(NULL)
+  minVariation <- reactiveVal(NULL)
+  
+  valid_data <- reactiveVal(FALSE)
+  
+  error_msg <- reactiveVal(NULL)
+  filtered_data_list <- reactiveVal(NULL)
+  filtered_data <- reactiveVal(FALSE)
+  
+  result_more <- reactiveVal(NULL)
+  result_rpc <- reactiveVal(NULL)
+  network_data <- reactiveVal(NULL)
+  
+  plot_data_summary1 <- reactiveVal(NULL)
+  plot_data_summary2 <- reactiveVal(NULL)
+  
+  explore_results_hub <- reactiveVal(NULL)
+  explore_results_global <- reactiveVal(NULL)
+  
+  annot <- reactiveVal(NULL)
+  annot_ora_gsea <- reactiveVal(NULL)
+  result_gsea <- reactiveVal(NULL)
+  
+  ora_raw_result <- reactiveVal(NULL)
+  
+  #LOAD DATA
+  
+  regulator_paths_static <- list(
+    lncRNA = "www/REGULATORY DATA/lncRNA.csv",
+    RBPprot = "www/REGULATORY DATA/RBPprot.csv",
+    RBPrna = "www/REGULATORY DATA/RBPrna.csv",
+    TFphos = "www/REGULATORY DATA/TFphos.csv",
+    TFprot = "www/REGULATORY DATA/TFprot.csv",
+    TFrna = "www/REGULATORY DATA/TFrna.csv"
+  )
+  
+  association_paths_static <- list(
+    TFphos = "www/ASSOCIATIONS/TFphos.csv",
+    TFprot = "www/ASSOCIATIONS/TFprot.csv",
+    TFrna = "www/ASSOCIATIONS/TFrna.csv"
+  )
+  
+  # Load Target Data
+  file_path_target_static = "www/TARGET DATA/MatTargetOmic_50.csv"
+  if (file.exists(file_path_target_static)) {
+    data_storage_example$target <- read.csv(file_path_target_static, row.names = 1)
+    # showNotification("Example Target Data loaded at startup.", type = "message", duration = 3) # Optional: for debugging
+  } else {
+    showNotification("Error: Example Target Data file not found at startup. Make sure 'www/TARGET DATA/MatTargetOmic_50.csv' exists.", type = "error", duration = NULL)
+  }
+  
+  # Load Condition Data
+  file_path_condition_static = "www/CONDITION/condition.csv"
+  if (file.exists(file_path_condition_static)) {
+    data_storage_example$condition <- as.data.frame(read.csv(file_path_condition_static, row.names = 1))
+    # showNotification("Example Condition Data loaded at startup.", type = "message", duration = 3) # Optional: for debugging
+  } else {
+    showNotification("Error: Example Condition Data file not found at startup. Make sure 'www/CONDITION/condition.csv' exists.", type = "error", duration = NULL)
+  }
+  
+  # Load Regulatory Data
+  regulatory_list_static <- list()
+  for (omic_name in names(regulator_paths_static)) {
+    path <- regulator_paths_static[[omic_name]]
+    if (file.exists(path)) {
+      regulatory_list_static[[omic_name]] <- read.csv(path, row.names = 1)
+    } else {
+      regulatory_list_static[[omic_name]] <- NULL
+      showNotification(paste("Warning: Regulatory Data for", omic_name, "not found at", path), type = "warning", duration = NULL)
+    }
+  }
+  data_storage_example$regulatory <- regulatory_list_static
+  
+  # Load Associations Data
+  associations_list_static <- list(lncRNA = NULL, RBPprot = NULL, RBPrna = NULL) # Initialize non-existent ones
+  for (omic_name in names(association_paths_static)) {
+    path <- association_paths_static[[omic_name]]
+    if (file.exists(path)) {
+      associations_list_static[[omic_name]] <- read.csv(path, row.names = 1)
+    } else {
+      associations_list_static[[omic_name]] <- NULL
+      showNotification(paste("Warning: Association Data for", omic_name, "not found at", path), type = "warning", duration = NULL)
+    }
+  }
+  data_storage_example$associations <- associations_list_static
+  
+  
+  # CUANDO SE PULSA EL BOTÓN, CAMBIA DE PESTAÑA
+  observeEvent(input$download_data, {
+    updateTabsetPanel(session, "tabset", selected = "Download Example Dataset")
+  })
+  
+  observeEvent(input$start, {
+    updateTabsetPanel(session, "tabset", selected = "Run MORE with Own Dataset")
+  })
+  
+  observeEvent(input$tutorial, {
+    updateTabsetPanel(session, "tabset", selected = "MORE Videotutorial")
+  })
+  
+  # CUANDO SE PULSE EL BOTÓN IR A GITHUB
+  observeEvent(input$github_link, {
+    session$sendCustomMessage(type = 'goToPage', message = NULL)
+  })
+  
+  # DESCARGAR FICHERO EXCEL
+  output$download_excel = downloadHandler(
+    filename = function() {"excel.zip"},
+    content = function(file){
+      file.copy("www/ficheros/excel.zip", file)
+    })
+  
+  # DESCARGAR FICHERO CSV
+  output$download_csv = downloadHandler(
+    filename = function() {"csv.zip"},
+    content = function(file){
+      file.copy("www/ficheros/csv.zip", file)
+    })
+  
+  # DESCARGAR FICHERO TXT
+  output$download_txt = downloadHandler(
+    filename = function() {"txt.zip"},
+    content = function(file){
+      file.copy("www/ficheros/txt.zip", file)
+    })
+  
+  # MOSTRAR TABLA TARGET DATA
+  output$table_target_data = renderDT({
+    req(data_storage_example$target)
+    df_display <- data_storage_example$target
+    is_num <- sapply(df_display, is.numeric)
+    df_display[is_num] <- lapply(df_display[is_num], function(x) round(x, 3))
+    datatable(df_display, options = list(pageLength = 5, scrollX = TRUE))
+  })
+  
+  output$table_condition <- renderDT({
+    req(data_storage_example$condition) # Ensure data is loaded
+    datatable(data_storage_example$condition, options = list(pageLength = 5, scrollX = TRUE))
+  })
+  
+  # MOSTRAR TABLA RESUMEN REGULADORES Y ASOCIACIONES
+  
+  output$regulatory_associations_table <- renderTable({
+    req(data_storage_example$regulatory, data_storage_example$associations)
+    
+    # Define all possible regulators
+    all_regulators <- c("lncRNA", "RBPprot", "RBPrna", "TFphos", "TFprot", "TFrna")
+    
+    # Create a data frame to store the status
+    regulatory_associations_data <- data.frame(
+      Regulator = all_regulators,
+      Associations = character(length(all_regulators)), # Initialize as character
+      stringsAsFactors = FALSE
+    )
+    
+    for (i in seq_along(all_regulators)) {
+      reg_name <- all_regulators[i]
+      # Check if the association data for this regulator is NOT NULL
+      if (!is.null(data_storage_example$associations[[reg_name]])) {
+        regulatory_associations_data$Associations[i] <- "Yes"
+      } else {
+        regulatory_associations_data$Associations[i] <- "No"
+      }
+    }
+    regulatory_associations_data
+  })
+  
+  output$regulatory_tables <- renderUI({
+    req(data_storage_example$regulatory, data_storage_example$associations) # Ensure data is loaded
+    
+    # Define regulator_info_display based on loaded data
+    regulator_info_display <- list(
+      lncRNA = list(
+        regulator_data_reactive = reactive({data_storage_example$regulatory$lncRNA}),
+        association_data_reactive = reactive({data_storage_example$associations$lncRNA}) # Use actual loaded associations
+      ),
+      RBPprot = list(
+        regulator_data_reactive = reactive({data_storage_example$regulatory$RBPprot}),
+        association_data_reactive = reactive({data_storage_example$associations$RBPprot})
+      ),
+      RBPrna = list(
+        regulator_data_reactive = reactive({data_storage_example$regulatory$RBPrna}),
+        association_data_reactive = reactive({data_storage_example$associations$RBPrna})
+      ),
+      TFphos = list(
+        regulator_data_reactive = reactive({data_storage_example$regulatory$TFphos}),
+        association_data_reactive = reactive({data_storage_example$associations$TFphos})
+      ),
+      TFprot = list(
+        regulator_data_reactive = reactive({data_storage_example$regulatory$TFprot}),
+        association_data_reactive = reactive({data_storage_example$associations$TFprot})
+      ),
+      TFrna = list(
+        regulator_data_reactive = reactive({data_storage_example$regulatory$TFrna}),
+        association_data_reactive = reactive({data_storage_example$associations$TFrna})
+      )
+    )
+    
+    lapply(names(regulator_info_display), function(reg_name) {
+      info <- regulator_info_display[[reg_name]]
+      
+      # Ensure regulator data is available
+      df_regulator <- info$regulator_data_reactive()
+      if (is.null(df_regulator)) {
+        return(NULL) # Skip if data not loaded or path was incorrect
+      }
+      
+      reg_table <- DT::renderDataTable({
+        datatable(df_regulator, options = list(pageLength = 5, scrollX = TRUE))
+      })
+      
+      df_association <- info$association_data_reactive()
+      if (!is.null(df_association)) { # Check if association data exists for this regulator
+        assoc_table <- DT::renderDataTable({
+          datatable(df_association, options = list(pageLength = 5, scrollX = TRUE))
+        })
+        
+        tagList(
+          div(class = "title-2-box", style = "font-weight: bold; margin-top: 20px;", reg_name),
+          fluidRow(
+            column(6, align = "center",
+                   div(class = "title-box", "Regulatory Data"),
+                   reg_table
+            ),
+            column(6, align = "center",
+                   div(class = "title-box", "Associations"),
+                   assoc_table
+            )
+          )
+        )
+      } else {
+        # If no associations, only show Regulatory Data centered
+        tagList(
+          div(class = "title-2-box", style = "font-weight: bold; margin-top: 20px;", reg_name),
+          fluidRow(
+            column(12, align = "center",
+                   div(class = "title-box", "Regulatory Data"),
+                   reg_table
+            )
+          )
+        )
+      }
+    })
+  })
+  
+  
+  # VALIDAR LOS DATOS DE EJEMPLO
+  
+  observeEvent(input$validate_data_example, {
+    
+    req(data_storage_example$target, data_storage_example$regulatory, data_storage_example$condition)
+    error_msg(NULL)
+    
+    target_ncol <- ncol(data_storage_example$target)
+    cond_nrow <- if (!is.null(data_storage_example$condition)) nrow(data_storage_example$condition) else NA
+    
+    # 1. Validar número de muestras
+    for (omic_name in names(data_storage_example$regulatory)) {
+      reg_matrix <- data_storage_example$regulatory[[omic_name]]
+      if (ncol(reg_matrix) != target_ncol) {
+        error_msg(paste0("ERROR: The number of samples in 'regulatoryData' (omic '", omic_name, "') must match 'targetData'."))
+        valid_data(FALSE)
+        return(invisible())
+      }
+      
+      if (!is.null(data_storage_example$condition) && ncol(reg_matrix) != cond_nrow) {
+        error_msg(paste0("ERROR: The number of samples in 'regulatoryData' (omic '", omic_name, "') must match 'conditionData'."))
+        valid_data(FALSE)
+        return(invisible())
+      }
+    }
+    
+    # 2. Validar coincidencia de nombres de muestras
+    if (is.null(data_storage_example$condition)) {
+      name_problem <- !all(sapply(data_storage_example$regulatory, function(x)
+        length(intersect(colnames(x), colnames(data_storage_example$target))) == ncol(data_storage_example$target)))
+      
+      if (name_problem) {
+        error_msg("ERROR: targetData and regulatoryData samples have not the same names.")
+        valid_data(FALSE)
+        return(invisible())
+      }
+    } else {
+      name_problem <- !all(c(
+        sapply(data_storage_example$regulatory, function(x)
+          length(intersect(colnames(x), colnames(data_storage_example$target))) == ncol(data_storage_example$target)),
+        length(intersect(rownames(data_storage_example$condition), colnames(data_storage_example$target))) == ncol(data_storage_example$target)
+      ))
+      
+      if (name_problem) {
+        error_msg("ERROR: targetData, condition and regulatoryData samples have not the same names. We assume that they are ordered. 
+                  If they are not ordered please upload again the file with samples with the correct names.")
+        valid_data(FALSE)
+        return(invisible())
+      }
+    }
+    
+    # 3. Control de valores NA
+    percNA <- 0  # Buscamos cualquier NA
+    
+    # Funciones auxiliares
+    missing_rows <- function(regOmic, percNA) {
+      highNA <- apply(regOmic, 1, function(x) sum(is.na(x)) / length(x)) > percNA
+      rownames(regOmic)[highNA]
+    }
+    
+    missing_cols <- function(regOmic, percNA) {
+      highNA <- apply(regOmic, 2, function(x) sum(is.na(x)) / length(x)) > percNA
+      colnames(regOmic)[highNA]
+    }
+    
+    # Detectar reguladores con NA
+    myregNA <- lapply(data_storage_example$regulatory, function(x) missing_rows(x, percNA))
+    num_regNA <- sapply(myregNA, length)
+    
+    # Detectar observaciones (columnas) con NA en alguna ómica
+    myobsNA <- lapply(data_storage_example$regulatory, function(x) missing_cols(x, percNA))
+    myobsNA <- unique(unlist(myobsNA))
+    
+    # Mostrar advertencias si hay NAs
+    if (sum(num_regNA) > 0) {
+      warning_msg <- paste0("Warning !!! Some regulators have missing values.")
+      for (omic in names(num_regNA)) {
+        warning_msg <- paste0(warning_msg, "- ", omic, ": ", num_regNA[omic], " regulators\n")
+      }
+      
+      shinyalert(title = "Missing Values",
+                 text = paste0("Warning !!! Some regulators have missing values.", "-", omic, ": ", num_regNA[omic], " regulators\n" ),
+                 type = "warning",
+                 size = "m")
+      
+    }
+    
+    if (length(myobsNA) > 0) {
+      warning_msg <- paste0("Warning!!! There are", length(myobsNA),
+                            " samples with missing values.")
+      
+      shinyalert(title = "Missing Values",
+                 text = paste0("Warning!!! There are", length(myobsNA), " samples with missing values."),
+                 type = "warning",
+                 size = "m")
+    }
+    
+    # Si pasa todas las validaciones
+    valid_data(TRUE)
+    shinyalert(
+      title = "Success!",
+      text = "All data validated successfully. You can continue to run MORE.",
+      type = "success",
+      size = "m" # "m" (medium) or "l" (large)
+    )
+  })
+  
+  # SELECCIONAR CONFIGURACIÓN: TIPO DE ÓMICAS Y FILTRO VARIABILIDAD
+  
+  observeEvent(input$select_config_example, {
+    req(data_storage_example$regulatory)
+    omic_names <- names(data_storage_example$regulatory)
+    n <- length(omic_names)
+    
+    # Crear un selectInput por ómica
+    select_inputs <- lapply(seq_len(n), function(i) {
+      selectInput(
+        inputId = paste0("omic_type_", i),
+        label = paste("Type of omic:", omic_names[i]),
+        choices = c("Numeric" = 0, "Binary" = 1),
+        selected = 0
+      )
+    })
+    
+    select_cv <- lapply(seq_len(n), function(i) {
+      numericInput(
+        inputId = paste0("min_variation_", i),
+        label = paste("Minimum change in standard deviation for omic", omic_names[i]),
+        value = 0,      
+        min = 0,        
+        max = Inf,        
+        step = 0.1        
+      )
+    })
+    
+    # Mostrar el modal con todos los selectInputs
+    showModal(modalDialog(
+      tagList(select_inputs, select_cv),
+      footer = tagList(
+        actionButton("save_config", "Save"),
+        modalButton("Cancel")
+      ),
+      size = "l"
+    ))
+  })
+  
+  # GUARDAR CONFIGURACIÓN DE OMIC TYPE Y LOW VARIATION FILTER
+  observeEvent(input$save_config, {
+    
+    removeModal()
+    req(data_storage_example$regulatory)
+    omic_names <- names(data_storage_example$regulatory)
+    n <- length(omic_names)
+    
+    omic_t = list()
+    variations = list()
+    
+    # Recoger los valores seleccionados
+    omic_t_values <- sapply(seq_len(n), function(i) {
+      as.numeric(input[[paste0("omic_type_", i)]])
+    })
+    names(omic_t_values) <- omic_names
+    omicType(omic_t_values)
+    
+    variations_values <- sapply(seq_len(n), function(i) {
+      as.numeric(input[[paste0("min_variation_", i)]])
+    })
+    names(variations_values) <- omic_names
+    minVariation(variations_values)
+    
+    shinyalert(title = "Configuration saved",
+               text = "The configuration chosen has been saved.",
+               type = "success",
+               size = "m")
+  })
+  
+  # CAMBIO DE PESTAÑA
+  
+  observeEvent(input$prepare_model_example, {
+    updateTabsetPanel(session, inputId = "sub_tabs", selected = "prepare_model")
+  })
+  
+  # RUN MORE
+  observeEvent(input$runMore, {
+    
+    req(omicType(), minVariation(), data_storage_example$target,data_storage_example$regulatory,data_storage_example$associations, data_storage_example$condition)
+    
+    var = minVariation()
+    config_omic_type = omicType()
+    names(var) = names(data_storage_example$regulatory)
+    
+    method_selected <- input$method_choice
+    
+    if (method_selected == "MLR") {
+    varSel_val <- "EN"
+    alfa_val <- NULL
+    vip_val <- NULL
+  } else if (method_selected == "PLS") {
+    method_selected = 'PLS1'
+    grupos <- table(data_storage_example$condition)
+    if (any(grupos > 20)) {
+      varSel_val <- "Perm"
+    } else {
+      varSel_val <- "Jack"
+    }
+    alfa_val <- input$alfa
+    vip_val <- input$vip
+  }
+    
+    shinyalert(
+      title = "Running MORE",
+      text = "The calculation may take some time. Please wait.",
+      type = "info"
+    )
+    
+    result <- tryCatch({
+      more(
+        targetData = data_storage_example$target,
+        regulatoryData = data_storage_example$regulatory,
+        associations = data_storage_example$associations,
+        condition = data_storage_example$condition,
+        omicType = config_omic_type,
+        scaleType = 'auto',
+        interactions = TRUE,
+        minVariation = var,
+        varSel = varSel_val,
+        alfa = alfa_val,
+        vip = vip_val,
+        method = method_selected,
+        parallel = FALSE
+      )
+    }, error = function(e) {
+      paste("There was an error while executing MORE:", e$message)
+    })
+    
+    if (inherits(result, "try-error")) {
+      error_msg(result)
+    } else {
+      result_more(result)
+      shinyalert(
+        title = "Done!",
+        text = "The analysis is complete. You can proceed to the next tab.",
+        type = "success"
+      )
+    }
+  })
+  
+  # MENSAJE SI HAY UN ERROR EN RUN MORE
+  output$error_message <- renderText({
+    error_msg()
+  })
+  
+  # DESCARGAR MORE
+  
+  output$download_MORE_example <- downloadHandler(
+    filename = function() {
+      paste0("MORE_model_", Sys.Date(), ".rds")
+    },
+    content = function(file) {
+      req(result_more())
+      saveRDS(result_more(), file)
+    }
+  )
+  
+  # CARGAR MORE
+  
+  observeEvent(input$upload_more_model_example, {
+    req(input$upload_more_model_example)
+    
+    tryCatch({
+      uploaded_model <- readRDS(input$upload_more_model_example$datapath)
+      result_more(uploaded_model)
+      
+      shinyalert(
+        title = "Model loaded",
+        text = "The saved MORE model has been successfully loaded.",
+        type = "success"
+      )
+    }, error = function(e) {
+      shinyalert(
+        title = "Error",
+        text = paste("Failed to load model:", e$message),
+        type = "error"
+      )
+    })
+  })
+  
+  # REGULATION PER CONDITION
+  
+  observeEvent(input$runRegulation, {
+    req(result_more())  # Aquí se requiere que esté disponible
+    
+    shinyalert(title = "Running Regulation Per Condition",
+               text = "Running Regulation Per Condition might take long.",
+               type = "warning",
+               size = "m", 
+               timer = 10000)
+    
+    withProgress(message = "Calculating Regulation Per Condition...", value = 0, {
+    
+      updated_result <- RegulationPerCondition(result_more())
+      
+      result_rpc(updated_result)
+      
+      output$summaryPlot_example <- renderPlot({
+        summaryPlot(result_more(), result_rpc(), filterR2 =  0)
+      })
+      
+      output$summaryPlot2_example <- renderPlot({
+        summaryPlot(result_more(), result_rpc(), byTargetF = FALSE, filterR2 = 0)
+      })
+      
+      output$differentialRegPlot_example <- renderPlot({
+        differentialRegPlot(result_more(), result_rpc())
+      })
+      
+      output$table_example <- renderDT({
+        datatable(data.frame(result_rpc()), options = list(pageLength = 10, searchHighlight = TRUE))
+      })
+      
+      plot_data_summary1(summaryPlot(result_more(), result_rpc(), filterR2 = 0))
+      plot_data_summary2(summaryPlot(result_more(), result_rpc(), byTargetF = FALSE, filterR2 = 0))
+      
+      output$table_example2 <- renderDT({
+        datatable(data.frame(result_rpc()), options = list(pageLength = 10, searchHighlight = TRUE))
+        
+      })
+    })
+  
+    #showNotification("Regulation per condition completado.", type = "message")
+    shinyalert(title = "Regulation Per Condition completed",
+               text = "Regulation Per Condition is done.",
+               type = "success",
+               size = "m")
+  })
+  
+  # ACTUALIZAR PLOT
+  
+  observeEvent(input$updatePlot_example, {
+    req(result_more(), result_rpc())
+    
+    # Prepare and store the plot data, applying input$R2 as a visual filter
+    plot_data_summary1(summaryPlot(result_more(), result_rpc(), filterR2 = input$R2))
+    plot_data_summary2(summaryPlot(result_more(), result_rpc(), byTargetF = FALSE, filterR2 = input$R2))
+    
+  })
+  
+  output$summaryPlot_example2 <- renderPlot({
+    req(plot_data_summary1()) # Require plot data to be available
+    plot_data_summary1()
+  })
+  
+  output$summaryPlot2_example2 <- renderPlot({
+    req(plot_data_summary2()) # Require plot data to be available
+    plot_data_summary2()
+  })
+  
+  # FILTRAR EL MODELO
+  
+  observeEvent(input$runRegulationWithR2_example, {
+    req(result_more(), result_rpc())
+    
+    # Ejecutar regulation per condition con R2
+    filtered_results = FilterRegulationPerCondition(result_more(), result_rpc(), filterR2 = input$R2)
+    result_rpc(filtered_results)
+    
+    # Mostrar notificación de finalización
+    shinyalert(title = "Updated Regulation Per Condition",
+               text = "Regulation Per Condition is updated with the chosen R2 filter",
+               type = "warning",
+               size = "m", 
+               timer = 5000)
+    
+    output$table_example2 <- renderDT({ # Update the filtered table
+      datatable(data.frame(result_rpc()), options = list(pageLength = 10, searchHighlight = TRUE))
+    })
+  })
+  
+  output$download_model_example <- downloadHandler(
+    filename = function() {
+      paste0("MORE_model_", Sys.Date(), ".rds")
+    },
+    content = function(file) {
+      req(result_rpc())
+      saveRDS(result_rpc(), file)
+    }
+  )
+  
+  # EXTRAER LOS VALORES ÚNICOS PARA LOS SELECTORES
+  observeEvent(result_rpc(), {
+    req(result_rpc())
+    
+    # Extraer los valores únicos para los selectores
+    rpc_df <- as.data.frame(result_rpc())
+    updateSelectizeInput(session, "selected_target",
+                      choices = unique(rpc_df$targetF),
+                      server = TRUE)
+    updateSelectizeInput(session, "selected_regulator",
+                      choices = unique(rpc_df$regulator),
+                      server = TRUE)
+  })
+  
+  # PLOT MORE
+  output$plot_more_output_example <- renderPlot({
+    req(input$selected_target, input$selected_regulator, result_more())
+    
+    plotMORE(
+      result_more(),
+      targetF = input$selected_target,
+      regulator = input$selected_regulator,
+      order = TRUE
+    )
+  })
+  
+  # CARGAR MODELO REGPCOND
+  
+  observeEvent(input$upload_model_example, {
+    req(input$upload_model_example)
+    loaded_model <- readRDS(input$upload_model_example$datapath)
+    result_rpc(loaded_model)
+    
+  })
+  
+  observeEvent(input$upload_more_model_example, {
+    req(input$upload_more_model_example)
+      uploaded_model <- readRDS(input$upload_more_model_example$datapath)
+      result_more(uploaded_model)
+  })
+  
+  
+  # SELECCIONAR GRUPOS DE CONDITION
+  observe({
+    req(data_storage_example$condition)
+    condition = data_storage_example$condition
+    groups <- unique(as.character(condition$Group))
+    updateSelectizeInput(session, "Group1", choices = groups)
+    updateSelectizeInput(session, "Group2", choices = c("NULL", groups))
+  })
+  
+  observe({
+    updateSelectizeInput(session,
+                         "pathway_example",
+                         choices = "NULL",
+                         selected = "NULL",
+                         server = TRUE)
+  })
+  
+  observeEvent(input$annotation_selector_button, {
+    showModal(modalDialog(
+      title = "Select Annotation Source",
+      size = "s", # Small modal
+      
+      # Radio buttons for predefined choices
+      radioButtons(
+        inputId = "annotation_source_choice",
+        label = "Choose an annotation source:",
+        choices = c(
+          "Human Annotation (Gene name)" = "human",
+          "Mouse Annotation (Gene name)" = "mouse",
+          "Own Annotation" = "custom"
+        ),
+        selected = character(0) # No default selection
+      ),
+      
+      # File input, visible only if "Upload Custom" is selected via JS later
+      # For simplicity here, it's always present but can be hidden/shown with renderUI/conditionalPanel if preferred
+      fileInput(
+        inputId = "uploaded_annotation_file",
+        label = "Choose file for own annotation (CSV, TXT, Excel)",
+        accept = c(".csv", ".txt", ".xls", ".xlsx")
+      ),
+      
+      footer = tagList(
+        modalButton("Cancel"),
+        # An action button to confirm the choice inside the modal (optional, but good practice)
+        # Or, you can make the radioButtons themselves trigger the logic directly
+        actionButton("confirm_annotation_choice", "Confirm Selection")
+      )
+    ))
+  })
+  
+  observeEvent(input$confirm_annotation_choice, {
+    # This event is triggered when "Confirm Selection" is clicked inside the modal
+    req(input$annotation_source_choice, data_storage_example$target) # Ensure a choice has been made
+    
+    removeModal() # Close the modal after selection
+    
+    source_choice <- input$annotation_source_choice
+    model_target_features <- rownames(data_storage_example$target)
+    
+    if (source_choice == "human") {
+      annot_path <- "www/ANNOT/GO_annot_human.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        
+        filtered_annotation <- annotation[as.character(annotation[,1]) %in% model_target_features, ]
+        if (nrow(filtered_annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot(filtered_annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Human Annotation Loaded", type = "success")
+        }
+      } else {
+        shinyalert(title = "Error", text = "Human annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "mouse") {
+      annot_path <- "www/ANNOT/GO_annot_mouse.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        filtered_annotation <- annotation[as.character(annotation[,1]) %in% model_target_features, ]
+        if (nrow(filtered_annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot(filtered_annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+
+      } else {
+        shinyalert(title = "Error", text = "Mouse annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "custom") {
+      req(input$uploaded_annotation_file) # Require the file input if custom is chosen
+      
+      file <- input$uploaded_annotation_file$datapath
+      ext <- tools::file_ext(input$uploaded_annotation_file$name)
+      
+      annotation <- NULL
+      if (ext %in% c("xls", "xlsx")) {
+        annotation <- as.data.frame(read_excel(file))
+      } else if (ext %in% c("csv", "txt")) {
+        # It's safer to use read.csv if it's strictly CSV, read.delim for TSV
+        # Check for common delimiters if it's a generic .txt
+        tryCatch({
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = "\t", stringsAsFactors = FALSE))
+        }, error = function(e) {
+          # If tab fails, try comma
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = ",", stringsAsFactors = FALSE))
+        })
+        filtered_annotation <- annotation[as.character(annotation[,1]) %in% model_target_features, ]
+        if (nrow(filtered_annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot(filtered_annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+        
+      } else {
+        shinyalert(title = "Error", text = "Unsupported file type. Please use CSV, TXT, or Excel.", type = "error")
+        return() # Exit the event if file type is wrong
+      }
+      
+      
+    }
+  })
+  
+  # SELECT PATHWAY
+  
+  observe({
+    
+    req(annot())
+    current_annot <- annot()
+    
+    if (is.null(current_annot)) {
+      updateSelectizeInput(session,
+                           "pathway_example",
+                           choices = "NULL",
+                           selected = "NULL",
+                           server = TRUE)
+      return()
+    }
+    
+    # Extract unique values from the third column for pathway choices
+    pathway_choices <- unique(as.character(current_annot[,3]))
+    pathway_choices <- pathway_choices[!is.na(pathway_choices) & pathway_choices != ""]
+    
+    # Update the selectizeInput for pathway_example
+    updateSelectizeInput(session,
+                         "pathway_example",
+                         choices = c("NULL", pathway_choices), 
+                         selected = "NULL",
+                         server = TRUE  )
+  })
+  
+  # GENERAR RED
+  
+  observeEvent(input$runNetwork_example, {
+    req(result_rpc(), input$Group1, input$pc)
+    
+    group2_val <- if (input$Group2 == "NULL") NULL else input$Group2
+    group1_val <- input$Group1
+    
+    pathway_val <- if (is.null(input$pathway_example) || input$pathway_example == "NULL" || input$pathway_example == "") {
+      NULL
+    } else {
+      input$pathway_example
+    }
+    
+    annotation_val <- annot()
+    
+    net <- networkMORE_cyj(result_rpc(), group1 = group1_val, group2 = group2_val, pc = input$pc, pathway = pathway_val, annotation = annotation_val)
+    
+    network_data(net)
+    #showNotification("Red generada correctamente.", type = "message"
+    shinyalert(title = "Network completed",
+               text = "The generation of the network has been succesfull.",
+               type = "success",
+               size = "m")
+})
+  
+  # ENSEÑAR LA RED
+  
+  output$networkPlot_example <- renderVisNetwork({
+    
+    req(network_data())
+    net <- network_data()
+    edges <- net$edges %>% rename(from = source, to = target)
+    edges <- style_edges_by_line_type(edges)
+    
+    legend_items <- generate_legend(net$nodes)
+    
+    nodes <- net$nodes %>%
+      mutate(
+        label = id,
+        font.align = "top",
+        font.color = "black",
+        font.size = 14,
+        
+        shape = case_when(
+          omic == "targetF" ~ "box",
+          grepl("tf", omic, ignore.case = TRUE) ~ "triangle",
+          grepl("mirna", omic, ignore.case = TRUE) ~ "diamond",
+          TRUE ~ "ellipse"  # forma por defecto
+        )
+      )
+    
+    legend_items <- generate_legend(nodes)
+    
+    visNetwork(nodes, edges) %>%
+      visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+      visLegend(addNodes = legend_items, useGroups = FALSE, position = "right") %>%
+      visLayout(randomSeed = 42) %>% 
+      
+      visPhysics(
+        enabled = TRUE, 
+        solver = "repulsion", 
+        repulsion = list(
+          nodeDistance = 300,
+          springLength = 200 
+        ),
+        
+        stabilization = list(
+          iterations = 2500 
+        )
+      )
+  })
+  
+  # HUB TARGET FEATURES AND GLOBAL REGULATORS
+  
+  observeEvent(input$upload_model_example, {
+    req(input$upload_model_example)
+    loaded_model <- readRDS(input$upload_model_example$datapath)
+    result_rpc(loaded_model)
+  })
+  
+  observeEvent(input$upload_more_model_example, {
+    req(input$upload_more_model_example)
+    uploaded_model <- readRDS(input$upload_more_model_example$datapath)
+    result_more(uploaded_model)
+  })
+
+  # SELECCIONAR GRUPOS DE CONDITION
+  observe({
+    req(data_storage_example$condition)
+    condition = data_storage_example$condition
+    groups <- unique(as.character(condition$Group))
+    updateSelectizeInput(session, "group_explore", choices = c("NULL", groups), selected = "NULL")
+  })
+  
+  data_for_tables <- reactive({
+    selected_condition_value <- input$group_explore
+    
+    hub_vec <- NULL
+    glob_vec <- NULL
+    
+    if (selected_condition_value == "NULL") {
+      if (!is.null(result_more())) {
+        hub_vec <- result_more()$GlobalSummary$HubTargetF
+        glob_vec <- result_more()$GlobalSummary$GlobalRegulators
+      } 
+    } else {
+          results <- RegulationInCondition(result_rpc(), cond = selected_condition_value )
+          hub_vec <- results$HubTargetF
+          glob_vec <- results$GlobalRegulators
+
+      }
+    
+    hub_df <- NULL
+    if (!is.null(hub_vec) && length(hub_vec) > 0) {
+      hub_df <- data.frame(`Hub Target Feature` = hub_vec, stringsAsFactors = FALSE)
+    } else {
+      hub_df <- data.frame(Message = "No Hub Target Features identified for this selection.", stringsAsFactors = FALSE)
+    }
+    
+    global_df <- NULL
+    if (!is.null(glob_vec) && length(glob_vec) > 0) {
+      global_df <- data.frame(`Global Regulator` = glob_vec, stringsAsFactors = FALSE)
+    } else {
+      global_df <- data.frame(Message = "No Global Regulators identified for this selection.", stringsAsFactors = FALSE)
+    }
+    
+    return(list(HubTarget = hub_df, GlobalRegulators = global_df))
+  })
+  
+  observe({
+    current_data <- data_for_tables()
+    explore_results_hub(current_data$HubTarget)
+    explore_results_global(current_data$GlobalRegulators)
+  })
+  
+  
+  # --- Render DataTables ---
+  
+  output$hub_features_table_explore <- renderDT({
+    datatable(
+      explore_results_hub(),
+      options = list(
+        pageLength = 10,
+        scrollX = TRUE,
+        dom = 'lfrtip', # Layout: Length changing, Filtering, Table, Info, Pagination
+        paging = TRUE
+      ),
+      filter = 'top',
+      rownames = FALSE
+    )
+  })
+  
+  output$global_regulators_table_explore <- renderDT({
+    # explore_results_global() is guaranteed to be a data.frame (data or message)
+    datatable(
+      explore_results_global(),
+      options = list(
+        pageLength = 10,
+        scrollX = TRUE,
+        dom = 'lfrtip',
+        paging = TRUE
+      ),
+      filter = 'top',
+      rownames = FALSE
+    )
+  })
+  
+  # ENSEÑAR ANNOT MATRIX
+  
+  observeEvent(input$annotation_selector_button, {
+    showModal(modalDialog(
+      title = "Select Annotation Source",
+      size = "s", # Small modal
+      
+      # Radio buttons for predefined choices
+      radioButtons(
+        inputId = "annotation_source_choice",
+        label = "Choose an annotation source:",
+        choices = c(
+          "Human Annotation (Gene name)" = "human",
+          "Mouse Annotation (Gene name)" = "mouse",
+          "Own Annotation" = "custom"
+        ),
+        selected = character(0) # No default selection
+      ),
+      
+      # File input, visible only if "Upload Custom" is selected via JS later
+      # For simplicity here, it's always present but can be hidden/shown with renderUI/conditionalPanel if preferred
+      fileInput(
+        inputId = "uploaded_annotation_file",
+        label = "Choose file for own annotation (CSV, TXT, Excel)",
+        accept = c(".csv", ".txt", ".xls", ".xlsx")
+      ),
+      
+      footer = tagList(
+        modalButton("Cancel"),
+        # An action button to confirm the choice inside the modal (optional, but good practice)
+        # Or, you can make the radioButtons themselves trigger the logic directly
+        actionButton("confirm_annotation_choice", "Confirm Selection")
+      )
+    ))
+  })
+  
+  observeEvent(input$confirm_annotation_choice, {
+    # This event is triggered when "Confirm Selection" is clicked inside the modal
+    req(input$annotation_source_choice) # Ensure a choice has been made
+    
+    removeModal() # Close the modal after selection
+    
+    source_choice <- input$annotation_source_choice
+    
+    if (source_choice == "human") {
+      annot_path <- "www/ANNOT/GO_annot_human.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        annot_ora_gsea(annotation)
+      } else {
+        shinyalert(title = "Error", text = "Human annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "mouse") {
+      annot_path <- "www/ANNOT/GO_annot_mouse.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        annot_ora_gsea(annotation) # Update the reactive value with the FILTERED annotation
+        shinyalert(title = "Mouse Annotation Loaded", type = "success")
+      } else {
+        shinyalert(title = "Error", text = "Mouse annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "custom") {
+      req(input$uploaded_annotation_file) # Require the file input if custom is chosen
+      
+      file <- input$uploaded_annotation_file$datapath
+      ext <- tools::file_ext(input$uploaded_annotation_file$name)
+      
+      annotation <- NULL
+      if (ext %in% c("xls", "xlsx")) {
+        annotation <- as.data.frame(read_excel(file))
+      } else if (ext %in% c("csv", "txt")) {
+        # It's safer to use read.csv if it's strictly CSV, read.delim for TSV
+        # Check for common delimiters if it's a generic .txt
+        tryCatch({
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = "\t", stringsAsFactors = FALSE))
+        }, error = function(e) {
+          # If tab fails, try comma
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = ",", stringsAsFactors = FALSE))
+        })
+        annot_ora_gsea(annotation) # Update the reactive value with the FILTERED annotation
+        shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        
+      } else {
+        shinyalert(title = "Error", text = "Unsupported file type. Please use CSV, TXT, or Excel.", type = "error")
+        return() # Exit the event if file type is wrong
+      }
+    }
+  })
+  
+  # FILTRO DE GRUPOS
+  
+  observe({
+    # Llenar dinámicamente grupos desde condition si ya existe
+    if (!is.null(data_storage_example$condition)) {
+      groups <- unique(data_storage_example$condition[, 1])
+      updateSelectizeInput(session, "ora_group", choices = groups)
+    }
+    
+    # Llenar dinámicamente omicTypes desde nombres de regulatory
+    if (!is.null(data_storage_example$regulatory)) {
+      updateSelectizeInput(session, "ora_byOmic", choices = c("NULL", names(data_storage_example$regulatory)),selected = "NULL")
+    }
+    
+    updateSelectizeInput(session, "ora_adj", choices = c("none","fdr","holm", "hochberg", "hommel","bonferroni", "BH", "BY"), selected = "none")
+    
+  })
+  
+  # ORA MORE
+  
+  observeEvent(input$runORA, {
+    
+    omic_type <- input$ora_byOmic
+    req(input$ora_group, result_more(), annot_ora_gsea(), result_rpc())
+    
+    # Obtener subconjunto por condición
+    reg_in_cond <- RegulationInCondition(result_rpc(), cond = input$ora_group)
+    
+    current_annot_data = annot_ora_gsea()
+    
+    # Ejecutar oraMORE
+    ora_result <- tryCatch({
+      oraMORE(output = result_more(),outputRegincond =  reg_in_cond,
+              byHubs = input$ora_byHubs,
+              byOmic = omic_type,
+              annotation = current_annot_data,
+              alpha = input$ora_alpha,
+              p.adjust.method = input$ora_adj)
+    }, error = function(e) {
+      
+      shinyalert(title = "Error in ORA",
+                 text = paste("Error in ORA:", e$message),
+                 type = "warning",
+                 size = "m")
+      return(NULL)
+    })
+    
+    ora_raw_result(ora_result)
+    
+  })
+  
+  output$ora_globreg_selector_ui <- renderUI({
+    # Require the raw ORA result
+    ora_res <- ora_raw_result()
+
+    # Only show this selector if byHubs is FALSE AND ora_res is a list
+    if (!is.null(ora_res) && is.list(ora_res) && !is.data.frame(ora_res) && !input$ora_byHubs) {
+      
+      globreg_choices <- names(ora_res)
+      
+      if (length(globreg_choices) > 0) {
+        selectizeInput(
+          "ora_selected_globreg", # NEW inputId for the gene selector
+          "Select Global Regulator for Details:",
+          choices = globreg_choices, 
+          selected = globreg_choices[1],
+          options = list(placeholder = 'Select a Global Regulator')
+        )
+      } 
+    } else {
+      NULL
+    }
+  })
+  
+  output$ora_table <- renderDT({
+    ora_res <- ora_raw_result() 
+    req(ora_res) 
+    
+    display_table <- NULL
+    
+    if (input$ora_byHubs) {
+      display_table <- ora_res
+    } else {
+      req(input$ora_selected_globreg) 
+      selected_globreg <- input$ora_selected_globreg
+      
+      # Display the data.frame corresponding to the selected gene
+      globreg_data <- ora_res[[selected_globreg]]
+      display_table <- globreg_data
+      # else {
+      #   warning(paste("ORA result for gene '", selected_gene, "' is not a data.frame. Displaying empty table.", sep=""))
+      #   display_table <- data.frame(Message = paste("Result for '", selected_gene, "' is not a table.", sep=""))
+      # }
+    }
+    
+    # Render the determined table
+    datatable(display_table, options = list(pageLength = 10, scrollX = TRUE))
+  })
+  
+  # SELECCIONAR ARCHIVOS DE ANOTACIÓN
+  
+  observeEvent(input$annotation_selector_button, {
+    showModal(modalDialog(
+      title = "Select Annotation Source",
+      size = "s", # Small modal
+      
+      # Radio buttons for predefined choices
+      radioButtons(
+        inputId = "annotation_source_choice",
+        label = "Choose an annotation source:",
+        choices = c(
+          "Human Annotation (Gene name)" = "human",
+          "Mouse Annotation (Gene name)" = "mouse",
+          "Own Annotation" = "custom"
+        ),
+        selected = character(0) # No default selection
+      ),
+      
+      # File input, visible only if "Upload Custom" is selected via JS later
+      # For simplicity here, it's always present but can be hidden/shown with renderUI/conditionalPanel if preferred
+      fileInput(
+        inputId = "uploaded_annotation_file",
+        label = "Choose file for own annotation (CSV, TXT, Excel)",
+        accept = c(".csv", ".txt", ".xls", ".xlsx")
+      ),
+      
+      footer = tagList(
+        modalButton("Cancel"),
+        # An action button to confirm the choice inside the modal (optional, but good practice)
+        # Or, you can make the radioButtons themselves trigger the logic directly
+        actionButton("confirm_annotation_choice", "Confirm Selection")
+      )
+    ))
+  })
+  
+  observeEvent(input$confirm_annotation_choice, {
+    # This event is triggered when "Confirm Selection" is clicked inside the modal
+    req(input$annotation_source_choice) # Ensure a choice has been made
+    
+    removeModal() # Close the modal after selection
+    
+    source_choice <- input$annotation_source_choice
+    
+    if (source_choice == "human") {
+      annot_path <- "www/ANNOT/GO_annot_human.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        annot_ora_gsea(annotation)
+      } else {
+        shinyalert(title = "Error", text = "Human annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "mouse") {
+      annot_path <- "www/ANNOT/GO_annot_mouse.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        annot_ora_gsea(annotation) # Update the reactive value with the FILTERED annotation
+        shinyalert(title = "Mouse Annotation Loaded", type = "success")
+      } else {
+        shinyalert(title = "Error", text = "Mouse annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "custom") {
+      req(input$uploaded_annotation_file) # Require the file input if custom is chosen
+      
+      file <- input$uploaded_annotation_file$datapath
+      ext <- tools::file_ext(input$uploaded_annotation_file$name)
+      
+      annotation <- NULL
+      if (ext %in% c("xls", "xlsx")) {
+        annotation <- as.data.frame(read_excel(file))
+      } else if (ext %in% c("csv", "txt")) {
+        # It's safer to use read.csv if it's strictly CSV, read.delim for TSV
+        # Check for common delimiters if it's a generic .txt
+        tryCatch({
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = "\t", stringsAsFactors = FALSE))
+        }, error = function(e) {
+          # If tab fails, try comma
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = ",", stringsAsFactors = FALSE))
+        })
+        annot_ora_gsea(annotation) # Update the reactive value with the FILTERED annotation
+        shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        
+      } else {
+        shinyalert(title = "Error", text = "Unsupported file type. Please use CSV, TXT, or Excel.", type = "error")
+        return() # Exit the event if file type is wrong
+      }
+    }
+  })
+  
+  # SELECCIONAR GRUPOS GSEA MORE
+  
+  observe({
+    if (!is.null(data_storage_example$condition)) {
+      groups <- unique(data_storage_example$condition[, 1])
+      updateSelectizeInput(session, "gsea_group1", choices = groups, selected = groups[1])
+      updateSelectizeInput(session, "gsea_group2", choices = c("NULL", groups), selected = "NULL")
+    }
+    updateSelectizeInput(session, "gsea_adj", choices = c("none","fdr","holm", "hochberg", "hommel","bonferroni", "BH", "BY"), selected = "none")
+  })
+  
+  # RUN GSEA MORE
+  
+  observeEvent(input$runGSEA, {
+    
+    annotat = annot_ora_gsea()
+    
+    rpc = result_rpc()
+    reg1 <- RegulationInCondition(rpc, cond = input$gsea_group1)
+    reg2 <- if (input$gsea_group2 != "NULL") RegulationInCondition(rpc, cond = input$gsea_group2) else NULL
+    
+    gsea_out <- tryCatch({
+       gseaMORE(reg1, reg2,  annotation = annotat, p.adjust.method = input$gsea_adj, alpha = input$gsea_alpha)
+    }, error = function(e) {
+      #showNotification(paste("Error in GSEA:", e$message), type = "error")
+      shinyalert(title = "Error in GSEA",
+                 text = "Error in GSEA: no term enriched under specific pvalueCutoff...",
+                 type = "warning",
+                 size = "m")
+      return(NULL)
+    })
+    
+    if (!is.null(gsea_out)) {
+      result_gsea(gsea_out)
+    }
+    
+  })
+  
+  # GSEA PLOT
+  
+  output$gsea_plot <- renderPlot({
+    req(result_gsea())  # Aquí va con paréntesis
+    
+    gsea_out <- result_gsea()
+    
+    clusterProfiler::dotplot(gsea_out, split = ".sign") +
+      facet_grid(. ~ .sign, labeller = as_labeller(c(
+        activated = input$gsea_group2,
+        suppressed = input$gsea_group1
+      ))) 
+  })
+  
+  # VARIABLES PARA OWN DATA
+  data_storage <- reactiveValues(
+    target = NULL,
+    condition = NULL,
+    regulatory = list(),
+    associations = list(),
+    clinic = NULL
+  )
+  
+  omicType_own <- reactiveVal(NULL)
+  minVariation_own <- reactiveVal(NULL)
+  
+  filtered_data_list_own <- reactiveVal(NULL)
+  filtered_data_own <- reactiveVal(FALSE)
+  
+  plot_data_summary1_own <- reactiveVal(NULL)
+  plot_data_summary2_own <- reactiveVal(NULL)
+  
+  explore_results_hub_own <- reactiveVal(NULL)
+  explore_results_global_own <- reactiveVal(NULL)
+  
+  annot_own <- reactiveVal(NULL)
+  annot_own_oragsea <- reactiveVal(NULL)
+  
+  result_gsea <- reactiveVal(NULL)
+  
+  # CARGAR TARGET DATA
+  
+  observeEvent(input$target_data, {
+    df <- read_file(input$target_data$datapath)
+    data_storage$target <- as.matrix(df)
+  })
+  
+  # CARGAR CONDITION
+  observeEvent(input$condition_data, {
+    df <- read_file(input$condition_data$datapath)
+    data_storage$condition <- as.data.frame(df)
+  })
+  
+  # ENSEÑAR CONDITION
+  
+  output$condition_table_own <- renderDT({
+    req(data_storage$condition)
+    datatable(data_storage$condition, options = list(pageLength = 10))
+  })
+  
+  # MOSTRAR INPUTS ASOCIACIONES
+  
+  output$omics_inputs <- renderUI({
+    req(input$num_omics)
+    lapply(1:input$num_omics, function(i) {
+      tagList(
+        textInput(paste0("omic_name_", i), paste("Omic Name", i)),
+        fileInput(paste0("regulatory_", i), "Regulatory Data"),
+        checkboxInput(paste0("no_association_", i), "Do not use an association file for this omic", value = FALSE),
+        conditionalPanel(
+          condition = paste0("!input.no_association_", i),
+          fileInput(paste0("association_", i), "Association Data (optional)")
+        )
+      )
+    })
+  })
+  
+  # CARGAR DATOS DE REGULADORES Y ASOCIACIONES
+  observe({
+    req(input$num_omics)
+    for (i in seq_len(input$num_omics)) {
+      local({
+        i_loc <- i
+        observeEvent(input[[paste0("regulatory_", i_loc)]], {
+          name <- input[[paste0("omic_name_", i_loc)]]
+          file <- input[[paste0("regulatory_", i_loc)]]
+          if (!is.null(name) && !is.null(file)) {
+            df <- read_file(file$datapath)
+            data_storage$regulatory[[name]] <- df
+          }
+        })
+        
+        observe({
+          name <- input[[paste0("omic_name_", i_loc)]]
+          skip_assoc <- input[[paste0("no_association_", i_loc)]]
+          assoc_file <- input[[paste0("association_", i_loc)]]
+          if (!is.null(name)) {
+            if (isTRUE(skip_assoc)) {
+              data_storage$associations[name] <- list(NULL)
+            } else if (!is.null(assoc_file)) {
+              df <- read_file(assoc_file$datapath)
+              data_storage$associations[[name]] <- as.data.frame(df)
+            }
+          }
+        })
+      })
+    }
+  })
+  
+  # VALIDAR OWN DATA
+  
+  observeEvent(input$validate_data_own, {
+    req(data_storage$target)
+    error_msg(NULL)
+    
+    target_ncol <- ncol(data_storage$target)
+    cond_nrow <- if (!is.null(data_storage$condition)) nrow(data_storage$condition) else NA
+    
+    # 1. Validar número de muestras
+    for (omic_name in names(data_storage$regulatory)) {
+      reg_matrix <- data_storage$regulatory[[omic_name]]
+      if (ncol(reg_matrix) != target_ncol) {
+        error_msg(paste0("ERROR: The number of samples in 'regulatoryData' (omic '", omic_name, "') must match 'targetData'."))
+        valid_data(FALSE)
+        return(invisible())
+      }
+      
+      if (!is.null(data_storage$condition) && ncol(reg_matrix) != cond_nrow) {
+        error_msg(paste0("ERROR: The number of samples in 'regulatoryData' (omic '", omic_name, "') must match 'conditionData'."))
+        valid_data(FALSE)
+        return(invisible())
+      }
+    }
+    
+    # 2. Validar coincidencia de nombres de muestras
+    if (is.null(data_storage$condition)) {
+      name_problem <- !all(sapply(data_storage$regulatory, function(x)
+        length(intersect(colnames(x), colnames(data_storage$target))) == ncol(data_storage$target)))
+      
+      if (name_problem) {
+        error_msg("ERROR: targetData and regulatoryData samples have not the same names.")
+        valid_data(FALSE)
+        return(invisible())
+      }
+    } else {
+      name_problem <- !all(c(
+        sapply(data_storage$regulatory, function(x)
+          length(intersect(colnames(x), colnames(data_storage$target))) == ncol(data_storage$target)),
+        length(intersect(rownames(data_storage$condition), colnames(data_storage$target))) == ncol(data_storage$target)
+      ))
+      
+      if (name_problem) {
+        error_msg("ERROR: targetData, condition and regulatoryData samples have not the same names. We assume that they are ordered. 
+                  If they are not ordered please upload again the file with samples with the correct names.")
+        valid_data(FALSE)
+        return(invisible())
+      }
+    }
+    
+    # 3. Control de valores NA
+    percNA <- 0  # Buscamos cualquier NA
+    
+    # Funciones auxiliares
+    missing_rows <- function(regOmic, percNA) {
+      highNA <- apply(regOmic, 1, function(x) sum(is.na(x)) / length(x)) > percNA
+      rownames(regOmic)[highNA]
+    }
+    
+    missing_cols <- function(regOmic, percNA) {
+      highNA <- apply(regOmic, 2, function(x) sum(is.na(x)) / length(x)) > percNA
+      colnames(regOmic)[highNA]
+    }
+    
+    # Detectar reguladores con NA
+    myregNA <- lapply(data_storage$regulatory, function(x) missing_rows(x, percNA))
+    num_regNA <- sapply(myregNA, length)
+    
+    # Detectar observaciones (columnas) con NA en alguna ómica
+    myobsNA <- lapply(data_storage$regulatory, function(x) missing_cols(x, percNA))
+    myobsNA <- unique(unlist(myobsNA))
+    
+    # Mostrar advertencias si hay NAs
+    if (sum(num_regNA) > 0) {
+      warning_msg <- paste0("Warning !!! Some regulators have missing values.")
+      for (omic in names(num_regNA)) {
+        warning_msg <- paste0(warning_msg, "- ", omic, ": ", num_regNA[omic], " regulators\n")
+      }
+      #showNotification(warning_msg, type = "warning", duration = NULL)
+      
+      
+      shinyalert(title = "Missing Values",
+                 text = paste0("Warning !!! Some regulators have missing values.", "-", omic, ": ", num_regNA[omic], " regulators\n" ),
+                 type = "warning",
+                 size = "m")
+      
+    }
+    
+    if (length(myobsNA) > 0) {
+      warning_msg <- paste0("Warning!!! There are", length(myobsNA),
+                            " samples with missing values.")
+      #showNotification(warning_msg, type = "warning", duration = NULL)
+      shinyalert(title = "Missing Values",
+                 text = paste0("Warning!!! There are", length(myobsNA), " samples with missing values."),
+                 type = "warning",
+                 size = "m")
+      
+    }
+    
+    # Si pasa todas las validaciones
+    valid_data(TRUE)
+    #showNotification("All data validated successfully. You can continue to run MORE." , type = "message")
+    shinyalert(
+      title = "Success!",
+      text = "All data validated successfully. You can continue to run MORE.",
+      type = "success",
+      size = "m" # "m" (medium) or "l" (large)
+    )
+    
+  })
+  
+  # SELECT CONFIG EXAMPLE
+  
+  observeEvent(input$select_config_own, {
+    omic_names <- names(data_storage$regulatory)
+    n <- length(omic_names)
+    
+    # Crear un selectInput por ómica
+    select_inputs <- lapply(seq_len(n), function(i) {
+      selectInput(
+        inputId = paste0("omic_type_", i),
+        label = paste("Type of omic:", omic_names[i]),
+        choices = c("Numeric" = 0, "Binary" = 1),
+        selected = 0
+      )
+    })
+    
+    select_cv <- lapply(seq_len(n), function(i) {
+      numericInput(
+        inputId = paste0("min_variation_", i),
+        label = paste("Minimum change in standard deviation for omic", omic_names[i]),
+        value = 0,      
+        min = 0,        
+        max = Inf,        
+        step = 0.1        
+      )
+    })
+    
+    # Mostrar el modal con todos los selectInputs
+    showModal(modalDialog(
+      tagList(select_inputs, select_cv),
+      footer = tagList(
+        actionButton("save_config_own", "Save"),
+        modalButton("Cancel")
+      ),
+      size = "l"
+    ))
+  })
+  
+  # GUARDAR CONFIG OMIC
+  
+  observeEvent(input$save_config_own, {
+    
+    removeModal()
+    req(data_storage$regulatory)
+    omic_names <- names(data_storage$regulatory)
+    n <- length(omic_names)
+    
+    omic_t = list()
+    variations = list()
+    
+    # Recoger los valores seleccionados
+    omic_t_values <- sapply(seq_len(n), function(i) {
+      as.numeric(input[[paste0("omic_type_", i)]])
+    })
+    names(omic_t_values) <- omic_names
+    omicType_own(omic_t_values)
+    
+    variations_values <- sapply(seq_len(n), function(i) {
+      as.numeric(input[[paste0("min_variation_", i)]])
+    })
+    names(variations_values) <- omic_names
+    minVariation_own(variations_values)
+    
+    omic_t <- c(omic_t, (sapply(seq_len(n), function(i) {
+      as.numeric(input[[paste0("omic_type_", i)]])
+    })))
+    
+    variations <- c(variations, sapply(seq_len(n), function(i) {
+      as.numeric(input[[paste0("min_variation_", i)]])
+    }))
+    
+    #showNotification("Configuration saved.", type = "message")
+    shinyalert(title = "Configuration saved",
+               text = "The configuration chosen has been saved.",
+               type = "success",
+               size = "m")
+    
+  })
+  
+  # CAMBIO DE PESTAÑA
+  
+  observeEvent(input$prepare_model_own, {
+    updateTabsetPanel(session, inputId = "sub_tabs_2", selected = "prepare_model_own")
+  })
+  
+  # RUN MORE OWN
+  observeEvent(input$runMore_own, {
+    
+    req(omicType_own(), minVariation_own(), data_storage$target,data_storage$regulatory,data_storage$associations, data_storage$condition)
+    
+    var = minVariation_own()
+    config_omic_type = omicType_own()
+    names(var) = names(data_storage$regulatory)
+    
+    method_selected <- input$method_choice
+    
+    if (method_selected == "MLR") {
+      varSel_val <- "EN"
+      alfa_val <- NULL
+      vip_val <- NULL
+    } else if (method_selected == "PLS") {
+      method_selected = 'PLS1'
+      grupos <- table(data_storage$condition)
+      if (any(grupos > 20)) {
+        varSel_val <- "Perm"
+      } else {
+        varSel_val <- "Jack"
+      }
+      alfa_val <- input$alfa
+      vip_val <- input$vip
+    }
+    
+    print("Ejecutando botón RUN MORE")
+    
+    result <- tryCatch({
+      more(
+        targetData = data_storage$target,
+        regulatoryData = data_storage$regulatory,
+        associations = data_storage$associations,
+        condition = data_storage$condition,
+        omicType = config_omic_type,
+        scaleType = 'auto',
+        interactions = TRUE,
+        minVariation = var,
+        varSel = varSel_val,
+        alfa = alfa_val,
+        vip = vip_val,
+        method = method_selected,
+        parallel = FALSE
+      )
+    }, error = function(e) {
+      paste("There was an error while executing MORE:", e$message)
+    })
+    
+    if (inherits(result, "try-error")) {
+      error_msg(result)
+    } else {
+      result_more(result)
+    }
+  })
+  
+  # MENSAJE SI HAY UN ERROR EN RUN MORE OWN 
+  output$error_message <- renderText({
+    error_msg()
+  })
+  
+  # DESCARGAR MORE
+  
+  output$download_MORE_own <- downloadHandler(
+    filename = function() {
+      paste0("MORE_model_", Sys.Date(), ".rds")
+    },
+    content = function(file) {
+      req(result_more())
+      saveRDS(result_more(), file)
+    }
+  )
+  
+  # CARGAR MORE
+  
+  observeEvent(input$upload_more_model_own, {
+    req(input$upload_more_model_own)
+    
+    tryCatch({
+      uploaded_model <- readRDS(input$upload_more_model_own$datapath)
+      result_more(uploaded_model)
+      
+      shinyalert(
+        title = "Model loaded",
+        text = "The saved MORE model has been successfully loaded.",
+        type = "success"
+      )
+    }, error = function(e) {
+      shinyalert(
+        title = "Error",
+        text = paste("Failed to load model:", e$message),
+        type = "error"
+      )
+    })
+  })
+  
+  # REGULATION PER CONDITION OWN
+  
+  observeEvent(input$runRegulation_own, {
+    req(result_more())  # Aquí se requiere que esté disponible
+    
+    #showNotification("Ejecutando regulation per condition...", type = "message")
+    
+    shinyalert(title = "Running Regulation Per Condition",
+               text = "Running Regulation Per Condition might take long.",
+               type = "warning",
+               size = "m", 
+               timer = 10000)
+    withProgress(message = "Calculating Regulation Per Condition...", value = 0, {
+    
+      updated_result <- RegulationPerCondition(result_more())
+      result_rpc(updated_result)
+      
+      output$summaryPlot_own <- renderPlot({
+        summaryPlot(result_more(), result_rpc(), filterR2 = 0)
+      })
+      
+      output$summaryPlot2_own <- renderPlot({
+        summaryPlot(result_more(), result_rpc(), byTargetF = FALSE, filterR2 = 0)
+      })
+      
+      output$differentialRegPlot_own <- renderPlot({
+        differentialRegPlot(result_more(), result_rpc())
+      })
+      
+      output$table_own <- renderDT({
+        datatable(data.frame(result_rpc()), options = list(pageLength = 10, searchHighlight = TRUE))
+      })
+      
+      plot_data_summary1_own(summaryPlot(result_more(), result_rpc(), filterR2 = 0))
+      plot_data_summary2_own(summaryPlot(result_more(), result_rpc(), byTargetF = FALSE, filterR2 = 0))
+      
+      output$table_example2_own <- renderDT({
+        datatable(data.frame(result_rpc()), options = list(pageLength = 10, searchHighlight = TRUE))
+        
+      })
+      
+    })
+    
+    
+    #showNotification("Regulation per condition completado.", type = "message")
+    shinyalert(title = "Regulation Per Condition completed",
+               text = "Regulation Per Condition is done.",
+               type = "success",
+               size = "m")
+    
+  })
+  
+  # ACTUALIZAR PLOT OWN
+  
+  observeEvent(input$updatePlot_own, {
+    req(result_more(), result_rpc())
+    
+    # Prepare and store the plot data, applying input$R2 as a visual filter
+    plot_data_summary1_own(summaryPlot(result_more(), result_rpc(), filterR2 = input$R2_own))
+    plot_data_summary2_own(summaryPlot(result_more(), result_rpc(), byTargetF = FALSE, filterR2 = input$R2_own))
+    
+  })
+    
+    # Ejecutar el método summaryPlot() y mostrar el resultado con R2
+    
+    output$summaryPlot_own2 <- renderPlot({
+      req(plot_data_summary1_own()) 
+      plot_data_summary1_own()
+    })
+    
+    output$summaryPlot2_own2 <- renderPlot({
+      req(plot_data_summary2_own()) 
+      plot_data_summary2_own()
+    })
+    
+  
+  # FILTRAR EL MODELO OWN
+  
+  observeEvent(input$runRegulationWithR2_own, {
+    req(result_more(), result_rpc())
+    
+    # Ejecutar regulation per condition con R2
+    filtered_results_own = FilterRegulationPerCondition(result_more(), result_rpc(), filterR2 = input$R2_own)
+    result_rpc(filtered_results_own)
+    
+    # Mostrar notificación de ejecución
+    shinyalert(title = "Updated Regulation Per Condition",
+               text = "Regulation Per Condition is updated with the chosen R2 filter",
+               type = "warning",
+               size = "m", 
+               timer = 5000)
+    
+    # Ejecutar el método summaryPlot() y mostrar el resultado con R2
+
+    output$table_own <- renderDT({
+      datatable(data.frame(result_rpc()), options = list(pageLength = 10, searchHighlight = TRUE))
+    })
+  })
+  
+  output$download_model_own <- downloadHandler(
+    filename = function() {
+      paste0("MORE_model_", Sys.Date(), ".rds")
+    },
+    content = function(file) {
+      req(result_rpc())
+      saveRDS(result_rpc(), file)
+    }
+  )
+  
+  # EXTRAER LOS VALORES ÚNICOS PARA LOS SELECTORES OWN
+  observeEvent(result_rpc(), {
+    req(result_rpc())
+    
+    # Extraer los valores únicos para los selectores
+    rpc_df <- as.data.frame(result_rpc())
+    updateSelectizeInput(session, "selected_target_own",
+                      choices = unique(rpc_df$targetF),server = TRUE)
+    updateSelectizeInput(session, "selected_regulator_own",
+                      choices = unique(rpc_df$regulator),server = TRUE)
+  })
+  
+  # PLOT MORE OWN
+  output$plot_more_output_own <- renderPlot({
+    req(input$selected_target_own, input$selected_regulator_own, result_more())
+    
+    plotMORE(
+      result_more(),
+      targetF = input$selected_target_own,
+      regulator = input$selected_regulator_own,
+      order = TRUE
+    )
+  })
+  
+  # CARGAR MODELO REGPCOND
+  
+  observeEvent(input$upload_model_own, {
+    req(input$upload_model_own)
+    loaded_model <- readRDS(input$upload_model_own$datapath)
+    result_rpc(loaded_model)
+  })
+  
+  observeEvent(input$upload_more_model_own, {
+    req(input$upload_more_model_own)
+    uploaded_model <- readRDS(input$upload_more_model_own$datapath)
+    result_more(uploaded_model)
+    data_storage$target <- uploaded_model$arguments$targetData
+    data_storage$condition <- uploaded_model$arguments$condition
+  })
+  
+  # SELECCIONAR GRUPOS DE CONDITION
+  
+  actual_condition_data_for_groups <- reactive({
+    # If a MORE model has been uploaded and it contains condition data in its arguments
+    if (!is.null(result_more()) && !is.null(result_more()$arguments$condition)) {
+      return(result_more()$arguments$condition)
+    } else {
+      return(data_storage$condition) # Assuming data_storage is a reactiveValues object
+    }
+  })
+
+  observe({
+    req(actual_condition_data_for_groups())
+    condition = actual_condition_data_for_groups()
+    groups <- unique(as.character(condition[,1]))
+    updateSelectInput(session, "Group1_own", choices = groups)
+    updateSelectInput(session, "Group2_own", choices = c("NULL", groups), selected = "NULL")
+  })
+  
+  observe({
+    updateSelectizeInput(session,
+                         "pathway_own",
+                         choices = "NULL",
+                         selected = "NULL",
+                         server = TRUE)
+  })
+  
+  # LEER ANNOTATION SI HUBIESE
+  
+  observeEvent(input$annotation_selector_button, {
+    
+    showModal(modalDialog(
+      title = "Select Annotation Source",
+      size = "s", # Small modal
+      
+      # Radio buttons for predefined choices
+      radioButtons(
+        inputId = "annotation_source_choice",
+        label = "Choose an annotation source:",
+        choices = c(
+          "Human Annotation (Gene name)" = "human",
+          "Mouse Annotation (Gene name)" = "mouse",
+          "Own Annotation" = "custom"
+        ),
+        selected = character(0) 
+      ),
+      
+      # File input, visible only if "Upload Custom" is selected via JS later
+      # For simplicity here, it's always present but can be hidden/shown with renderUI/conditionalPanel if preferred
+      fileInput(
+        inputId = "uploaded_annotation_file",
+        label = "Choose file for own annotation (CSV, TXT, Excel)",
+        accept = c(".csv", ".txt", ".xls", ".xlsx")
+      ),
+      
+      footer = tagList(
+        modalButton("Cancel"),
+        # An action button to confirm the choice inside the modal (optional, but good practice)
+        # Or, you can make the radioButtons themselves trigger the logic directly
+        actionButton("confirm_annotation_choice", "Confirm Selection")
+      )
+    ))
+  })
+  
+  observeEvent(input$confirm_annotation_choice, {
+
+    req(input$annotation_source_choice, data_storage$target)
+    
+    # This event is triggered when "Confirm Selection" is clicked inside the modal
+    #req(input$annotation_source_choice, data_storage$target) # Ensure a choice has been made
+    
+    removeModal() # Close the modal after selection
+    
+    source_choice <- input$annotation_source_choice
+    model_target_features <- rownames(data_storage$target)
+    
+    if (source_choice == "human") {
+      annot_path <- "www/ANNOT/GO_annot_human.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        
+        filtered_annotation <- annotation[as.character(annotation[,1]) %in% model_target_features, ]
+        if (nrow(filtered_annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own(filtered_annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Human Annotation Loaded", type = "success")
+        }
+      } else {
+        shinyalert(title = "Error", text = "Human annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "mouse") {
+      annot_path <- "www/ANNOT/GO_annot_mouse.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        filtered_annotation <- annotation[as.character(annotation[,1]) %in% model_target_features, ]
+        if (nrow(filtered_annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own(filtered_annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+        
+      } else {
+        shinyalert(title = "Error", text = "Mouse annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "custom") {
+      req(input$uploaded_annotation_file) # Require the file input if custom is chosen
+      
+      file <- input$uploaded_annotation_file$datapath
+      ext <- tools::file_ext(input$uploaded_annotation_file$name)
+      
+      annotation <- NULL
+      if (ext %in% c("xls", "xlsx")) {
+        annotation <- as.data.frame(read_excel(file))
+      } else if (ext %in% c("csv", "txt")) {
+        # It's safer to use read.csv if it's strictly CSV, read.delim for TSV
+        # Check for common delimiters if it's a generic .txt
+        tryCatch({
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = "\t", stringsAsFactors = FALSE))
+        }, error = function(e) {
+          # If tab fails, try comma
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = ",", stringsAsFactors = FALSE))
+        })
+        filtered_annotation <- annotation[as.character(annotation[,1]) %in% model_target_features, ]
+        if (nrow(filtered_annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own(filtered_annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+        
+      } else {
+        shinyalert(title = "Error", text = "Unsupported file type. Please use CSV, TXT, or Excel.", type = "error")
+        return() # Exit the event if file type is wrong
+      }
+      
+      
+    }
+  })
+  
+  # SELECT PATHWAY
+  
+  observe({
+    
+    req(annot_own())
+    current_annot <- annot_own()
+    
+    if (is.null(current_annot)) {
+      updateSelectizeInput(session,
+                           "pathway_own",
+                           choices = "NULL",
+                           selected = "NULL",
+                           server = TRUE)
+      return()
+    }
+    
+    # Extract unique values from the third column for pathway choices
+    pathway_choices <- unique(as.character(current_annot[,3]))
+    pathway_choices <- pathway_choices[!is.na(pathway_choices) & pathway_choices != ""]
+    
+    # Update the selectizeInput for pathway_example
+    updateSelectizeInput(session,
+                         "pathway_own",
+                         choices = c("NULL", pathway_choices), 
+                         selected = "NULL",
+                         server = TRUE  )
+  })
+  
+  
+  # GENERAR RED
+  
+  observeEvent(input$runNetwork, {
+    req(result_rpc(), input$Group1_own, input$pc_own)
+    
+    group2_val <- if (input$Group2_own == "NULL") NULL else input$Group2_own
+    group1_val <- input$Group1_own
+    
+    pathway_val <- if (is.null(input$pathway_own) || input$pathway_own == "NULL" || input$pathway_own == "") {
+      NULL
+    } else {
+      input$pathway_own
+    }
+    
+    annotation_val <- annot_own()
+    
+    net <- networkMORE_cyj(result_rpc(), group1 = group1_val, group2 = group2_val, pc = input$pc_own, pathway =pathway_val, annotation = annotation_val)
+    
+    network_data(net)
+    #showNotification("Red generada correctamente.", type = "message"
+    shinyalert(title = "Network completed",
+               text = "The generation of the network has been succesfull",
+               type = "success",
+               size = "m")
+    
+  })
+  
+  # ENSEÑAR LA RED
+  
+  output$networkPlot_own <- renderVisNetwork({
+    req(network_data())
+    net <- network_data()
+    edges <- net$edges %>% rename(from = source, to = target)
+    edges <- style_edges_by_line_type(edges)
+    
+    legend_items <- generate_legend(net$nodes)
+    
+    
+    nodes <- net$nodes %>%
+      mutate(
+        label = id,
+        font.align = "top",
+        font.color = "black",
+        font.size = 14,
+        
+        shape = case_when(
+          omic == "targetF" ~ "box",
+          grepl("tf", omic, ignore.case = TRUE) ~ "triangle",
+          grepl("mirna", omic, ignore.case = TRUE) ~ "diamond",
+          TRUE ~ "ellipse"  # forma por defecto
+        )
+      )
+    
+    legend_items <- generate_legend(nodes)
+    
+    visNetwork(nodes, edges) %>%
+      visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+      visLegend(addNodes = legend_items, useGroups = FALSE, position = "right", main='Omic Type') %>%
+      visLayout(randomSeed = 42) %>% 
+      
+      visPhysics(
+        enabled = TRUE, 
+        solver = "repulsion", 
+        repulsion = list(
+          nodeDistance = 300,
+          springLength = 200 
+        ),
+        
+        stabilization = list(
+          iterations = 2500 
+        )
+      )
+  })
+  
+  # HUB TARGET FEATURES AND GLOBAL REGULATORS
+
+  observeEvent(input$upload_model_own, {
+    req(input$upload_model_own)
+    loaded_model <- readRDS(input$upload_model_own$datapath)
+    result_rpc(loaded_model)
+  })
+  
+  observeEvent(input$upload_more_model_own, {
+    req(input$upload_more_model_own)
+    uploaded_model <- readRDS(input$upload_more_model_own$datapath)
+    result_more(uploaded_model)
+    data_storage$target <- uploaded_model$arguments$targetData
+    data_storage$condition <- uploaded_model$arguments$condition
+  })
+  
+  # SELECCIONAR GRUPOS DE CONDITION
+  observe({
+    req(data_storage$condition)
+    condition = data_storage$condition
+    groups <- unique(as.character(condition$Group))
+    updateSelectizeInput(session, "group_explore_own", choices = c("NULL", groups), selected = "NULL")
+  })
+  
+  data_for_tables_own <- reactive({
+    selected_condition_value <- input$group_explore_own
+    
+    hub_vec <- NULL
+    glob_vec <- NULL
+    
+    if (selected_condition_value == "NULL") {
+      if (!is.null(result_more())) {
+        hub_vec <- result_more()$GlobalSummary$HubTargetF
+        glob_vec <- result_more()$GlobalSummary$GlobalRegulators
+      } 
+    } else {
+      results <- RegulationInCondition(result_rpc(), cond = selected_condition_value )
+      hub_vec <- results$HubTargetF
+      glob_vec <- results$GlobalRegulators
+      
+    }
+    
+    hub_df <- NULL
+    if (!is.null(hub_vec) && length(hub_vec) > 0) {
+      hub_df <- data.frame(`Hub Target Feature` = hub_vec, stringsAsFactors = FALSE)
+    } else {
+      hub_df <- data.frame(Message = "No Hub Target Features identified for this selection.", stringsAsFactors = FALSE)
+    }
+    
+    global_df <- NULL
+    if (!is.null(glob_vec) && length(glob_vec) > 0) {
+      global_df <- data.frame(`Global Regulator` = glob_vec, stringsAsFactors = FALSE)
+    } else {
+      global_df <- data.frame(Message = "No Global Regulators identified for this selection.", stringsAsFactors = FALSE)
+    }
+    
+    return(list(HubTarget = hub_df, GlobalRegulators = global_df))
+  })
+  
+  observe({
+    current_data <- data_for_tables_own()
+    explore_results_hub_own(current_data$HubTarget)
+    explore_results_global_own(current_data$GlobalRegulators)
+  })
+  
+  
+  # --- Render DataTables ---
+  
+  output$hub_features_table_explore_own <- renderDT({
+    datatable(
+      explore_results_hub_own(),
+      options = list(
+        pageLength = 10,
+        scrollX = TRUE,
+        dom = 'lfrtip', # Layout: Length changing, Filtering, Table, Info, Pagination
+        paging = TRUE
+      ),
+      filter = 'top',
+      rownames = FALSE
+    )
+  })
+  
+  output$global_regulators_table_explore_own <- renderDT({
+    # explore_results_global() is guaranteed to be a data.frame (data or message)
+    datatable(
+      explore_results_global_own(),
+      options = list(
+        pageLength = 10,
+        scrollX = TRUE,
+        dom = 'lfrtip',
+        paging = TRUE
+      ),
+      filter = 'top',
+      rownames = FALSE
+    )
+  })
+  
+  observeEvent(input$annotation_selector_button_own, {
+    showModal(modalDialog(
+      title = "Select Annotation Source",
+      size = "s", # Small modal
+      
+      # Radio buttons for predefined choices
+      radioButtons(
+        inputId = "annotation_source_choice",
+        label = "Choose an annotation source:",
+        choices = c(
+          "Human Annotation (Gene name)" = "human",
+          "Mouse Annotation (Gene name)" = "mouse",
+          "Own Annotation" = "custom"
+        ),
+        selected = character(0) # No default selection
+      ),
+      
+      # File input, visible only if "Upload Custom" is selected via JS later
+      # For simplicity here, it's always present but can be hidden/shown with renderUI/conditionalPanel if preferred
+      fileInput(
+        inputId = "uploaded_annotation_file",
+        label = "Choose file for own annotation (CSV, TXT, Excel)",
+        accept = c(".csv", ".txt", ".xls", ".xlsx")
+      ),
+      
+      footer = tagList(
+        modalButton("Cancel"),
+        # An action button to confirm the choice inside the modal (optional, but good practice)
+        # Or, you can make the radioButtons themselves trigger the logic directly
+        actionButton("confirm_annotation_choice", "Confirm Selection")
+      )
+    ))
+  })
+  
+  observeEvent(input$confirm_annotation_choice, {
+    # This event is triggered when "Confirm Selection" is clicked inside the modal
+    req(input$annotation_source_choice, data_storage$target) # Ensure a choice has been made
+    
+    removeModal() # Close the modal after selection
+    
+    source_choice <- input$annotation_source_choice
+    model_target_features <- rownames(data_storage$target)
+    
+    if (source_choice == "human") {
+      annot_path <- "www/ANNOT/GO_annot_human.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        
+        if (nrow(annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own_oragsea(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own_oragsea(annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Human Annotation Loaded", type = "success")
+        }
+      } else {
+        shinyalert(title = "Error", text = "Human annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "mouse") {
+      annot_path <- "www/ANNOT/GO_annot_mouse.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        
+        if (nrow(annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own_oragsea(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own_oragsea(annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+        
+      } else {
+        shinyalert(title = "Error", text = "Mouse annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "custom") {
+      req(input$uploaded_annotation_file) # Require the file input if custom is chosen
+      
+      file <- input$uploaded_annotation_file$datapath
+      ext <- tools::file_ext(input$uploaded_annotation_file$name)
+      
+      annotation <- NULL
+      if (ext %in% c("xls", "xlsx")) {
+        annotation <- as.data.frame(read_excel(file))
+      } else if (ext %in% c("csv", "txt")) {
+        # It's safer to use read.csv if it's strictly CSV, read.delim for TSV
+        # Check for common delimiters if it's a generic .txt
+        tryCatch({
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = "\t", stringsAsFactors = FALSE))
+        }, error = function(e) {
+          # If tab fails, try comma
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = ",", stringsAsFactors = FALSE))
+        })
+        
+        if (nrow(annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own_oragsea(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own_oragsea(annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+        
+      } else {
+        shinyalert(title = "Error", text = "Unsupported file type. Please use CSV, TXT, or Excel.", type = "error")
+        return() # Exit the event if file type is wrong
+      }
+      
+      
+    }
+  })
+  
+  observe({
+    # Llenar dinámicamente grupos desde condition si ya existe
+    if (!is.null(data_storage$condition)) {
+      groups <- unique(data_storage$condition[, 1])
+      updateSelectInput(session, "ora_group_own", choices = groups)
+    }
+    
+    # Llenar dinámicamente omicTypes desde nombres de regulatory
+    if (!is.null(data_storage$regulatory)) {
+      updateSelectInput(session, "ora_byOmic_own", choices = c("NULL", names(data_storage$regulatory)))
+    }
+    
+    updateSelectizeInput(session, "ora_adj_own", choices = c("none","fdr","holm", "hochberg", "hommel","bonferroni", "BH", "BY"), selected = "none")
+    
+  })
+  
+  # ORA MORE
+  
+  observeEvent(input$runORA_own, {
+    req(input$ora_group_own, result_more(), annot_own_oragsea(), result_rpc())
+    
+    # Obtener subconjunto por condición
+    reg_in_cond <- RegulationInCondition(result_rpc(), cond = input$ora_group_own)
+    
+    current_annot_data = annot_own_oragsea()
+    
+    # Ejecutar oraMORE
+    ora_result_own <- tryCatch({
+      oraMORE(output = result_more(),outputRegincond =  reg_in_cond,
+              byHubs = input$ora_byHubs_own,
+              annotation = current_annot_data,
+              alpha = input$ora_alpha_own,
+              p.adjust.method = input$ora_adj_own)
+    }, error = function(e) {
+      #showNotification(paste("Error in ORA:", e$message), type = "error")
+      shinyalert(title = "Error in ORA",
+                 text = paste("Error in ORA:", e$message),
+                 type = "warning",
+                 size = "m")
+      
+      return(NULL)
+    })
+    
+    ora_raw_result(ora_result_own)
+  })
+  
+  output$ora_globreg_selector_ui_own <- renderUI({
+    # Require the raw ORA result
+    ora_res <- ora_raw_result()
+    
+    # Only show this selector if byHubs is FALSE AND ora_res is a list
+    if (!is.null(ora_res) && is.list(ora_res) && !is.data.frame(ora_res) && !input$ora_byHubs_own) {
+      
+      globreg_choices <- names(ora_res)
+      
+      if (length(globreg_choices) > 0) {
+        selectizeInput(
+          "ora_selected_globreg", # NEW inputId for the gene selector
+          "Select Global Regulator for Details:",
+          choices = globreg_choices, 
+          selected = globreg_choices[1],
+          options = list(placeholder = 'Select a Global Regulator')
+        )
+      } 
+    } else {
+      NULL
+    }
+  })
+  
+  output$ora_table_own <- renderDT({
+    ora_res <- ora_raw_result() 
+    req(ora_res) 
+    
+    display_table <- NULL
+    
+    if (input$ora_byHubs_own) {
+      display_table <- ora_res
+    } else {
+      req(input$ora_selected_globreg) 
+      selected_globreg <- input$ora_selected_globreg
+      
+      # Display the data.frame corresponding to the selected gene
+      globreg_data <- ora_res[[selected_globreg]]
+      display_table <- globreg_data
+      # else {
+      #   warning(paste("ORA result for gene '", selected_gene, "' is not a data.frame. Displaying empty table.", sep=""))
+      #   display_table <- data.frame(Message = paste("Result for '", selected_gene, "' is not a table.", sep=""))
+      # }
+    }
+    
+    # Render the determined table
+    datatable(display_table, options = list(pageLength = 10, scrollX = TRUE))
+  })
+  
+  observeEvent(input$annotation_selector_button_own, {
+    showModal(modalDialog(
+      title = "Select Annotation Source",
+      size = "s", # Small modal
+      
+      # Radio buttons for predefined choices
+      radioButtons(
+        inputId = "annotation_source_choice",
+        label = "Choose an annotation source:",
+        choices = c(
+          "Human Annotation (Gene name)" = "human",
+          "Mouse Annotation (Gene name)" = "mouse",
+          "Own Annotation" = "custom"
+        ),
+        selected = character(0) # No default selection
+      ),
+      
+      # File input, visible only if "Upload Custom" is selected via JS later
+      # For simplicity here, it's always present but can be hidden/shown with renderUI/conditionalPanel if preferred
+      fileInput(
+        inputId = "uploaded_annotation_file",
+        label = "Choose file for own annotation (CSV, TXT, Excel)",
+        accept = c(".csv", ".txt", ".xls", ".xlsx")
+      ),
+      
+      footer = tagList(
+        modalButton("Cancel"),
+        # An action button to confirm the choice inside the modal (optional, but good practice)
+        # Or, you can make the radioButtons themselves trigger the logic directly
+        actionButton("confirm_annotation_choice", "Confirm Selection")
+      )
+    ))
+  })
+  
+  observeEvent(input$confirm_annotation_choice, {
+    # This event is triggered when "Confirm Selection" is clicked inside the modal
+    req(input$annotation_source_choice, data_storage$target) # Ensure a choice has been made
+    
+    removeModal() # Close the modal after selection
+    
+    source_choice <- input$annotation_source_choice
+    model_target_features <- rownames(data_storage$target)
+    
+    if (source_choice == "human") {
+      annot_path <- "www/ANNOT/GO_annot_human.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+        
+        if (nrow(annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own_oragsea(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own_oragsea(annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Human Annotation Loaded", type = "success")
+        }
+      } else {
+        shinyalert(title = "Error", text = "Human annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "mouse") {
+      annot_path <- "www/ANNOT/GO_annot_mouse.xlsx" 
+      if (file.exists(annot_path)) {
+        annotation <- as.data.frame(read_excel(annot_path))
+      
+        if (nrow(annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own_oragsea(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own_oragsea(annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+        
+      } else {
+        shinyalert(title = "Error", text = "Mouse annotation file not found!", type = "error")
+      }
+      
+    } else if (source_choice == "custom") {
+      req(input$uploaded_annotation_file) # Require the file input if custom is chosen
+      
+      file <- input$uploaded_annotation_file$datapath
+      ext <- tools::file_ext(input$uploaded_annotation_file$name)
+      
+      annotation <- NULL
+      if (ext %in% c("xls", "xlsx")) {
+        annotation <- as.data.frame(read_excel(file))
+      } else if (ext %in% c("csv", "txt")) {
+        # It's safer to use read.csv if it's strictly CSV, read.delim for TSV
+        # Check for common delimiters if it's a generic .txt
+        tryCatch({
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = "\t", stringsAsFactors = FALSE))
+        }, error = function(e) {
+          # If tab fails, try comma
+          annotation <- as.data.frame(read.delim(file, header = TRUE, sep = ",", stringsAsFactors = FALSE))
+        })
+        
+        if (nrow(annotation) == 0) {
+          shinyalert(title = "Annotation Filtered",
+                     text = "No common target features found between the loaded annotation and your main data. Annotation matrix will be empty.",
+                     type = "warning",
+                     size = "m")
+          annot_own_oragsea(NULL) # Set annot to NULL if no common features after filtering
+        } else {
+          annot_own_oragsea(annotation) # Update the reactive value with the FILTERED annotation
+          shinyalert(title = "Mouse Annotation Loaded", type = "success")
+        }
+        
+      } else {
+        shinyalert(title = "Error", text = "Unsupported file type. Please use CSV, TXT, or Excel.", type = "error")
+        return() # Exit the event if file type is wrong
+      }
+      
+      
+    }
+  })
+  
+  
+  # SELECCIONAR GRUPOS GSEA MORE
+  
+  observe({
+    if (!is.null(data_storage$condition)) {
+      groups <- unique(data_storage$condition[, 1])
+      updateSelectInput(session, "gsea_group1_own", choices = groups, selected = groups[1])
+      updateSelectInput(session, "gsea_group2_own", choices = c("NULL", groups), selected = "NULL")
+    }
+    updateSelectizeInput(session, "gsea_adj_own", choices = c("none","fdr","holm", "hochberg", "hommel","bonferroni", "BH", "BY"), selected = "none")
+  })
+  
+  # RUN GSEA MORE
+  
+  observeEvent(input$runGSEA_own, {
+    
+    annotat = annot_own_oragsea()
+    
+    rpc = result_rpc()
+    reg1 <- RegulationInCondition(rpc, cond = input$gsea_group1_own)
+    reg2 <- if (input$gsea_group2_own != "NULL") RegulationInCondition(rpc, cond = input$gsea_group2_own) else NULL
+    
+    gsea_out <- tryCatch({
+      gseaMORE(reg1, reg2,  annotation = annotat, p.adjust.method = input$gsea_adj_own, alpha = input$gsea_alpha_own)
+    }, error = function(e) {
+      #showNotification(paste("Error in GSEA:", e$message), type = "error")
+      shinyalert(title = "Error in GSEA",
+                 text = paste("Error in GSEA:", e$message),
+                 type = "warning",
+                 size = "m")
+      
+      return(NULL)
+    })
+    
+    if (!is.null(gsea_out)) {
+      result_gsea(gsea_out)
+    }
+    
+  })
+  
+  # GSEA PLOT
+  
+  output$gsea_plot_own <- renderPlot({
+    req(result_gsea())  # Aquí va con paréntesis
+    
+    gsea_out <- result_gsea()
+    
+    clusterProfiler::dotplot(gsea_out, split = ".sign") +
+      facet_grid(. ~ .sign, labeller = as_labeller(c(
+        activated = input$gsea_group2_own,
+        suppressed = input$gsea_group1_own
+      ))) 
+  })
+
+}
+
+shinyApp(ui, server)

@@ -1,0 +1,7 @@
+"0","# Create blocks: Petal measurements vs Sepal measurements"
+"0","X_blocks = list('Petal' = iris[,c(3,4)], 'Sepal' = iris[,c(1,2)])"
+"0",""
+"0","# Applying 'softBlock' scaling on the concatenated matrix"
+"0","pca_hard = pca(X_blocks, ncomp = 2, scaling = 'hardBlock')"
+"2","Aviso: To avoid problems with numeric identifiers, we added r prefix to the identifiers"
+"2","Aviso: To avoid problems with numeric identifiers, we added r prefix to the identifiers"

@@ -1,0 +1,2 @@
+"0","Psel_unique = matrix(rnorm(3*20, mean = 0, sd = 1), nrow=3)"
+"0","Psel = rbind(Psel_unique, matrix(0,nrow = 2,ncol = 20))"

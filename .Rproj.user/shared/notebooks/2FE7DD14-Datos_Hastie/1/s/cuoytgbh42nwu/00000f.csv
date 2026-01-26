@@ -1,0 +1,5 @@
+"0","save(X,Y, fle='datosHastie.Rdata')
+"
+"2","Error in save(X, Y, fle = ""datosHastie.Rdata"") : 
+  object ‘datosHastie.Rdata’ not found
+"

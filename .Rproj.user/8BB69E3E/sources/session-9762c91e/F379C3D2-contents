@@ -1,0 +1,185 @@
+
+## Pruebas consensus PCA vs MBPCA
+
+data("iris")
+
+X = list('Petalo' = iris[,c(3,4)], 'Sepalo' = iris[,c(1,2)])
+
+mypca = pca(X, algo = 'mbpca')
+
+conspca = pca(iris[,c(3,4,1,2)], algo = 'nipals')
+
+mypca2 = pca(X, algo = 'mbpca')
+
+conspca2 = pca(X, algo = 'nipals', scaling = 'hardBlock')
+
+b_names = names(X)
+
+block_p = setNames(lapply(b_names, function(x) crossprod(as.matrix(X[[x]]), conspca2$scores)/sqrt(sum(crossprod(as.matrix(X[[x]]), conspca2$scores)^2)) ), b_names)
+
+block_t = setNames(lapply(b_names, function(x) as.matrix(X[[x]]) %*% block_p[[x]]), b_names)
+
+X_scalada = setNames(lapply(b_names, function(x) scale(X[[x]]) ),b_names)
+
+SCT = setNames(lapply(b_names, function(x) sum(diag(crossprod(as.matrix(X_scalada[[x]]))))),b_names)
+
+for (i in 1:4){
+  X_scalada = setNames(lapply(b_names, function(x) X_scalada[[x]] - tcrossprod(conspca2$scores[,i], block_p[[x]][,i])),b_names)
+}
+
+SCR = setNames(lapply(b_names, function(x) sum(diag(crossprod(as.matrix(X_scalada[[x]]))))),b_names)
+
+explvarB = setNames(lapply(b_names, function(x) (1-SCR[[x]]/SCT[[x]])*100) ,b_names)
+
+## Prueba con un bloque de menos variables que el otro
+
+load('prueba.Rdata')
+
+mypca = pca(X, algo = 'mbpca')
+
+conspca2 = pca(X, algo = 'nipals', scaling = 'hardBlock')
+
+b_names = names(X)
+
+block_p = setNames(lapply(b_names, function(x) crossprod(as.matrix(X[[x]]), conspca2$scores)/sqrt(sum(crossprod(as.matrix(X[[x]]), conspca2$scores)^2)) ), b_names)
+
+block_t = setNames(lapply(b_names, function(x) as.matrix(X[[x]]) %*% block_p[[x]]), b_names)
+
+X_scalada = setNames(lapply(b_names, function(x) scale(X[[x]]) ),b_names)
+
+SCT = setNames(lapply(b_names, function(x) sum(diag(crossprod(as.matrix(X_scalada[[x]]))))),b_names)
+
+for (i in 1:4){
+  X_scalada = setNames(lapply(b_names, function(x) X_scalada[[x]] - tcrossprod(conspca2$scores[,i], block_p[[x]][,i])),b_names)
+}
+
+SCR = setNames(lapply(b_names, function(x) sum(diag(crossprod(as.matrix(X_scalada[[x]]))))),b_names)
+
+explvarB = setNames(lapply(b_names, function(x) (1-SCR[[x]]/SCT[[x]])*100) ,b_names)
+
+Y = list('Petalo' = iris[,c(3,4)], 'Sepalo' = iris[,c(1,2)],'Mix' = iris[,c(1,3)] )
+
+tblock = pca(Y, algo = 'mbpca')
+constblock = pca(Y, algo = 'nipals', scaling = 'hardBlock')
+
+## Prueba escalado previo multibloque
+
+X = iris[,1:4]
+
+X = Scaling(X, scaling = 'hardBlock',blocks = c(1,1,2,2))
+
+X = list('Petalo' = X$x[,3:4], 'Sepalo' = X$x[,1:2])
+
+mb_scaled = pca(X, algo = 'mbpca', scaling = 'none')
+
+X = list('Petalo' = iris[,c(3,4)], 'Sepalo' = iris[,c(1,2)])
+
+sumpca = pca(X, algo = 'nipals', scaling = 'hardBlock')
+
+X = list('Petalo' = iris[,3:4], 'Sepalo' = iris[,1:2])
+
+mb_johan = pca(X, algo = 'mbpca')
+
+## PRUEBA JOHAN -------------
+
+nipals_mbpca = function(X, ncomp = NULL ){
+  
+  b_names = names(X)
+  
+  block_weight = matrix(0,nrow = length(X),ncol =ncomp )
+  super_scores = matrix(0, nrow = nrow(X[[1]]), ncol = ncomp )
+  super_loadings = matrix(0, nrow = length(X), ncol = ncomp )
+  eigen = rep(0, ncomp)
+  
+  tr = setNames(lapply(b_names, function(x) sum(diag(t(X[[x]])%*%X[[x]]))),b_names)
+  
+  for (i in 1:ncomp){
+    
+    iter = 1
+    w_old = rep(0, length(X))
+    
+    #Choose an arbitrary starting global score
+    rand = X[[sample(length(X), 1)]]
+    super_t_old = rand[, sample(ncol(rand), 1), drop=FALSE]
+    
+    block_p = setNames(lapply(b_names, function(x) (t(X[[x]])%*%super_t_old) / drop(t(super_t_old)%*%super_t_old)), b_names)
+    block_p = setNames(lapply(b_names, function(x) block_p[[x]] / sqrt(drop(crossprod(block_p[[x]])))), b_names)
+    block_t = setNames(lapply(b_names, function(x) (X[[x]] %*% block_p[[x]])/sqrt(ncol(X[[x]]))), b_names)
+    
+    T_scores = do.call(cbind, block_t)
+    w_new = (t(T_scores) %*% super_t_old) / drop(t(super_t_old)%*%super_t_old)
+    w_new = w_new / sqrt(drop(crossprod(w_new)))
+    
+    super_t_new = T_scores %*% w_new
+    
+    while(sqrt(drop(crossprod(w_new-w_old)))>1e-6 && iter<100){
+      
+      #Update
+      super_t_old = super_t_new
+      w_old = w_new
+      iter = iter + 1
+      
+      #Recalculate block_scores, loadings, super_scores and loadings
+      block_p = setNames(lapply(b_names, function(x) (t(X[[x]])%*%super_t_old) / drop(t(super_t_old)%*%super_t_old)), b_names)
+      block_p = setNames(lapply(b_names, function(x) block_p[[x]] / sqrt(drop(crossprod(block_p[[x]])))), b_names)
+      block_t = setNames(lapply(b_names, function(x) (X[[x]] %*% block_p[[x]])/sqrt(ncol(X[[x]]))), b_names)
+      
+      T_scores = do.call(cbind, block_t)
+      w_new = (t(T_scores) %*% super_t_old) / drop(t(super_t_old)%*%super_t_old)
+      w_new = w_new / sqrt(drop(crossprod(w_new)))
+      
+      super_t_new = T_scores %*% w_new
+    }
+    
+    if (i==1){
+      block_scores = block_t
+      block_loadings = block_p
+    } else{
+      block_scores = setNames(lapply(b_names, function(x) cbind(block_scores[[x]], block_t[[x]])),b_names)
+      block_loadings = setNames(lapply(b_names, function(x) cbind(block_loadings[[x]], block_p[[x]])),b_names)
+    }
+    
+    super_scores[,i] = super_t_new
+    super_loadings[,i] = w_new
+    eigen[i] = t(super_t_new)%*%super_t_new / (nrow(X[[1]])-1)
+    
+    X = setNames(lapply(b_names, function(x) X[[x]]- block_t[[x]] %*% t(block_p[[x]]) ),b_names)
+    
+    Eb = setNames(lapply(b_names, function(x) sum(diag(t(X[[x]])%*%X[[x]]))),b_names)
+    explvarB = if(i==1)  setNames(lapply(b_names, function(x) (1-Eb[[x]]/tr[[x]])*100) ,b_names) else setNames(lapply(b_names, function(x) cbind(explvarB[[x]],(1-Eb[[x]]/tr[[x]])*100)) ,b_names)
+    
+  }
+  
+  #Change the colnames and save the rownames
+  block_scores = lapply(block_scores, function(x) {
+    colnames(x) = paste0("p", 1:ncomp)
+    rownames(x) = rownames(X[[1]])
+    return(x)
+  })
+  
+  block_loadings = lapply(names(block_loadings), function(x) {
+    colnames(block_loadings[[x]]) = paste0("p", 1:ncomp)
+    rownames(block_loadings[[x]]) = colnames(X[[x]])
+    return(block_loadings[[x]])
+  })
+  names(block_loadings) = b_names
+  
+  colnames(super_loadings) = colnames(super_scores) = paste0("p", 1:ncomp)
+  rownames(super_loadings) = b_names
+  rownames(super_scores) = rownames(X[[1]])
+  
+  return(list(block_scores=block_scores, block_loadings = block_loadings, super_scores = super_scores,super_loadings= super_loadings, eigen = eigen, explvarB = explvarB))
+}
+
+
+## PRUEBA MBPLS ------------
+
+X = iris[,1:4]
+
+X = Scaling(X, scaling = 'hardBlock',blocks = c(1,1,2,2))
+
+X = list('Petalo' = X$x[,3:4], 'Sepalo' = X$x[,1:2])
+
+y = iris[,5]
+y = sapply(y, function(x) if(x=='setosa') 1 else 0)
+Y = as.matrix(y)

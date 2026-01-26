@@ -1,0 +1,1 @@
+"0","datos$Exitus<-as.numeric(datos$Exitus)-1"

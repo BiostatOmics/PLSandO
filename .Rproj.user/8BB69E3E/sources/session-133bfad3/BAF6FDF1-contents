@@ -1,0 +1,214 @@
+---
+title: "Datos_Rasmus"
+author: "Maider Aguerralde Martin"
+date: "2025-09-29"
+output: html_document
+---
+
+Los datos se generan a partir de la simulación plateada en el paper de Rasmus Bro para la selección de variables en modelos multibloque de PLS.
+
+Se generan siguiendo la simulación planteada para el dataset 1.
+
+Igual que en sus datos, vamos a querer simular unos datos que el número de variables exceda considerablemente el número de observaciones.
+
+En el caso del paper se generaban 400 variables, en nuestro caso generaremos 800. Pero al igual que en el paper parar una única variable respuesta.
+
+La matriz X se genera a partir de los scores y los loadings de la matriz X. X = TP'. Con T simulada a partir de una distribución normal de media 0 y distribución típica 1. En el paper se extraían 5 componentes por lo que la dimensión de T era de Nx5.
+
+En nuestro caso vamos a simular 40 muestras. N= 40.
+
+
+```{r}
+set.seed(123)
+Tx = matrix(rnorm(40*5, mean = 0, sd = 1), nrow=40)
+```
+No todas las componentes se simulan para que contribuyan a la variable respuesta. Las componentes que contribuyan a Y se trataran como componentes selectivas. Las componentes que no se involucren en la construcción de Y se llamaran irrelevantes. Se toman 3 como componentes selectivas (ksel) y las 2 restantes como irrelevantes (kirr).
+
+T es una concatenación de Tsel y Tirr.
+
+El vector de coeficientes (ksel x 1) se genera a partir de coeficientes generados de manera aleatoria a partir de una distribución uniforme U(0.05, 1.05).
+
+```{r}
+set.seed(123)
+beta = as.matrix(runif(3, min = 0.05, max = 1.05))
+```
+
+Y is created from Y = Txsel * beta.
+
+```{r}
+Y = Tx[,c(1:3)]%*%beta
+```
+
+De este modo solo los scores selectivos se ven involucrados en la creación de Y.
+
+Para que los datos se asemejen más a la realidad, en los loadings a parte de una parte selectiva y una parte irrelevante también se crea una parte que es relevante pero no selectiva y unas variables ruidosas adicionales.
+
+Todas las variables que constituyen los loadings son variables generadas a partir de la distribución normal con media 0 y desviación típica 1.
+
+Las variables relevantes pero no selectivas son consideradas en el trozo de loadings Prns = [Psel_rns, Pirr_rns]. Ambas matrices se generan a partir de una distribución normal también.
+
+Se toman a partes iguales 50 variables selectivas, 50 variables irrelevantes y 50 variables relevantes pero no selectivas.
+
+```{r}
+Psel_rns = matrix(rnorm(3*50, mean = 0, sd = 1), nrow=3)
+Pirr_rns = matrix(rnorm(2*50, mean = 0, sd = 1), nrow=2)  
+
+Prns = rbind(Psel_rns,Pirr_rns)
+```
+
+Las variables irrelevantes y las selectivas también se crean a partir de una distribución normal, haciendo que no tengan relación con el bloque de variables pertinente.
+```{r}
+Pirr_unique = matrix(rnorm(2*50, mean = 0, sd = 1), nrow=2)
+Pirr = rbind(matrix(0,nrow = 3,ncol = 50), Pirr_unique)
+```
+
+
+```{r}
+Psel_unique = matrix(rnorm(3*50, mean = 0, sd = 1), nrow=3)
+Psel = rbind(Psel_unique, matrix(0,nrow = 2,ncol = 50))
+```
+
+Crear las variables de ruido
+
+```{r}
+Pnoise = matrix(rnorm(5*650, mean = 0, sd = 1), nrow=5)
+```
+
+
+Los loadings son una recopilación de los loadings de los distintos bloques de variables.
+
+```{r}
+Px = cbind(Prns, cbind(Pirr,cbind(Psel, Pnoise)))
+```
+
+Por tanto X sería el producto de TxPx'
+
+```{r}
+X = Tx %*% Px
+```
+
+Añaden ruido tanto a la matriz X como al vector Y.
+
+Comose indica el ruido que se le añade a Y y a X corresponde a un cierto porcentaje de la desviación típica de Y y al pooled en el caso de X. Los porcentahes que se cogen para el escenario escogido es un 25% en Y y un 20% en X.
+
+```{r}
+sd_Y = sd(Y)
+Y_noisy = Y +rnorm(40, mean = 0, sd = 0.25*sd_Y)
+```
+
+```{r}
+sd_cols = apply(X[,1:150],2,sd) #exclude noise variables
+pooled_sd = sqrt(mean(sd_cols^2))
+X_noisy = X + matrix(rnorm(40*800, mean = 0, sd = 0.2*pooled_sd),
+                      nrow = 40, ncol = 800)
+```
+
+```{r}
+save(X_noisy, Y_noisy, Tx, Px, X, Y, beta, file ='Datos_Rasmus.Rdata')
+```
+
+
+Se da el visto buenoa este tipo de simulación de datos pero para probar la herramienta se recomienda que la matriz de datos sea más pequeña.
+
+Hacer lo que estabamos haciendo pero para un máximo de 50 variables y en las que también simulamos dos grupos distintos.
+
+Se haría por tanto el approach para dos scores distintos y se combinarían ambos.
+
+## Menos variables dos grupos
+
+```{r}
+set.seed(123)
+Tx1 = matrix(rnorm(15*5, mean = 0, sd = 1), nrow=15)
+Tx2 = matrix(rnorm(15*5, mean = 0, sd = 1), nrow=15)
+Tx = rbind(Tx1,Tx2)
+```
+
+```{r}
+beta = as.matrix(runif(3, min = 0.05, max = 1.05))
+```
+
+```{r}
+Y1 = Tx1[,c(1:3)]%*%beta
+Y2 = Tx2[,c(1:3)]%*%beta
+Y = rbind(Y1,Y2)
+```
+
+```{r}
+Psel_rns = matrix(rnorm(3*20, mean = 0, sd = 1), nrow=3)
+Pirr_rns = matrix(rnorm(2*20, mean = 0, sd = 1), nrow=2)  
+
+Prns = rbind(Psel_rns,Pirr_rns)
+```
+
+```{r}
+Pirr_unique = matrix(rnorm(2*20, mean = 0, sd = 1), nrow=2)
+Pirr = rbind(matrix(0,nrow = 3,ncol = 20), Pirr_unique)
+```
+
+```{r}
+Psel_unique = matrix(rnorm(3*20, mean = 0, sd = 1), nrow=3)
+Psel = rbind(Psel_unique, matrix(0,nrow = 2,ncol = 20))
+```
+
+```{r}
+Pnoise = matrix(rnorm(5*30, mean = 0, sd = 1), nrow=5)
+```
+
+```{r}
+Px = cbind(Prns, cbind(Pirr,cbind(Psel, Pnoise)))
+```
+
+```{r}
+X = Tx %*% Px
+```
+
+```{r}
+sd_Y = sd(Y)
+Y_noisy = Y +rnorm(30, mean = 0, sd = 0.25*sd_Y)
+```
+
+```{r}
+sd_cols = apply(X[,1:60],2,sd) #exclude noise variables
+pooled_sd = sqrt(mean(sd_cols^2))
+X_noisy = X + matrix(rnorm(30*90, mean = 0, sd = 0.2*pooled_sd),
+                      nrow = 30, ncol = 90)
+```
+
+
+
+```{r}
+cor_mat = cor(X_noisy)
+cor_to_y = apply(X_noisy,2,function(x) cor(x, Y_noisy))
+
+ord <- order(abs(cor_to_y), decreasing = TRUE)
+cor_mat <- cor_mat[ord, ord]
+cor_to_y <- cor_to_y[ord]
+
+# Define diverging color scale (-1 to 1)
+col_fun <- colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
+
+# Heatmap of variable-variable correlations
+ht1 <- Heatmap(cor_mat,
+               name = "Correlation",
+               col = col_fun,
+               cluster_rows = FALSE,
+               cluster_columns = FALSE,
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Side heatmap: correlation to y
+ht2 <- Heatmap(matrix(cor_to_y, ncol=1),
+               name = "Corr_to_y",
+               col = col_fun,
+               cluster_rows = FALSE,
+               width = unit(5, "mm"),
+               show_row_names = FALSE,
+               show_column_names = FALSE)
+
+# Combine plots
+ht2 + ht1
+```
+```{r}
+save(X_noisy, Y_noisy, Y, X, Px, Tx, beta, file = 'datos_simtrasMarina.Rdata' )
+```
+

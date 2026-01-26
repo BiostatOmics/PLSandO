@@ -1,0 +1,5 @@
+"0","# R2 Plot: Evaluates the importance of each block in the global model
+pcaPlot(mb_model, type = 'R2')
+"
+"1","NULL
+"

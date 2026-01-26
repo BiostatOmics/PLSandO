@@ -1,0 +1,3 @@
+"0","set.seed(132)"
+"0","Pirr_unique = matrix(rnorm(1*60, mean = 0, sd = 1), nrow=1)"
+"0","Pirr = rbind(matrix(0,nrow = 2,ncol = 60), Pirr_unique)"

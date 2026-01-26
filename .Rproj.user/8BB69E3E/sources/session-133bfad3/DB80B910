@@ -1,0 +1,27 @@
+{
+    "id": "DB80B910",
+    "path": "C:/Users/maide/OneDrive/Escritorio/estancia/pruebas algo/prueba1_11_11_25.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1762851735537.0,
+    "source_on_save": false,
+    "relative_order": 16,
+    "properties": {
+        "tempName": "Untitled2",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "147,0",
+        "scrollLine": "0"
+    },
+    "folds": "2|41|17|0|\n19|47|47|0|\n49|43|145|0|\n251|59|364|0|\n366|101|460|0|\n462|120|507|0|\n",
+    "lastKnownWriteTime": 1762944975,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1763812297233,
+    "read_only": false,
+    "read_only_alternatives": []
+}

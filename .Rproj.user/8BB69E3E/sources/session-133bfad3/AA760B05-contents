@@ -1,0 +1,154 @@
+
+loadingPlotPLSmb = function(x,
+                          comp = NULL,
+                          col = 'main',
+                          colBy = NULL,
+                          shape = c('arrow', 'point')[1],
+                          selVars = NULL,
+                          labels = TRUE,
+                          labelTop = NULL,
+                          repel = TRUE,
+                          newObs = NULL ) {
+  
+  if(is.null(comp)) comp = 1:2
+  b_names = names(x$X)
+  
+  colByc = colBy
+  
+  for (i in 1:length(x$X)) {
+    
+    load_dfX = as.data.frame(x$BloadingsX[[i]][,comp])
+    colnames(load_dfX) = c("x", "y")
+    load_dfX$type = 'X'
+    
+    load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
+    colnames(load_dfY) = c("x", "y")
+    load_dfY$type = 'Y'
+    
+    load_df = rbind(load_dfX, load_dfY)
+    
+    if(!is.null(newObs)){
+      if(!all(sapply(newObs, is.numeric))) return(stop('Categorical variables detected on newObs consider using Preparing function before including them'))
+      
+      xMean = apply(newObs, 2, function(col) mean(col, na.rm = TRUE))
+      
+      if (x$input$scalingType == 'center'){
+        xSd = rep(1, times = ncol(newObs))
+      } else if (x$input$scalingType == 'none'){
+        xMean = rep(0, ncol(newObs))
+        xSd = rep(1, times = ncol(newObs))
+      } else if (x$input$scalingType=='pareto'){
+        xSd = apply(newObs, 2, function(col) sqrt(sd(col, na.rm = TRUE)))
+      } else{
+        xSd = apply(newObs, 2, function(col) sd(col, na.rm = TRUE))
+      }
+      
+      newObs = scale(newObs, center = xMean, scale = xSd)
+      
+      if(x$input$scalingType == 'softBlock') newObs = newObs/ (ncol(newObs)^0.25)
+      if(x$input$scalingType == 'hardBlock') newObs = newObs/ sqrt(ncol(newObs))
+      
+      load_new = t(apply(newObs,2, function(y) cor(y, x$scoresX)))[,comp,drop=F]
+      eig = x$explVar[,'eigenVal'][comp]
+      colnames(load_new) = c("x", "y")
+      load_new = sweep(load_new[, c("x", "y"),drop=F], 2, sqrt(eig), FUN = "/")
+      colBy = factor(c(rep('modelVars',nrow(load_df)),rep('newVars', nrow(load_new))))
+      load_df = rbind(load_df, load_new)
+      load_df$colBy = colBy
+      num = F
+      colByname = ''
+    }
+    
+    if(labels) labels = rownames(load_df) else labels = ''
+    
+    if(!is.null(colBy)){
+      if(is.character(colBy)){
+        num = T
+        if(colBy == 'contrib'){
+          load_df$colBy = rowSums(load_df^2)
+          colBy = load_df$colBy
+          colByname = 'contrib'
+        } else if(colBy == 'cos2'){
+          eig = x$explVar[,'eigenVal'][comp]
+          load_df$colBy = rowSums(sweep(load_df[, c("x", "y")], 2, sqrt(eig), FUN = "*")^2)
+          colBy = load_df$colBy
+          colByname = 'cos2'
+        }
+        if(!is.null(selVars)){
+          top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(load_df))]
+          load_df = load_df[top_vars,,drop=FALSE]
+          labels = labels[top_vars]
+        }
+        if (!is.null(labelTop)) {
+          top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * labelTop)]
+          labels[-top_vars] = ''
+        }
+      }
+    } else{
+      colBy = load_df$type
+      load_df$colBy = colBy
+      num = F
+      colByname = ''
+    }
+    
+    # Create the plot
+    ggp = ggplot(load_df, aes(x = x, y = y)) +
+      geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
+      geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
+      coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+      theme_minimal() +
+      theme(legend.position = "bottom") +
+      labs(title = "Loading Plot w*c",
+           x = paste0('Comp', comp[1], ' (', round(x$BexplVar[[i]][comp[1],'percVar'],2), '%)'),
+           y = paste0('Comp', comp[2], ' (', round(x$BexplVar[[i]][comp[2],'percVar'],2), '%)'))
+    
+    if(shape == 'arrow'){
+      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = type),
+                               arrow = arrow(length = unit(0.2, "cm")))
+    } else{
+      ggp = ggp + geom_point(aes(color = type),shape = 18, size = 3)
+    }
+    
+    if (repel) {
+      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = type),
+                                           max.overlaps = 100,
+                                           box.padding = 0.25,
+                                           point.padding = 0.25,
+                                           segment.color = "black", show.legend = F)
+    } else {
+      ggp = ggp + geom_text(aes(label = labels, color = type),
+                            vjust = -0.5, hjust = 0.5, show.legend = F)
+    }
+    
+    if(!is.null(colBy)){
+      if(num){
+        color_palette = if(length(col)>1) if(length(col)==2) c(col[2], 'white', col[1]) else c(col[3], col[2], col[1]) else colorbiostat(3, palette = col)
+        ggp = ggp +
+          aes(color = colBy) +
+          scale_color_gradient2(low = color_palette[3] ,mid = color_palette[2], high = color_palette[1],
+                                midpoint = mean(range(colBy)),
+                                name = colByname,
+                                limits = c(min(colBy), max(colBy)),
+                                breaks = pretty(range(colBy), n = 5))+
+          theme(legend.position = "right")
+      } else{
+        if (length(col)>1){
+          if (length(col)!= 2) return(stop('Either provide two colors or use the default color palette'))
+          custom_colors = setNames(col, unique(load_df$colBy))
+        } else{
+          color_palette = colorbiostat(3, palette = col)
+          custom_colors = setNames(color_palette[-2], unique(load_df$colBy))
+        }
+        ggp = ggp +
+          aes(color = colBy, fill = colBy) +
+          scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)
+      }
+    }
+    
+    print(ggp)
+    labels= if(all(labels==''))  F else T
+    colBy = colByc
+    
+  }
+  return(NULL)
+}

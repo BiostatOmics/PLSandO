@@ -1,0 +1,293 @@
+## Bagged variable reweigthing (calculation of a global weight for the variables weighted by the component importance)
+
+Scaling = function(x, scaling, blocks = NULL) {
+
+  if(scaling=='center'){
+    x = scale(x, center = TRUE, scale = FALSE)
+    escalo = rep(1, times = ncol(x))
+  } else{
+    x = scale(x, center = TRUE, scale = TRUE)
+    escalo = attr(x, 'scaled:scale')
+  }
+  centro = attr(x, 'scaled:center')
+
+  if(scaling %in% c('softBlock','hardBlock')){
+    block_list = split(colnames(x), blocks)
+    block_list = lapply(block_list, function(cols)  x[, cols, drop = FALSE])
+
+    for (bl in names(block_list)) {
+      X = block_list[[bl]]
+      if (scaling == "softBlock") {
+        X = X / (ncol(X)^0.25)
+        escalo[colnames(X)] = escalo[colnames(X)]/ (ncol(X)^0.25)
+      } else {
+        X = X / (ncol(X)^0.5)
+        escalo[colnames(X)] = escalo[colnames(X)]/ (ncol(X)^0.5)
+      }
+      x[,colnames(X)] = X
+    }
+  }
+  return(list(x = x, centering = centro, scaling = escalo))
+}
+
+nipals_pls = function(X, Y, ncomp = NULL ){
+
+  X = as.matrix(X)
+  Y = as.matrix(Y)
+
+  if(any(is.na(X))||any(is.na(Y))){
+    missNA =  T
+    X_sinNA = X
+    X_sinNA[is.na(X)]= 0
+    C = matrix(1, ncol = ncol(X), nrow = nrow(X) )
+    C[is.na(X)] = 0
+    if(any(is.na(Y))) missNAY = T else missNAY = F
+    Y_sinNA = Y
+    Y_sinNA[is.na(Y)]= 0
+    CY = matrix(1, ncol = ncol(Y), nrow = nrow(Y) )
+    CY[is.na(Y)] = 0
+  }  else missNA = F; missNAY = F
+
+  if(is.null(ncomp)){
+    ncomp = min(nrow(X)-1, ncol(X))
+  }
+
+  scores = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadings = matrix(0, nrow = ncol(X), ncol = ncomp )
+  scoresY = matrix(0,nrow = nrow(X),ncol =ncomp )
+  loadingsY = matrix(0, nrow = ncol(Y), ncol = ncomp )
+  weights = matrix(0, nrow = ncol(X), ncol = ncomp )
+
+  for (i in 1:ncomp) {
+    iter = 1
+    #Initiate the scores with the variable with the highest variance when there are no NAs with the one with least NAs instead
+    if(missNAY){
+      u_old = Y[,1,drop=FALSE]
+      u_old[is.na(u_old)] = 0
+    } else u_old = Y[,which.max(apply(Y,2,var))[[1]],drop=FALSE]
+
+    w_new = if(missNA) crossprod(X_sinNA, u_old)/drop(t(CY) %*% u_old^2) else crossprod(X, u_old)/drop(crossprod(u_old))
+    w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+    t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+    c_new = if(missNA)  crossprod(Y_sinNA, t_new) / (t(CY) %*% t_new^2)  else crossprod(Y, t_new)/drop(crossprod(t_new))
+
+    u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+    p_new = if(missNA)  crossprod(X_sinNA, t_new)/(t(C) %*% t_new^2)  else crossprod(X, t_new)/drop(crossprod(t_new))
+
+    while (sqrt(drop(crossprod(u_new-u_old)))>1e-6 && iter<100) {
+      #Update
+      t_old = t_new
+      p_old = p_new
+      c_old = c_new
+      u_old = u_new
+      iter = iter + 1
+
+      #Recalculate T, P, W, U and C
+      w_new = if(missNA) crossprod(X_sinNA, u_old) / drop(t(CY) %*% u_old^2) else crossprod(X, u_old)/drop(crossprod(u_old))
+      w_new = w_new / sqrt(drop(crossprod(w_new)))
+
+      t_new = if(missNA) (X_sinNA %*% w_new) / (C %*% w_new^2)  else X %*% w_new
+
+      c_new = if(missNA) crossprod(Y_sinNA, t_new) / (t(CY) %*% t_new^2)  else crossprod(Y, t_new)/drop(crossprod(t_new))
+
+      u_new = if(missNA) if(ncol(CY)==1) (Y_sinNA %*% c_new) / drop(t(c_new)%*%c_new) else (Y_sinNA %*% c_new) / (CY %*% c_new^2)  else (Y %*% c_new) / drop(crossprod(c_new))
+
+      p_new = if(missNA) crossprod(X_sinNA, t_new) / (t(C) %*% t_new^2)  else  crossprod(X, t_new)/drop(crossprod(t_new))
+
+    }
+    loadings[,i] = p_new
+    scores[,i] = t_new
+    loadingsY[,i] = c_new
+    scoresY[,i] = u_new
+    weights[,i] = w_new
+
+    X = X - tcrossprod(t_new,p_new)
+    Y = Y - tcrossprod(t_new,c_new)
+
+    if(missNA){
+      X_sinNA = X
+      X_sinNA[is.na(X)]= 0
+      Y_sinNA = Y
+      Y_sinNA[is.na(Y)]= 0
+    }
+
+  }
+
+  weightsStar = weights%*%solve(crossprod(loadings, weights))
+
+  coefficients = tcrossprod(weightsStar, loadingsY)
+
+  rownames(loadings) = rownames(weights) = rownames(weightsStar) = rownames(coefficients) = colnames(X)
+  rownames(loadingsY) = colnames(coefficients) = colnames(Y)
+  rownames(scores) = rownames(scoresY) = rownames(X)
+  colnames(loadings) = colnames(scores)= colnames(scoresY)= colnames(loadingsY)= colnames(weights) = colnames(weightsStar) = paste0('p',1:ncomp)
+
+  return(list(scores=scores, loadings = loadings, scoresY=scoresY, loadingsY = loadingsY, weights = weights, weightsStar = weightsStar, coefficients = coefficients ))
+}
+
+
+bagged_pls = function(X, Y, B = 200, ncomp = NULL, scaling, blocks = NULL, scalingY){
+
+  if (is.null(ncomp)) ncomp = min(nrow(X)-1, ncol(X))
+
+  n = nrow(X)
+  preds = array(NA, dim=c(nrow(X), ncol(Y), B, ncomp))
+  R2 = PRESS = RMSE = Q2 = numeric(ncomp)
+
+  weights = leverage = array(NA, dim=c(ncol(X), ncomp, B))
+
+  # Calculate a PLS model for each of the bagging considered
+  for (b in 1:B) {
+    idx = sample(1:n, replace = TRUE)
+    oob = setdiff(1:n, idx) # Keep track of out of bag samples
+
+    Xb = X[idx, , drop = FALSE]
+    Yb = Y[idx, , drop = FALSE]
+
+    if (scaling != 'none') {
+      escalado = Scaling(Xb, scaling= scaling, blocks = blocks)
+      Xb = escalado$x
+      centrado = escalado$centering
+      escalado = escalado$scaling
+      Xoob = sweep(X[oob, , drop = FALSE], 2, centrado, FUN = "-")
+      Xoob = sweep(Xoob, 2, escalado, FUN = "/")
+    } else{
+      Xoob = X[oob, , drop = FALSE]
+    }
+
+    ## Scaling Y
+
+    if (scalingY != 'none') {
+      escaladoY = Scaling(Yb, scaling= scalingY, blocks = NULL)
+      Yb = escaladoY$x
+    }
+
+    mypls = nipals_pls(X = Xb, Y = Yb, ncomp = ncomp)
+
+    weights[,,b] = mypls$weights
+    leverage[,,b] = (mypls$loadings)^2
+
+    for (j in 1:ncomp){
+      coefficients = mypls$weightsStar[,1:j,drop=FALSE] %*% t(mypls$loadingsY[,1:j,drop=FALSE])
+      preds[oob, , b, j] = as.matrix(Xoob) %*% coefficients
+    }
+
+  }
+
+  # Select opt R2
+
+  if (scalingY != 'none') {
+    escaladoY = Scaling(Y, scaling= scalingY, blocks = NULL)
+    Y = escaladoY$x
+  }
+
+  if (scaling != 'none') {
+    escalado = Scaling(X, scaling= scaling, blocks = blocks)
+    X = escalado$x
+  }
+
+  plsr2 = nipals_pls(X = X, Y = Y, ncomp = ncomp)
+
+  for (j in 1:ncomp) {
+
+    Ypred = apply(as.matrix(preds[,,,j]),1, function(y) mean(y,na.rm = T))
+
+    #RMSE
+    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2))
+
+    #R2
+    coefficients = tcrossprod(plsr2$weightsStar[,1:j,drop=FALSE],plsr2$loadingsY[,1:j,drop=FALSE])
+    yhat = as.matrix(X) %*% coefficients
+
+    SCR = sum((Y-yhat)^2)
+    SCT = sum(Y^2)
+    R2[j] = 1- (SCR/SCT)
+
+    #PRESS
+    PRESS[j] = sum((Y - Ypred)^2)
+
+    #Q2
+    Q2[j] = 1- (PRESS[j]/SCT)
+
+  }
+
+  # Select the optimal number of components
+  ncomp = {
+    idx = which(!(diff(R2) >= 0.01 & diff(Q2) > 0))
+    if (length(idx) == 0) length(R2) else idx[1]}
+
+  # Calculate the reweighted PLS model
+
+  weights = weights[,1:ncomp,]
+  leverage = leverage[,1:ncomp,]
+  R2_opt = R2[1:ncomp]
+  R2_opt = c(R2_opt[1], diff(R2_opt))
+
+  Stab = Lev =  numeric(ncol(X))
+
+  for (j in 1:ncol(X)) {
+    stability = apply(weights[j,,], 1, function(x) abs(mean(x)) / (sd(x) + 1e-7))
+    Stab[j] =  sum(stability * R2_opt)
+    lever = apply(leverage[j,,], 1, mean)
+    Lev[j] = sum(lever * R2_opt)
+  }
+  #Normalize the weights
+  Stab = (Stab - min(Stab)) / (max(Stab) - min(Stab))
+  Lev = (Lev - min(Lev)) / (max(Lev) - min(Lev))
+
+  return(list(Stab = Stab, Lev = Lev, R2 = R2_opt, ncomp = ncomp))
+
+}
+
+reweighted_varSel = function(X, Y, B = 200, ncomp = NULL, scaling, blocks = NULL, scalingY){
+
+  converged = FALSE
+  iter = 1
+
+  while(!converged & iter <= 100){
+
+    bpls = bagged_pls(X, Y, B, ncomp = NULL, scaling, blocks, scalingY)
+
+    if (scaling != 'none') {
+      escalado = Scaling(X, scaling= scaling, blocks = blocks)
+      X_esc = escalado$x
+    }
+    if (scalingY != 'none') {
+      escaladoY = Scaling(Y, scaling= scalingY, blocks = NULL)
+      Y_esc = escaladoY$x
+    }
+
+    #S = bpls$Stab
+    S = bpls$Stab * bpls$Lev
+    S = (S - min(S)) / (max(S) - min(S))
+    X_esc = X_esc * S
+    plsr2 = nipals_pls(X_esc, Y_esc, bpls$ncomp)
+
+    #R2
+    coefficients = tcrossprod(plsr2$weightsStar[,1:bpls$ncomp,drop=FALSE],plsr2$loadingsY[,1:bpls$ncomp,drop=FALSE])
+    yhat = as.matrix(X_esc) %*% coefficients
+
+    SCR = sum((Y_esc-yhat)^2)
+    SCT = sum(Y_esc^2)
+    R2 = 1- (SCR/SCT)
+
+
+  }
+
+
+}
+
+
+
+## Prueba con datos ---------------
+
+# Simrel dataset
+
+load("C:/Users/maide/OneDrive/Escritorio/estancia/simula/Datos_simrel.Rdata")
+
+X = simul$X
+Y = simul$Y
+

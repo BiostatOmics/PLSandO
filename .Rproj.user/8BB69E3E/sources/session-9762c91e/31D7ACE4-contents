@@ -1,0 +1,482 @@
+
+f1s = function(t, epsilon){
+
+  precision = t[2,2] / (t[2,2]+t[1,2]+epsilon)
+  recall = t[2,2] / (t[2,2]+t[2,1]+epsilon)
+  return((2*precision*recall)/(precision+recall+epsilon))
+
+}
+
+MCCs = function(t, epsilon) {
+  numerator = (t[1,1] * t[2,2]) - (t[1,2] * t[2,1])
+  denominator = sqrt((t[2,2] + t[1,2]) * (t[2,2] + t[2,1]) * (t[1,1] + t[1,2]) * (t[1,1] + t[2,1])) + epsilon
+  return(numerator / denominator)
+}
+
+
+BER = function(t, epsilon){
+  return(0.5*(t[1,2]/(t[1,1]+t[1,2]+epsilon) + t[2,1]/(t[2,1]+t[2,2]+epsilon)))
+}
+
+crossVal_plsda = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scalingY, seed){
+
+  folds = createFold_plsda(X, Y2, k, seed)
+
+  Y1 = Y
+
+  preds = array(0, dim=c(nrow(X), ncol(Y), ncomp))
+
+  R2 = PRESS = RMSE = Q2 = f1score = MCC = Etot = numeric(ncomp)
+
+  coef_cv = array(0, dim=c(ncomp, ncol(X), ncol(Y), length(folds)))
+
+  for (i in 1:length(folds)){
+
+    ## Scaling X
+
+    Xfold = X[-folds[[i]],,drop=FALSE]
+    Yfold = Y[-folds[[i]],,drop=FALSE]
+
+    if (scaling != 'none') {
+      escalado = Scaling(Xfold, scaling= scaling, blocks = blocks)
+      Xfold = escalado$x
+      centrado = escalado$centering
+      escalado = escalado$scaling
+      Xval = sweep(X[folds[[i]],,drop=FALSE], 2, centrado, FUN = "-")
+      Xval = sweep(Xval, 2, escalado, FUN = "/")
+    } else{
+      Xval = X[folds[[i]],,drop=FALSE]
+    }
+
+    ## Scaling Y
+
+    if (scalingY != 'none') {
+      escaladoY = Scaling(Yfold, scaling= scalingY, blocks = NULL)
+      Yfold = escaladoY$x
+    }
+
+    mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
+
+    for (j in 1:ncomp){
+      weightsStar = mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
+      coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:j,drop=FALSE])
+      preds[folds[[i]], , j] = as.matrix(Xval) %*% coefficients
+      coef_cv[j,,,i] = coefficients
+    }
+  }
+
+  #Calculate metrics
+
+  if (scalingY != 'none') {
+    escaladoY = Scaling(Y, scaling= scalingY, blocks = NULL)
+    Y = escaladoY$x
+  }
+
+  if (scaling != 'none') {
+    escalado = Scaling(X, scaling= scaling, blocks = blocks)
+    X = escalado$x
+  }
+
+  plsr2 = nipals_pls(X = X, Y = Y, ncomp = ncomp)
+
+  for (j in 1:ncomp) {
+
+    Ypred = as.matrix(preds[,,j])
+
+    #RMSE
+    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2))
+
+    #R2
+    yhat = tcrossprod(plsr2$scores[,1:j,drop=FALSE],plsr2$loadingsY[,1:j,drop=FALSE])
+
+    SCR = sum((Y-yhat)^2)
+    SCT = sum(Y^2)
+    R2[j] = 1- (SCR/SCT)
+
+    #PRESS
+    PRESS[j] = sum((Y - Ypred)^2)
+
+    #Q2
+    Q2[j] = 1- (PRESS[j]/SCT)
+
+    #F1
+    max_cols = apply(Ypred, 1, which.max)
+    ypred_bin = matrix(0,nrow = nrow(Ypred), ncol = ncol(Ypred))
+    ypred_bin[cbind(1:nrow(ypred_bin), max_cols)] = 1
+
+    t = matrix(0,ncol = 2, nrow = 2)
+    for(i in 1:ncol(Y)){
+      t = t + table(factor(Y1[,i], levels=0:1), factor(ypred_bin[,i], levels = 0:1))
+    }
+
+    f1score[j] = f1s(t, epsilon = 0.00001)
+    MCC[j] = MCCs(t, epsilon = 0.00001)
+
+    #Error
+    Etot[j] = sum(Y1[,i]!=ypred_bin[,i]) / nrow(Y1)
+
+  }
+
+  return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, F1score = f1score, MCC=MCC, Etot = Etot, coef_cv = coef_cv))
+
+}
+
+
+
+plsda = function(x, y,
+                 ncomp = NULL, cvFolds = 5, rep = 10, perm = 20,
+                 scaling = c("none", "center", "standard", "softBlock", "hardBlock")[3],
+                 scalingY = c("none", "center", "standard")[2],
+                 algo = c("nipals","mbpls")[1],
+                 train = 1, alpha = 0.05, parallel = FALSE){
+
+  if(class(x)[1]!='list'){
+    if(!all(sapply(x, is.numeric))) {
+      warning('Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.')
+      P = Preparing(x, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
+      x = P$x
+    } else {
+      P = Preparing(x, CVfilter = 0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningún filtro extra
+      x = P$x
+    }
+
+    desSummary = data.frame(c("Samples","Variables","Excluded Near-Zero Variables","Missing Values"),
+                            c(nrow(x),ncol(x),length(which(P$removed$Variables$Problem == 'Low CV')),
+                              paste0(length(which(is.na(x))), " (",round((length(which(is.na(x))) / (nrow(x) * ncol(x))) * 100, 2), "%)")), stringsAsFactors = FALSE)
+    colnames(desSummary) = NULL
+
+  } else{
+    b_names = names(x)
+    P = lapply(x, function(y){
+      if(!all(sapply(y, is.numeric))) {
+        warning('Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.')
+        Preparing(y, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
+      } else {
+        Preparing(y, CVfilter = 0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningún filtro extra
+      }
+    })
+    x = setNames(lapply(b_names, function(y) P[[y]]$x), b_names)
+
+    desSummary = setNames(lapply(b_names, function(y){
+      des = data.frame(c("Samples","Variables","Excluded Near-Zero Variables","Missing Values"),
+                       c(nrow(x[[y]]),ncol(x[[y]]),length(which(P[[y]]$removed$Variables$Problem == 'Low CV')),
+                         paste0(length(which(is.na(x[[y]]))), " (",round((length(which(is.na(x[[y]]))) / (nrow(x[[y]]) * ncol(x[[y]]))) * 100, 2), "%)")), stringsAsFactors = FALSE)
+      colnames(des) = NULL
+      return(des)
+    }),b_names)
+
+  }
+
+  if(class(x)[1]!='list' && scaling %in% c('softBlock','hardBlock')) blocks = rep(1, times = ncol(x)) else blocks = NULL
+
+  if (class(x)[1]=='list') {
+    if (!scaling %in% c("softBlock", "hardBlock")) warning('When blocks are considered we recommend using either softBlock or hardBlock scaling')
+    if (length(unique(sapply(x, nrow)))!=1) return(stop('All blocks must have the same observations'))
+    blocks = rep(seq_along(x), times = sapply(x, ncol) )
+    x = do.call(cbind, x)
+  }
+
+  X = x
+  Y = y
+
+  #Convert into dummy categorical response
+  if(!all(sapply(y, is.numeric))) {
+    Py = Preparing(y, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
+    y = Py$x
+  } else {
+    warning('We recommed using PLS instead of PLS-DA model')
+    Py = Preparing(y, CVfilter = 0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningún filtro extra
+    y = Py$x
+  }
+
+  ## Divide data into train and test taking into account group ratios
+
+  if (train < 1) {
+    ntrain = round(nrow(x)*train, 0)
+    group_indices = split(1:nrow(x),Y)
+    train_indices = lapply(group_indices, function(i){
+      ntrain_group = round(length(i)*train,0)
+      sample(i,ntrain_group)
+    } )
+    rowtrain = unlist(train_indices)
+    xTest = x[-rowtrain, ,drop=FALSE]
+    x = x[rowtrain,, drop=FALSE]
+    yTest = y[-rowtrain,, drop=FALSE ]
+    y = y[rowtrain,,drop=FALSE]
+    YTest = Y[-rowtrain,,drop=FALSE]
+    Y = Y[rowtrain,,drop=FALSE]
+  } else {
+    xTest = yTest = NULL
+    YTest = NULL
+  }
+  X2 = x
+  Y2 = y
+
+  #Calcular los parámetros óptimos
+
+  if(is.null(ncomp)){
+
+    res_cross = plsda_cross(X = x, Y = y, Y2=Y, scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = ncomp, folds = cvFolds, rep = rep, parallel = parallel, algo = algo)
+
+    r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
+    mean_r2_per_component = apply(r2_array, 1, mean)
+
+    q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+    mean_q2_per_component = apply(q2_array, 1, mean)
+
+    rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+    mean_rmse_per_component = apply(rmse_array, 1, mean)
+
+    f1_array = simplify2array(lapply(res_cross, function(res) res$F1score))
+    mean_f1_per_component = apply(f1_array, 1, mean)
+
+    mcc_array = simplify2array(lapply(res_cross, function(res) res$MCC))
+    mean_mcc_per_component = apply(mcc_array, 1, mean)
+
+    etot_array = simplify2array(lapply(res_cross, function(res) res$Etot)) # TO DO: Lo quito? Con el balanceado ya sería suficiente no?
+    mean_etot_per_component = apply(etot_array, 1, mean)
+
+    ber_array = simplify2array(lapply(res_cross, function(res) res$BER))
+    mean_ber_per_component = apply(ber_array, 1, mean)
+
+    # Improvement of 0.01 in R2 and Q2 positive increment
+    r2_diff = diff(mean_r2_per_component)
+    q2_diff = diff(mean_q2_per_component)
+
+    # TO DO: Comentar con Sonia
+    ncomp = kneedle::kneedle(1:nrow(r2_array), mean_ber_per_component) #BER    La librería está basada en el paper Finding a “Kneedle” in a Haystack: Detecting Knee Points in System Behavior
+    #f1_diff = kneedle::kneedle(1:nrow(r2_array), mean_f1_per_component) #F1-score
+    #mcc_diff = kneedle::kneedle(1:nrow(r2_array), mean_mcc_per_component) #MCC
+    #rmse = kneedle::kneedle(1:nrow(r2_array), mean_rmse_per_component)
+
+    #ncomp_ropls = {
+    # idx = which(!(diff(mean_r2_per_component) >= 0.01 & diff(mean_q2_per_component) > 0))
+    #if (length(idx) == 0) length(mean_r2_per_component) else idx[1]}
+
+  } else{
+    res_cross = pls_cross_plsda(X = x, Y = y, Y2=Y, scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = ncomp, folds = cvFolds, rep = rep, parallel = parallel, algo = algo)
+
+    q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+    mean_q2_per_component = apply(q2_array, 1, mean)
+
+    rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+    mean_rmse_per_component = apply(rmse_array, 1, mean)
+
+  }
+
+  ## Scaling X
+
+  if (scaling != 'none') {
+    escalado = Scaling(x, scaling= scaling, blocks = blocks)
+    x = escalado$x
+    centrado = escalado$centering
+    escalado = escalado$scaling
+  } else{
+    escalado = rep(1, times = ncol(x))
+    centrado = rep(0, times = ncol(x))
+  }
+
+  ## Scaling Y
+
+  if (scalingY != 'none') {
+    escaladoY = Scaling(y, scaling= scalingY, blocks = NULL)
+    y = escaladoY$x
+    centradoY = escaladoY$centering
+    escaladoY = escaladoY$scaling
+  } else{
+    escaladoY = rep(1, times = ncol(y))
+    centradoY = rep(0, times = ncol(y))
+  }
+
+  ## Modelo PLS
+
+  mypls = nipals_pls(x,y,ncomp = ncomp)
+
+  coef_cv = array(unlist(lapply(res_cross, `[[`, "coef_cv")),  dim = c(dim(res_cross[[1]]$coef_cv)[1:3], rep * dim(res_cross[[1]]$coef_cv)[4]))
+  Jack = p.jack(mypls$coefficients, coef_cv, ncomp, alpha)
+
+  resum_tab = data.frame(
+    variable   = rownames(mypls$coefficients),
+    reshape2::melt(mypls$coefficients, varnames = c("variable", "response"), value.name = "coefficient")[, -1],
+    pValJK = as.vector(Jack$pval),
+    LCI_JK = as.vector(Jack$LCI_coef),
+    UCI_JK = as.vector(Jack$UCI_coef)
+  )
+  resum_tab = split(resum_tab, resum_tab$response)
+
+  resum_coef = lapply(resum_tab, function(df) {
+    out = df[, c("variable", "coefficient", "pValJK", "LCI_JK", "UCI_JK")]
+    rownames(out) = out$variable
+    out$variable = NULL
+    return(out)
+  })
+
+  ypred = as.matrix(x) %*% mypls$coefficients
+  SCEY = sum(colSums(ypred**2))
+
+  SCEYa =  sapply(1:ncomp, function(j) sum(tcrossprod(mypls$scores[, j], mypls$loadingsY[, j])^2))
+  vip = sqrt(ncol(x) * rowSums(sweep(mypls$weights^2, 2,SCEYa, "*")) / SCEY)
+
+  R2 = R2Y = f1score = MCC = numeric(ncomp)
+
+  if (is.null(xTest)) {
+    for (i in 1:ncomp) {
+      xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
+      ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
+      #R2X
+      SCR = sum(colSums((xpred-x)**2))
+      SCT = sum(colSums(x**2))
+      R2[i] = 1- (SCR/SCT)
+      #R2Y
+      SCRY = sum(colSums((ypred-y)**2))
+      SCTY = sum(colSums(y**2))
+      R2Y[i] = 1- (SCRY/SCTY)
+      #F1-score
+      max_cols = apply(ypred, 1, which.max)
+      ypred_bin = matrix(0,nrow = nrow(ypred), ncol = ncol(ypred))
+      ypred_bin[cbind(1:nrow(ypred_bin), max_cols)] = 1
+
+      t = matrix(0,ncol = 2, nrow = 2)
+      for(j in 1:ncol(ypred)){
+        t = t + table(factor(y[,j], levels=0:1), factor(ypred_bin[,j], levels = 0:1))
+      }
+
+      f1score[i] = f1s(t, epsilon = 0.00001)
+      MCC[i] = MCCs(t, epsilon = 0.00001)
+
+    }
+
+    r2_diff = diff(R2)
+    r2y_diff = diff(R2Y)
+
+    q2_diff = diff(mean_q2_per_component[1:ncomp])
+
+    resum = data.frame("comp" = factor(1:ncomp),
+                       "R2X" = c(R2[1], r2_diff),
+                       "cumR2X" = R2,
+                       "R2Y" = c(R2Y[1], r2y_diff),
+                       "cumR2Y" = R2Y,
+                       "Q2" = c(mean_q2_per_component[1], q2_diff),
+                       "cumQ2" = mean_q2_per_component[1:ncomp],
+                       "F1score" = f1score,
+                       "MCC" = MCC)
+
+  } else{
+
+    xTest = sweep(xTest, 2, centrado, FUN = "-")
+    xTest = sweep(xTest, 2, escalado, FUN = "/")
+
+    yTest = sweep(yTest, 2, centradoY, FUN = "-")
+    yTest = sweep(yTest, 2, escaladoY, FUN = "/")
+
+    R2test = R2Ytest = f1scoretest = MCCtest = numeric(ncomp)
+
+    for (i in 1:ncomp) {
+
+      weightsStar = mypls$weights[,1:i,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))
+      coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:i,drop=FALSE])
+      Ttest = as.matrix(xTest) %*% weightsStar
+
+      xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
+      ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
+      #R2X
+      SCR = sum(colSums((xpred-x)**2))
+      SCT = sum(colSums(x**2))
+      R2[i] = 1- (SCR/SCT)
+      #R2Y
+      SCRY = sum(colSums((ypred-y)**2))
+      SCTY = sum(colSums(y**2))
+      R2Y[i] = 1- (SCRY/SCTY)
+
+      #F1score
+      max_cols = apply(ypred, 1, which.max)
+      ypred_bin = matrix(0,nrow = nrow(ypred), ncol = ncol(ypred))
+      ypred_bin[cbind(1:nrow(ypred_bin), max_cols)] = 1
+
+      t = matrix(0,ncol = 2, nrow = 2)
+      for(j in 1:ncol(ypred)){
+        t = t + table(factor(y[,j], levels=0:1), factor(ypred_bin[,j], levels = 0:1))
+      }
+
+      f1score[i] = f1s(t, epsilon = 0.00001)
+      MCC[i] = MCCs(t, epsilon = 0.00001)
+
+      xpred = tcrossprod(Ttest[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
+      ypred = as.matrix(xTest) %*% coefficients
+      #R2Xtest
+      SCR = sum(colSums((xpred-xTest)**2))
+      SCT = sum(colSums(xTest**2))
+      R2test[i] = 1- (SCR/SCT)
+      #R2Ytest
+      SCRY = sum(colSums((ypred-yTest)**2))
+      SCTY = sum(colSums(yTest**2))
+      R2Ytest[i] = 1- (SCRY/SCTY)
+      #F1scoretest
+      max_cols = apply(ypred, 1, which.max)
+      ypred_bin = matrix(0,nrow = nrow(ypred), ncol = ncol(ypred))
+      ypred_bin[cbind(1:nrow(ypred_bin), max_cols)] = 1
+
+      t = matrix(0,ncol = 2, nrow = 2)
+      for(j in 1:ncol(ypred)){
+        t = t + table(factor(yTest[,j], levels=0:1), factor(ypred_bin[,j], levels = 0:1))
+      }
+      f1scoretest[i] = f1s(t, epsilon = 0.00001)
+      MCCtest[i] = MCCs(t, epsilon = 0.00001)
+    }
+    r2test_diff = diff(R2test)
+    r2ytest_diff = diff(R2Ytest)
+
+    r2_diff = diff(R2)
+    r2y_diff = diff(R2Y)
+
+    q2_diff = diff(mean_q2_per_component[1:ncomp])
+
+    resum = data.frame("comp" = factor(1:ncomp),
+                       "R2X" = c(R2[1], r2_diff),
+                       "cumR2X" = R2,
+                       "R2Y" = c(R2Y[1], r2y_diff),
+                       "cumR2Y" = R2Y,
+                       "R2Xtest" = c(R2test[1], r2test_diff),
+                       "cumR2Xtest" = R2test,
+                       "R2Ytest" = c(R2Ytest[1], r2ytest_diff),
+                       "cumR2Ytest" = R2Ytest,
+                       "Q2" = c(mean_q2_per_component[1], q2_diff),
+                       "cumQ2" = mean_q2_per_component[1:ncomp],
+                       "RMSE" = mean_rmse_per_component[1:ncomp],
+                       "F1score" = f1score,
+                       "F1scoretest" = f1scoretest,
+                       "MCC" = MCC,
+                       "MCCtest" = MCCtest)
+
+  }
+
+  res_val = plsValidation(X2,Y2,scaling, scalingY,ncomp,cvFolds,perm,algo, parallel)
+
+  return(list("scoresX" = mypls$scores,
+              "loadingsX" = mypls$loadings,
+              "scoresY" = mypls$scoresY,
+              "loadingsY" = mypls$loadingsY,
+              "weights" = mypls$weights,
+              "weightStar" = mypls$weightsStar,
+              "coefficients" = mypls$coefficients,
+              "vip" = vip,
+              "X" = x, # escalada y sin variables con baja variabilidad
+              "Y" = y, # escalada
+              "scaling" = list("center" = centrado, "scale" = escalado, #para que cuadre con los scorePLot de cuando hicimos PCA
+                               "centerY" = centradoY, "scaleY" = escaladoY), # completar con block??
+              "summary" = resum, ## completar si se desea dar + info de lo que se ha hecho
+              "coefficients_summary" = resum_coef,
+              "ncomp" = ncomp,
+              "test" = list("yTest" = yTest, "xTest" = xTest),
+              "validation" = as.data.frame(res_val),
+              "cv_results" = res_cross,
+              "PreproSummary" = desSummary,
+              "input" = list("scalingType" = scaling,"scalingTypeY" = scalingY, "X" = X, "Y" = Y,
+                             'algo' = algo, "alpha" = alpha, "perm" = perm, "blocks" = blocks)))
+
+}
+
+
+
+
+

@@ -1,0 +1,40 @@
+data("iris")
+
+X = list('Petalo' = iris[,c(3,4)], 'Sepalo' = iris[,c(1,2)])
+
+mypca = pca(X, algo = 'mbpca')
+
+conspca = pca(iris[,c(3,4,1,2)], algo = 'nipals')
+
+mypca2 = pca(X, algo = 'mbpca')
+
+conspca2 = pca(X, algo = 'nipals', scaling = 'hardBlock')
+
+
+mypca3 = pca(X, algo = 'mbpca')
+
+
+library(ropls)
+
+data('iris')
+
+X = iris[,1:3]
+Y = iris[,4]
+
+mypls = ropls::opls(X,Y)
+
+
+plot(mypls,
+     typeVc = "x-score")
+
+plot(mypls,
+     typeVc = "x-variance")
+
+
+plot(mypls,
+     typeVc = "x-loading")
+
+plot(mypls,
+     typeVc = "xy-weight")
+
+

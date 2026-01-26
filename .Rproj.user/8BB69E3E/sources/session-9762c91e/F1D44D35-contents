@@ -1,0 +1,696 @@
+
+#Función con solo los splines
+
+plotMLR = function (MLRoutput, targetF, regulator = NULL, reguValues = NULL, plotPerOmic = FALSE,
+                    targetF.col = 1, regu.col = NULL, order = TRUE,
+                    xlab = "", cont.var = NULL, cond2plot = NULL, verbose =TRUE, ...) {
+  
+  # Colors for omics
+  omic.col = colors()[c(554,89,111,512,17,586,132,428,601,568,86,390,
+                        100,200,300,400,500,10,20,30,40,50,60,70,80,90,150,250,350,450,550)]
+  
+  
+  if (is.null(regu.col)) {
+    any.col = omic.col[1:length(MLRoutput$arguments$regulatoryData)]
+  } else {
+    if (length(regu.col) == length(MLRoutput$arguments$regulatoryData)) {
+      any.col = regu.col
+    } else {
+      any.col = rep(regu.col, length(MLRoutput$arguments$regulatoryData))
+    }
+  }
+  names(any.col) = names(MLRoutput$arguments$regulatoryData)
+  
+  
+  # Changing margin
+  par(mar = c(5,3,4,3)+0.1)
+  
+  # Groups to plot
+  if (is.null(cond2plot)) {
+    if (!is.null(MLRoutput$arguments$condition)) {
+      cond2plot = apply(MLRoutput$arguments$condition, 1, paste, collapse = "_")
+    }
+  }
+  
+  # Replicates
+  if (!is.null(cont.var)) {  # we have continuous variable
+    if (!is.null(cond2plot)) { # cont.var + cond2plot
+      myreplicates = apply(cbind(cond2plot, cont.var), 1, paste, collapse = "_")
+      
+    } else {  # only continuous variable is provided
+      myreplicates = cont.var
+    }
+    
+  } else {   # no cont.var
+    
+    if (!is.null(cond2plot)) { # only cond2plot
+      myreplicates = colnames(MLRoutput$arguments$targetData)
+    } else {  # nothing
+      myreplicates = colnames(MLRoutput$arguments$targetData)
+    }
+  }
+  
+  # Cast myreplicates to character
+  myreplicates = as.character(myreplicates)
+  names(myreplicates) = colnames(MLRoutput$arguments$targetData)
+  myrepliUni = unique(myreplicates)
+  
+  
+  if (max(table(myreplicates)) == 1) {
+    replicates = FALSE
+  } else {
+    replicates = TRUE
+  }
+  
+  
+  if (is.null(cond2plot)) {
+    numLines = NULL
+  } else {
+    condi1 = unique(cond2plot)
+    num1 = 1:length(condi1); names(num1) = condi1
+    num2 = num1[as.character(cond2plot)]
+    if (replicates) {
+      num2 = aggregate(num2, by = list("rep" = myreplicates), unique)$x
+    }
+    numLines = which(diff(num2) != 0)+0.5
+  }
+  group_names = NULL
+  
+  # Error values
+  getErrorValues = function(realValues, repsInfo) {
+    # Disable it
+    if (! replicates)
+      return(NULL)
+    
+    out_values = tapply(realValues, repsInfo, function(reps) sd(reps)/sqrt(length(reps)))
+    
+    return(out_values)
+  }
+  
+  ## REGULATOR = NULL
+  
+  if (is.null(regulator)) {  ### Plot all regulators for the given target feature
+    
+    MLRtargetF = MLRoutput$ResultsPerTargetF[[targetF]]
+    
+    if (is.null(MLRtargetF)) {
+      stop(paste("No MLR was obtained for target feature", targetF))
+    }
+    
+    if (is.null(MLRtargetF$relevantRegulators)) { ## No significant regulators
+      
+      cat("No relevant regulators were found for this target feature.\n")
+      
+      
+    } else
+    {  ## Significant regulators:
+      
+      # Considering multicollinearity
+      SigReg = MLRtargetF$allRegulators
+      SigReg = SigReg[SigReg$Rel == 1, c("regulator", "omic", "area", "filter")]
+      
+      SigReg = SigReg[MLRtargetF$relevantRegulators,,drop = FALSE]
+      
+      cat(paste(nrow(SigReg), "relevant regulators are to be plotted for target feature", targetF)); cat("\n")
+      
+      # Target feature values
+      targetFValues = MLRtargetF$Y$y
+      if (order) {
+        if(is.null(MLRoutput$arguments$condition)){
+          myorder = order(targetFValues)
+        } else{
+          myorder = order(unlist(MLRoutput$arguments$condition),targetFValues)
+          group_names = unique(sort(MLRoutput$arguments$groups))
+        }
+        cond2plot = cond2plot[myorder]
+        targetFValues = targetFValues[myorder]
+        myreplicates = myreplicates[myorder]
+        myrepliUni = myrepliUni[myorder]
+        
+        if (is.null(cond2plot)) {
+          numLines = NULL
+        } else {
+          condi1 = unique(cond2plot)
+          num1 = 1:length(condi1); names(num1) = condi1
+          num2 = num1[as.character(cond2plot)]
+          if (replicates) {
+            num2 = aggregate(num2, by = list("rep" = myreplicates), unique)$x
+          }
+          numLines = which(diff(num2) != 0)+0.5
+        }
+      }
+      
+      errorValues = getErrorValues(targetFValues, myreplicates)
+      targetFValues = tapply(targetFValues, myreplicates, mean)
+      targetFValues = targetFValues[myrepliUni]
+      names(targetFValues) = myrepliUni
+      
+      # X values
+      x.points = 1:length(myrepliUni)
+      eje = myrepliUni
+      
+      if (plotPerOmic) { ## All regulators from the same omic in the same plot
+        
+        myomics = unique(SigReg$omic)
+        
+        for (oo in myomics) {
+          
+          SigRegOmic = SigReg[SigReg$omic == oo,]
+          
+          omicValues = t(MLRoutput$arguments$regulatoryData[[oo]])
+          omicValues = omicValues[rownames(MLRtargetF$X),]
+          reguValues = omicValues[, colnames(omicValues) == SigRegOmic$regulator[1]]
+          if (order) reguValues = reguValues[myorder]
+          errorValuesRegu = getErrorValues(reguValues, myreplicates)
+          
+          reguValues = tapply(reguValues, myreplicates, mean)
+          reguValues = reguValues[myrepliUni]
+          names(reguValues) = myrepliUni
+          
+          mycol = any.col[oo]
+          
+          if (nrow(SigRegOmic) == 1) {
+            leftlab = SigRegOmic$regulator[1]
+          } else { leftlab = oo }
+          
+          yleftlim = range(omicValues[,SigRegOmic$regulator], na.rm = TRUE)
+          
+          if (! is.null(errorValuesRegu)) {
+            yleftlim = range(
+              apply(omicValues[, SigRegOmic$regulator, drop = FALSE], 2, function(x) {
+                if (order) x = x[myorder]
+                errorInd = getErrorValues(x, myreplicates)
+                meanValues = tapply(x, myreplicates, mean)
+                meanValues = meanValues[myrepliUni]
+                
+                return(c(meanValues - errorInd, meanValues + errorInd))
+              }))
+          }
+          
+          plotTargetFRegu(x.points = x.points, targetFValues = targetFValues, reguValues = reguValues,
+                          col = c(targetF.col, mycol), yleftlim = yleftlim,
+                          xlab = xlab, yylab = c(targetF, leftlab), pch = c(16,16),
+                          main = oo, numLines = numLines, x.names = eje,
+                          targetFErrorValues = errorValues, reguErrorValues = errorValuesRegu,group_names = group_names)
+          
+          if (nrow(SigRegOmic) > 1) {
+            for (i in 2:nrow(SigRegOmic)) {
+              
+              reguValues = omicValues[, colnames(omicValues) == SigRegOmic$regulator[i]]
+              if (order) reguValues = reguValues[myorder]
+              errorValuesRegu = getErrorValues(reguValues, myreplicates)
+              
+              reguValues = tapply(reguValues, myreplicates, mean)
+              reguValues = reguValues[myrepliUni]
+              names(reguValues) = myrepliUni
+              
+              lines(x.points, reguValues, type = "o", lwd = 2, pch = i, col = mycol, lty = i)
+              
+              if (! is.null(errorValuesRegu)) {
+                arrows(x.points, reguValues - errorValuesRegu, x.points, reguValues + errorValuesRegu,
+                       code = 3, length = 0.02, angle = 90, col = mycol)
+              }
+            }
+          }
+          
+        }
+        
+      } else {  ## Each regulator in a separate plot
+        
+        for (rr in SigReg$regulator) {
+          
+          oo = MLRoutput$ResultsPerTargetF[[targetF]]$allRegulators[rr,"omic"]
+          omicValues = t(MLRoutput$arguments$regulatoryData[[oo]])
+          reguValues = omicValues[, colnames(omicValues) == rr]
+          if (order) reguValues = reguValues[myorder]
+          errorValuesRegu = getErrorValues(reguValues, myreplicates)
+          
+          reguValues = tapply(reguValues, myreplicates, mean)
+          reguValues = reguValues[myrepliUni]
+          names(reguValues) = myrepliUni
+          
+          mycol = any.col[oo]
+          
+          plotTargetFRegu(x.points = x.points, targetFValues = targetFValues, reguValues = reguValues,
+                          col = c(targetF.col, mycol), xlab = xlab,
+                          yylab = c(targetF, rr), pch = c(16,16),
+                          main = paste(as.character(SigReg[rr, c("omic", "area")]), collapse = " "),
+                          numLines = numLines, x.names = eje,
+                          targetFErrorValues = errorValues, reguErrorValues = errorValuesRegu, group_names = group_names)
+          
+        }
+        
+      }
+      
+      return(MLRtargetF$allRegulators[MLRtargetF$relevantRegulators, -6])
+    }
+    
+  }
+  
+  
+  ## targetF = NULL
+  
+  if (is.null(targetF)) {  ### Plot all target features regulated by the regulator
+    
+    SigniReguTargetF = GetPairstargetFRegulator(targetFs = NULL, output = MLRoutput)
+    SigniReguTargetF = SigniReguTargetF[SigniReguTargetF[,"regulator"] == regulator,]
+    myomics = SigniReguTargetF[,"omic"]
+    myomic = unique(myomics)
+    
+    if (nrow(SigniReguTargetF) > 0) {  # When there are target features regulated by this regulator
+      
+      if (is.null(reguValues)) {  # User does not provide reguValues
+        reguValues = as.numeric(MLRoutput$arguments$regulatoryData[[myomic]][regulator,])
+      }
+      
+      numtargetFs = length(SigniReguTargetF$targetF)
+      if(verbose) {cat(paste(numtargetFs, "target features are regulated by", regulator)); cat("\n")}
+      
+      if (length(reguValues) > 0) {  # reguValues are available (recovered or given by user)
+        
+        lapply(1:numtargetFs, function (i) {
+          
+          targetFValues = MLRoutput$ResultsPerTargetF[[SigniReguTargetF[i,"targetF"]]]$Y$y
+          if (order) {
+            if(is.null(MLRoutput$arguments$condition)){
+              myorder = order(targetFValues)
+            } else{
+              myorder = order(unlist(MLRoutput$arguments$condition),targetFValues)
+              group_names = unique(sort(MLRoutput$arguments$groups))
+            }
+            targetFValues = targetFValues[myorder]
+            reguValues = reguValues[myorder]
+            myreplicates = myreplicates[myorder]
+            myrepliUni = myrepliUni[myorder]
+            if (is.null(cond2plot)) {
+              numLines = NULL
+            } else {
+              cond2plot = cond2plot[myorder]
+              condi1 = unique(cond2plot)
+              num1 = 1:length(condi1); names(num1) = condi1
+              num2 = num1[as.character(cond2plot)]
+              if (replicates) {
+                num2 = aggregate(num2, by = list("rep" = myreplicates), unique)$x
+              }
+              numLines = which(diff(num2) != 0)+0.5
+            }
+          }
+          errorValuesRegu = getErrorValues(reguValues, myreplicates)
+          reguValues = tapply(reguValues, myreplicates, mean)
+          reguValues = reguValues[myrepliUni]
+          names(reguValues) = myrepliUni
+          
+          errorValues = getErrorValues(targetFValues, myreplicates)
+          targetFValues = tapply(targetFValues, myreplicates, mean)
+          targetFValues = targetFValues[myrepliUni]
+          names(targetFValues) = myrepliUni
+          
+          
+          x.points = 1:length(myrepliUni)
+          eje = myrepliUni
+          
+          plotTargetFRegu(x.points = x.points, targetFValues = targetFValues, reguValues = reguValues,
+                          col = c(targetF.col, any.col[myomics[i]]), xlab = xlab,
+                          yylab = c(SigniReguTargetF[i,"targetF"], regulator), pch = c(16,16),
+                          main = paste(as.character(SigniReguTargetF[1,c("omic", "area")]), collapse = " "),
+                          numLines = numLines, x.names = eje,
+                          targetFErrorValues = errorValues, reguErrorValues = errorValuesRegu, group_names = group_names)
+          
+          
+        })
+        
+      } else { cat("Regulator values could not be recovered from MLRoutput. Please provide them in reguValues argument to generate the plot.\n") }
+      
+      return(SigniReguTargetF$targetF)
+      
+    } else { cat(paste("There are no target features relevantly regulated by", regulator)); cat("\n") }
+    
+  }
+  
+  
+  ## targetF + REGULATOR
+  
+  if (!is.null(targetF) && !is.null(regulator)) {  ### Plot only the given target feature and the given regulator
+    
+    targetFResults = MLRoutput$ResultsPerTargetF[[targetF]]
+    
+    if (is.null(targetFResults)) {
+      stop(paste("No MLR was obtained for target feature", targetF))
+    } else
+    {
+      myomic = targetFResults$allRegulators[regulator, "omic"]
+      
+      if (is.null(reguValues)) {  # User does not provide reguValues
+        reguValues = as.numeric(MLRoutput$arguments$regulatoryData[[myomic]][regulator,]) # regulator values
+      }
+      
+      if (length(reguValues) > 0) {  # reguValues are available (recovered or given by user)
+        
+        targetFValues = MLRoutput$ResultsPerTargetF[[targetF]]$Y$y
+        if (order) {
+          if(is.null(MLRoutput$arguments$condition)){
+            myorder = order(targetFValues)
+          } else{
+            myorder = order(unlist(MLRoutput$arguments$condition),targetFValues)
+            group_names = unique(sort(MLRoutput$arguments$groups))
+          }
+          targetFValues = targetFValues[myorder]
+          reguValues = reguValues[myorder]
+          myreplicates = myreplicates[myorder]
+          myrepliUni = myrepliUni[myorder]
+          if (is.null(cond2plot)) {
+            numLines = NULL
+          } else {
+            cond2plot = cond2plot[myorder]
+            condi1 = unique(cond2plot)
+            num1 = 1:length(condi1); names(num1) = condi1
+            num2 = num1[as.character(cond2plot)]
+            if (replicates) {
+              num2 = aggregate(num2, by = list("rep" = myreplicates), unique)$x
+            }
+            numLines = which(diff(num2) != 0)+0.5
+          }
+        }
+        
+        errorValuesRegu = getErrorValues(reguValues, myreplicates)
+        reguValues = tapply(reguValues, myreplicates, mean, na.rm = TRUE)
+        reguValues = reguValues[myrepliUni]
+        names(reguValues) = myrepliUni
+        
+        errorValues = getErrorValues(targetFValues, myreplicates)
+        targetFValues = tapply(targetFValues, myreplicates, mean, na.rm = TRUE)
+        targetFValues = targetFValues[myrepliUni]
+        names(targetFValues) = myrepliUni
+        
+        x.points = 1:length(myrepliUni)
+        eje = myrepliUni
+        
+        plotTargetFRegu(x.points = x.points, targetFValues = targetFValues, reguValues = reguValues,
+                        col = c(targetF.col, any.col[myomic]), xlab = xlab,
+                        yylab = c(targetF, regulator), pch = c(16,16),
+                        main = paste(as.character(targetFResults$allRegulators[regulator, c("omic", "area")]),
+                                     collapse = " "),
+                        numLines = numLines, x.names = eje,
+                        targetFErrorValues = errorValues, reguErrorValues = errorValuesRegu,group_names = group_names)
+        
+      } else {
+        
+        cat("Regulator values could not be recovered from MLRoutput.\n")
+        
+        regulator = targetFResults$allRegulators[regulator,"filter"]
+        
+        if (regulator %in% rownames(targetFResults$allRegulators)) {
+          
+          cat(paste(regulator, "values will be plotted instead.")); cat("\n")
+          cat(paste(regulator, "summarizes information from the following correlated regulators:")); cat("\n")
+          cat(targetFResults$allRegulators[targetFResults$allRegulators[,"filter"] == regulator,"regulator"]); cat("\n")
+          
+          reguValues = targetFResults$X
+          reguValues = reguValues[, colnames(reguValues) == regulator]
+          
+          targetFValues = MLRoutput$ResultsPerTargetF[[gene]]$Y$y
+          if (order) {
+            if(is.null(MLRoutput$arguments$condition)){
+              myorder = order(targetFValues)
+            } else{
+              myorder = order(unlist(MLRoutput$arguments$condition),targetFValues)
+              group_names = unique(sort(MLRoutput$arguments$groups))
+            }
+            targetFValues = targetFValues[myorder]
+            reguValues = reguValues[myorder]
+            myreplicates = myreplicates[myorder]
+            myrepliUni = myrepliUni[myorder]
+            if (is.null(cond2plot)) {
+              numLines = NULL
+            } else {
+              cond2plot = cond2plot[myorder]
+              condi1 = unique(cond2plot)
+              num1 = 1:length(condi1); names(num1) = condi1
+              num2 = num1[as.character(cond2plot)]
+              if (replicates) {
+                num2 = aggregate(num2, by = list("rep" = myreplicates), unique)$x
+              }
+              numLines = which(diff(num2) != 0)+0.5
+            }
+          }
+          
+          errorValuesRegu = getErrorValues(reguValues, myreplicates)
+          
+          reguValues = tapply(reguValues, myreplicates, mean)
+          reguValues = reguValues[myrepliUni]
+          names(reguValues) = myrepliUni
+          
+          errorValues = getErrorValues(targetFValues, myreplicates)
+          targetFValues = tapply(targetFValues, myreplicates, mean)
+          targetFValues = targetFValues[myrepliUni]
+          names(targetFValues) = myrepliUni
+          
+          x.points = 1:length(myrepliUni)
+          eje = myrepliUni
+          
+          plotTargetFRegu(x.points = x.points, targetFValues = targetFValues, reguValues = reguValues,
+                          col = c(targetF.col, any.col[myomic]), xlab = xlab,
+                          yylab = c(targetF, regulator), pch = c(16,16),
+                          main = paste(as.character(targetFResults$allRegulators[regulator, c("omic", "area")]),
+                                       collapse = " "),
+                          numLines = numLines, x.names = eje,
+                          targetFErrorValues = errorValues, reguErrorValues = errorValuesRegu, group_names = group_names)
+        } else {
+          cat("The selected regulator was not declared as relevant by the ElasticNet\n")
+          cat("Please, either select another regulator or provide the regulator values.\n")
+        }
+        
+      }
+      
+    }
+    
+  }
+  
+}
+
+# Plot MLR results --------------------------------------------------------
+
+# Plot 1 targetF versus 1 regulator ------------------------------------------
+
+plotTargetFRegu = function (x.points, targetFValues, reguValues, targetFErrorValues, reguErrorValues, col = c(1,2),
+                            xlab = "", yylab = c("right", "left"), pch = c(16,17), main = "",
+                            numLines = NULL, x.names = NULL, yleftlim, yrightlim, group_names) {
+  
+  # Adjust the axis to include the error value
+  if (missing(yrightlim)) {
+    if (! missing(targetFErrorValues) && ! is.null(targetFErrorValues)) {
+      yrightlim = range(c(targetFValues - targetFErrorValues, targetFValues + targetFErrorValues), na.rm = TRUE)
+    } else {
+      yrightlim = range(targetFValues, na.rm = TRUE)
+    }
+  }
+  
+  if (missing(yleftlim)) {
+    if (! missing(reguErrorValues) && ! is.null(reguErrorValues)) {
+      yleftlim = range(c(reguValues - reguErrorValues, reguValues + reguErrorValues), na.rm = TRUE)
+    } else {
+      yleftlim = range(reguValues, na.rm = TRUE)
+    }
+  }
+  
+  #Apply smoothing
+  splineTargetF <- smooth.spline(x.points, targetFValues, spar = 0.5)
+  splineRegu <- smooth.spline(x.points, reguValues, spar = 0.5)
+  # Extract smoothed values
+  smoothedTargetF <- splineTargetF$y
+  smoothedRegu <- splineRegu$y
+  
+  # Define colors: shaded for real values, bright for smoothed
+  fadedCol <- adjustcolor(col, alpha.f = 0.2)  # Transparent color for real values
+  brightCol <- adjustcolor(col, alpha.f = 1.0) # Bright color for smoothed values
+  
+  plot.y2(x = x.points, yright = targetFValues, yleft = reguValues, yleftlim = yleftlim,
+          col = col, xlab = xlab, yylab = yylab, pch = pch, main = main, yrightlim = yrightlim,
+          yrightErrorValues = targetFErrorValues, yleftErrorValues = reguErrorValues, group_names = group_names)
+  
+  if (!is.null(numLines)) {
+    for (aa in numLines) {
+      abline(v = aa, lty = 2, col = 1)
+    }
+  }
+  
+  if (!is.null(x.names)) {
+    axis(side=1, at = x.points, labels = x.names, cex.axis = 0.8, las=2)
+  }
+}
+
+# Plot Y2 -----------------------------------------------------------------
+
+# By Ajay Shah (taken from [R] Plot 2 time series with different y axes (left and right),
+# in https://stat.ethz.ch/pipermail/r-help/2004-March/047775.html)
+
+# Modified by: Sonia Tarazona
+
+### PARAMETERS (default):
+# x: data to be drawn on X-axis
+# yright: data to be drawn on Y right axis
+# yleft: data to be drawn on Y left axis
+# yrightlim (range(yright, na.rm = TRUE)): ylim for rigth Y-axis
+# yleftlim (range(yleft, na.rm = TRUE)): ylim for left Y-axis
+# xlab (NULL): Label for X-axis
+# yylab (c("","")): Labels for right and left Y-axis
+# pch (c(1,2)): Type of symbol for rigth and left data
+# col (c(1,2)): Color for rigth and left data
+# linky (TRUE): If TRUE, points are connected by lines.
+# smooth (0): Friedman's super smoothing
+# lwds (1): Line width for smoothed line
+# length (10): Number of tick-marks to be drawn on axis
+# ...: Other graphical parameters to be added by user (such as main, font, etc.)
+###
+
+
+plot.y2 <- function(x, yright, yleft, yrightlim = range(yright, na.rm = TRUE),
+                    yleftlim = range(yleft, na.rm = TRUE),
+                    xlim = range(x, na.rm = TRUE),
+                    xlab = NULL, yylab = c("",""), lwd = c(2,2),
+                    pch = c(1,2), col = c(1,2), type = c("o","o"),
+                    linky = TRUE, smooth = 0, bg = c("white","white"),
+                    lwds = 1, length = 10, ...,
+                    x2 = NULL, yright2 = NULL, yleft2 = NULL, col2 = c(3,4),
+                    yrightErrorValues, yleftErrorValues, group_names = NULL
+)
+{
+  #par(mar = c(5,2,4,2), oma = c(0,3,0,3))
+  
+  ## Plotting RIGHT axis data
+  
+  plot(x, yright, axes = FALSE, ylab = "", xlab = xlab, ylim = yrightlim,
+       xlim = xlim, pch = pch[1], type = type[1], lwd = lwd[1],
+       col = col[1], ...)
+  
+  axis(4, pretty(yrightlim, length), col = 1, col.axis = 1)
+  
+  if (is.null(yright2) == FALSE) {
+    points(x2, yright2, type = type[1], pch = pch[1], lwd = lwd[1], col = col2[1], ...)
+  }
+  
+  #if (linky) lines(x, yright, col = col[1], ...)
+  
+  if (smooth != 0) lines(supsmu(x, yright, span = smooth), col = col[1], lwd = lwds, ...)
+  
+  if(yylab[1]=="") {
+    mtext(deparse(substitute(yright)), side = 4, outer = FALSE, line = 2,
+          col = col[1], cex = 0.9,...)
+  } else {
+    mtext(yylab[1], side = 4, outer = FALSE, line = 2, col = col[1], cex = 0.9,...)
+  }
+  
+  # Plot arrows showing standard error
+  if (!missing(yrightErrorValues) && ! is.null(yrightErrorValues)) {
+    arrows(x, yright - yrightErrorValues, x, yright + yrightErrorValues,
+           code = 3, length = 0.02, angle = 90, col = col[1])
+  }
+  
+  
+  par(new = T)
+  
+  ## Plotting LEFT axis data
+  plot(x, yleft, axes = FALSE, ylab = "" , xlab = xlab, ylim = yleftlim,
+       xlim = xlim, bg = bg[1],
+       pch = pch[2], type = type[2], lwd = lwd[2], col = col[2], ...)
+  
+  box()
+  
+  axis(2, pretty(yleftlim, length), col = 1, col.axis = 1)
+  
+  if (is.null(yleft2) == FALSE) {
+    points(x2, yleft2, type = type[2], pch = pch[2], bg = bg[2],
+           lwd = lwd[2], col = col2[2], ...)
+  }
+  
+  
+  #if (linky) lines(x, yleft, col = col[2], ...)
+  
+  if (smooth != 0) lines(supsmu(x, yleft, span = smooth), col = col[2], lwd=lwds, ...)
+  
+  if(yylab[2] == "") {
+    mtext(deparse(substitute(yleft)), side = 2, outer = FALSE, line = 2, col = col[2], cex = 0.9, ...)
+  } else {
+    mtext(yylab[2], side = 2, outer = FALSE, line = 2, col = col[2], cex = 0.9, ...)
+  }
+  
+  if (!missing(yleftErrorValues) && ! is.null(yleftErrorValues)) {
+    arrows(x, yleft - yleftErrorValues, x, yleft + yleftErrorValues,
+           code = 3, length = 0.02, angle = 90, col = col[2])
+  }
+  
+  ## X-axis
+  ##  axis(1, at = pretty(xlim, length))  ## Comment last line
+  
+  if (!is.null(group_names)) {
+    num_groups = length(group_names)
+    group_position = seq(xlim[1],xlim[2], length.out = num_groups+1)
+    group_centers = head(group_position,-1)+diff(group_position)/2
+    
+    usr <- graphics::par("usr")  # usr[3] es el límite inferior del eje Y, usr[4] es el superior
+    y_text <- usr[4] - (usr[4] - usr[3]) * 0.02
+    
+    for (i in seq_along(group_names)) {
+      text(x = group_centers[i], y = y_text , 
+           labels = group_names[i], cex = 0.9, font = 1, xpd = TRUE)
+    }
+  }
+  
+}
+
+plotTargetFRegu_ggplot = function(x.points, targetFValues, reguValues, targetFErrorValues, reguErrorValues, 
+                                  col = c("black", "purple"), xlab = "", yylab = c("right", "left"), 
+                                  main = "", numLines = NULL, x.names = NULL, 
+                                  yleftlim, yrightlim, group_names) {
+  
+  # Prepare data for ggplot
+  df <- data.frame(
+    x = x.points,
+    targetF = targetFValues,
+    regu = reguValues,
+    targetF_lower = targetFValues - targetFErrorValues,
+    targetF_upper = targetFValues + targetFErrorValues,
+    regu_lower = reguValues - reguErrorValues,
+    regu_upper = reguValues + reguErrorValues
+  )
+  
+  # Convert x.names if available
+  if (!is.null(x.names)) {
+    df$x_labels <- factor(x.names, levels = unique(x.names)) # Keep order
+  } else {
+    df$x_labels <- as.factor(df$x) # Default to numeric x
+  }
+  
+  # ggplot
+  p <- ggplot(df, aes(x = x_labels)) +
+    
+    # Real values (shaded)
+    geom_line(aes(y = targetF, color = col[1]), alpha = 0.2, linewidth = 1) +
+    geom_point(aes(y = targetF, color = col[1]), alpha = 0.2) +
+    geom_line(aes(y = regu, color = col[2]), alpha = 0.2, linewidth = 1) +
+    geom_point(aes(y = regu, color = col[2]), alpha = 0.2) +
+    
+    # Error bars
+    geom_errorbar(aes(ymin = targetF_lower, ymax = targetF_upper, color = col[1]), width = 0.2, alpha = 0.3) +
+    geom_errorbar(aes(ymin = regu_lower, ymax = regu_upper, color = col[2]), width = 0.2, alpha = 0.3) +
+    
+    # Smoothed values (bright)
+    geom_smooth(aes(y = targetF, color = col[1]), method = "loess", se = FALSE, linewidth = 1.5) +
+    geom_smooth(aes(y = regu, color = col[2]), method = "loess", se = FALSE, linewidth = 1.5) +
+    
+    # Theme and labels
+    labs(title = main, x = xlab, y = "Expression Levels", color = "Legend") +
+    scale_color_manual(values = col) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  
+  # Add vertical lines if needed
+  if (!is.null(numLines)) {
+    p <- p + geom_vline(xintercept = numLines, linetype = "dashed", color = "black")
+  }
+  
+  # Print the ggplot
+  print(p)
+}
+
+

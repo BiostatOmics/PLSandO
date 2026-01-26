@@ -1,0 +1,16 @@
+
+library(simrel)
+
+set.seed(123)
+
+simul = simrel(n = 50, #Number of observations
+               p = 300, #Number of predictors
+               q = 15, # Number of relevant predictors
+               relpos = c(1,3),
+               gamma = 0.6, #Decline parameter of eigenvalues
+               R2 = 0.8)
+
+simrelplot(simul, ncomp = 20)
+
+
+save(simul, file = 'Datos_simrel.Rdata')

@@ -1,0 +1,51 @@
+
+library(pls)
+
+data(gasoline)
+
+gasTrain <- gasoline[1:50,]
+gasTest <- gasoline[51:60,]
+
+# PLS models ----
+
+gas1 = plsr(octane ~ NIR, ncomp = 10, data = gasTrain, validation = "LOO")
+
+summary(gas1)
+RMSEP(gas1)
+
+gas2 = plsr(octane ~ NIR,  data = gasTrain, validation = "LOO")
+selectNcomp(gas2)
+
+explvar(gas1)
+
+gas.cv = crossval(gas1)
+plot(MSEP(gas.cv))
+
+#Predict new data
+
+drop(predict(gas1, ncomp = 1:2, newdata = gasTest))
+predplot(gas1,ncomp =2,newdata =gasTest,asp =1,line=TRUE)
+
+# CPPLS -----
+
+mayonnaise$dummy <-
+  I(model.matrix(~y-1, data.frame(y = factor(mayonnaise$oil.type))))
+
+may.cpls <- cppls(dummy ~ NIR, 10, data = mayonnaise, subset = train)
+may.test <- predict(may.cpls, newdata = mayonnaise[!mayonnaise$train,], type = "score")
+
+
+# Mirar si hace falta ----
+
+# Create dummy response
+mayonnaise$dummy <-
+  I(model.matrix(~y-1, data.frame(y = factor(mayonnaise$oil.type))))
+
+# Predict CPLS scores for test data
+may.cpls <- cppls(dummy ~ NIR, 10, data = mayonnaise, subset = train)
+may.test <- predict(may.cpls, newdata = mayonnaise[!mayonnaise$train,], type = "score")
+
+# Predict CPLS scores for test data (experimental used design as additional Y information)
+may.cpls.yadd <- cppls(dummy ~ NIR, 10, data = mayonnaise, subset = train, Y.add=design)
+may.test.yadd <- predict(may.cpls.yadd, newdata = mayonnaise[!mayonnaise$train,], type = "score")
+

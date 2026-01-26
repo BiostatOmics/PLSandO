@@ -1,0 +1,64 @@
+setwd("D:/MORE/data")
+
+datos1<-readRDS('my_simulated_bulkMOSim_5_123_5_rep.rds')
+
+datos2<-readRDS('my_simulated_bulkMOSim_5_123_10_rep.rds')
+
+datos2<-readRDS('my_simulated_bulkMOSim_5_123_50_rep.rds')
+
+datos2<-readRDS('my_simulated_bulkMOSim_20_123_50_rep.rds')
+
+
+#Summary de cantidad de genes DE por cada réplica y porcentaje
+
+DEresults<-NULL
+#create a list of the files from your target directory
+file_list <- list.files(path="D:/MORE/results")
+
+#had to specify columns to get rid of the total column
+for (i in 1:length(file_list)){
+  temp_data <- readRDS(file_list[i])
+  DEresults<-rbind(DEresults,cbind(length(temp_data$ResultsPerGene), 
+                                   cbind( rep(tail(strsplit(file_list[i],'_')[[1]],2)[1],length(temp_data$resultscollinearity$accuracy) ), rep(tail(strsplit(file_list[i],'_')[[1]], 6)[1],length(temp_data$resultscollinearity$accuracy)))))
+}
+
+colnames(DEresults)<-c('DE','rep','p')
+DEresults<-as.data.frame(DEresults)
+DEresults$DE<-as.numeric(DEresults$DE)
+DEresults$rep<-factor(DEresults$rep,levels = c("5", "10", "20", "30","50"))
+
+
+#DE 5 rep sin importar p
+summary(DEresults$DE[which(DEresults[,2]==5)])
+
+#DE 10 rep sin importar p
+summary(DEresults$DE[which(DEresults[,2]==10)])
+
+#DE 20 rep sin importar p
+summary(DEresults$DE[which(DEresults[,2]==20)])
+
+#DE 30 rep sin importar p
+summary(DEresults$DE[which(DEresults[,2]==30)])
+
+#DE 50 rep sin importar p
+summary(DEresults$DE[which(DEresults[,2]==50)])
+
+
+#DE 5 rep sin importar p de 5%
+summary(DEresults$DE[which(DEresults[,2]==5 & DEresults[,3]==5 )])
+
+#DE 5 rep sin importar p de 10%
+summary(DEresults$DE[which(DEresults[,2]==5 & DEresults[,3]==10 )])
+
+#DE 5 rep sin importar p de 20%
+summary(DEresults$DE[which(DEresults[,2]==5 & DEresults[,3]==20 )])
+
+
+ggplot(data = DEresults,
+       mapping = aes(x = rep, y = DE, fill = rep)) +
+  geom_boxplot()+ scale_fill_conesa(palette = "main")
+
+# Is there a statistically significant diference between percentages?
+
+summary(aov(DEresults$DE~DEresults$p))
+
