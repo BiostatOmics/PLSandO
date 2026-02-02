@@ -1,2 +1,6 @@
 /doc/
 /Meta/
+.Rproj.user
+*.Rproj
+.Rproj.user/
+^desktop\.ini$

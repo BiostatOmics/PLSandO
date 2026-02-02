@@ -43,7 +43,7 @@ Preparing = function(x, includeFactors = TRUE, CVfilter = 0.01, excludeNA = 0.2)
 
   if(all(!is.na(suppressWarnings(as.numeric(rownames(x)))))) {
     rownames(x) = paste0('r', rownames(x))
-    warning('To avoid problems with numeric identifiers, we added r prefix to the identifiers')
+    cat('Warning: To avoid problems with numeric identifiers, we added r prefix to the identifiers\n')
   }
 
   # Guardar todo el proceso en una especie de summary para que lo puedan consultar en cualquier momento
@@ -136,13 +136,18 @@ prepare_x = function(df, includeFactors = TRUE, removed_vars){
     if ((is.factor(x) || is.logical(x) || is.character(x))){
       if(includeFactors){
         x = factor(x, exclude = NULL)
-        x1 = model.matrix(~0+., data = data.frame(x))
-        if(any(is.na(as.character(x)=='NA'))){
-          x1[is.na(as.character(x)=='NA')] = NA
-          x1 = x1[,-ncol(x1), drop=FALSE] #Remove column associated to NAs
+        if(length(unique(x))==1){
+          x1 = matrix(1,nrow = length(x),ncol = 1)
+          colnames(x1) = paste(col, unique(x)[1],sep = '_')
+        }else{
+          x1 = model.matrix(~0+., data = data.frame(x))
+          if(any(is.na(as.character(x)=='NA'))){
+            x1[is.na(as.character(x)=='NA')] = NA
+            x1 = x1[,-ncol(x1), drop=FALSE] #Remove column associated to NAs
+          }
+          tab = table(x, useNA = "ifany")  # Remove NA as level
+          colnames(x1) = paste(col,names(tab)[!is.na(names(tab))], sep ='_')
         }
-        tab = table(x, useNA = "ifany")  # Remove NA as level
-        colnames(x1) = paste(col,names(tab)[!is.na(names(tab))], sep ='_')
         removed_vars[which(removed_vars$Variable==col),c(2,3)] <<- c("Modified","Factor type variable converted to dummy")
         return(as.list(as.data.frame(x1)))
       } else{
@@ -1500,6 +1505,18 @@ project.obs.nipals = function(x, newObs, comp){
 
 }
 
+project.obs.nipalsmb = function(x, newObs, comp){
+
+  b_names = names(x$X)
+
+  #Scores
+  scores_new = setNames(lapply(b_names, function(b) (as.matrix(newObs[[b]]) %*% x$Bloadings[[b]][,comp])/sqrt(ncol(x$X[[b]]))), b_names)
+  T_composite = do.call('+',lapply(seq_along(b_names), function(b) x$Sloadings[b,comp]*scores_new[[b]]))
+
+  return(T_composite)
+
+}
+
 # Score plot --------------------------------------------------------------
 
 # x: Object returned by pca, pls or plsda functions
@@ -1524,9 +1541,38 @@ scorePlot = function(x,
   colnames(scores_df) = c("x", "y")
 
   if(!is.null(newObs)){
-    newObs = newObs[,colnames(x$X)]
 
-    #Meto la funcion preparing aqui?
+    if (!inherits(newObs, "list")){
+      if(!all(sapply(newObs, is.numeric))) {
+        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+        P = Preparing(newObs, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
+      } else {
+        P = Preparing(newObs, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
+      }
+      newObs = P$x
+
+    } else{
+      b_names = names(newObs)
+      P = lapply(newObs, function(y){
+        if(!all(sapply(y, is.numeric))) {
+          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          Preparing(y, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
+        } else {
+          Preparing(y, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
+        }
+      })
+      newObs = setNames(lapply(b_names, function(y) P[[y]]$x), b_names)
+      blocks = rep(seq_along(newObs), times = sapply(newObs, ncol) )
+      newObs = do.call(cbind, newObs)
+    }
+
+    if(length(setdiff(colnames(x$X),colnames(newObs)))!=0){
+      x1 = matrix(0,nrow = nrow(newObs),ncol = length(setdiff(colnames(x$X),colnames(newObs))))
+      colnames(x1) = setdiff(colnames(x$X),colnames(newObs))
+      newObs = cbind(newObs,x1)
+    }
+
+    newObs = newObs[,colnames(x$X)]
 
     # Scale validation data acording to scaling parameters of training data
     newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
@@ -1624,10 +1670,10 @@ scorePlot = function(x,
       ggp = ggp +
         aes(color = colBy) +
         scale_color_gradient2(low = color_palette[3] ,mid = color_palette[2], high = color_palette[1],
-                             midpoint = mean(range(colBy,na.rm = TRUE)),
-                             name = colByname,
-                             limits = c(min(colBy, na.rm = TRUE), max(colBy,na.rm = TRUE)),
-                             breaks = pretty(range(colBy,na.rm = TRUE), n = 5))+
+                              midpoint = mean(range(colBy,na.rm = TRUE)),
+                              name = colByname,
+                              limits = c(min(colBy, na.rm = TRUE), max(colBy,na.rm = TRUE)),
+                              breaks = pretty(range(colBy,na.rm = TRUE), n = 5))+
         theme(legend.position = "right") +
         geom_point(shape = shape, size = 3)
 
@@ -1673,22 +1719,47 @@ scorePlot = function(x,
 
   return(ggp)
 
- }
+}
 
 scorePlotmb = function(x,
-                     comp = NULL,
-                     col = 'main',
-                     colBy = NULL,
-                     shape = 18,
-                     shapeBy = NULL,
-                     ellipses = TRUE,
-                     labels = FALSE,
-                     newObs = NULL) {
+                       comp = NULL,
+                       col = 'main',
+                       colBy = NULL,
+                       shape = 18,
+                       shapeBy = NULL,
+                       ellipses = TRUE,
+                       labels = FALSE,
+                       newObs = NULL) {
 
   shapeBynew = colBynew = colByd = shapeByd = newObsb = NULL
   b_names = names(x$X)
 
   if(is.null(comp)) comp = 1:2
+
+  if (!is.null(newObs)){
+
+    newObs = setNames(lapply(seq_along(newObs), function(i){
+      y = newObs[[i]]
+      if(!all(sapply(y, is.numeric))) {
+        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+        P = Preparing(y, includeFactors = T, CVfilter = -0.01, excludeNA = 0.2)
+      } else {
+        P = Preparing(y, CVfilter = -0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
+      }
+      y = P$x
+
+      if(length(setdiff(colnames(x$X[[i]]),colnames(y)))!=0){
+        x1 = matrix(0,nrow = nrow(y),ncol = length(setdiff(colnames(x$X[[i]]),colnames(y))))
+        colnames(x1) = setdiff(colnames(x$X[[i]]),colnames(y))
+        y = cbind(y,x1)
+      }
+
+      y = y[,colnames(x$X[[i]])]
+      y = sweep(y, 2, x$scaling[[i]]$center, FUN = "-")
+      y = sweep(y, 2, x$scaling[[i]]$scale, FUN = "/")
+      return(y)
+    }), b_names)
+  }
 
   for (i in 1:length(x$X)){
 
@@ -1696,15 +1767,8 @@ scorePlotmb = function(x,
     colnames(scores_df) = c("x", "y")
 
     if(!is.null(newObs)){
-      newObsb = newObs[[i]][,colnames(x$X[[i]])]
 
-      #Meto la funcion preparing aqui?
-
-      # Scale validation data acording to scaling parameters of training data
-      newObsb = sweep(newObsb, 2, x$scaling[[i]]$center, FUN = "-")
-      newObsb = sweep(newObsb, 2, x$scaling[[i]]$scale, FUN = "/")
-
-      newObs[[i]] = newObsb
+      newObsb = newObs[[i]]
 
       #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
       if(any(is.na(newObsb))){
@@ -1859,8 +1923,8 @@ scorePlotmb = function(x,
         geom_text(aes(label = labels), size = 3, angle = 60, hjust = 1, vjust = 1, show.legend = F)  # Add labels
     }
 
-  print(ggp)
-  if(is.null(labels)) labels = FALSE
+    print(ggp)
+    if(is.null(labels)) labels = FALSE
   }
 
   # Una vez que se han presentado los resultados a nivel de bloque hay que presentar los resultados globales.
@@ -1868,15 +1932,11 @@ scorePlotmb = function(x,
   scores_df = as.data.frame(x$Sscores[,comp])
   colnames(scores_df) = c("x", "y")
 
-  if(!is.null(newObs)){ # Mirar como se corrige esto
-
-    #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
+  if(!is.null(newObs)){
     if(any(unlist(lapply(x$X, is.na)))){
-      #Por el momento no se permitiran valores faltantes
-      return(stop('NAs are not allowed in new observations to plot super scores'))
-      scores_new = project.obs.nipals(x, newObsb, comp)
+      return(stop('NAs are not allowed in new observations to plot super scores. Consider using PCA with block-scaling rather than MBPCA.'))
     } else{
-      scores_new = project.obs.nipalsmb(x, newObs, x$ncomp)[,comp]
+      scores_new = project.obs.nipalsmb(x, newObs, comp)
     }
     shapeBynew = colBynew = data.frame(c(rep('modelObs',nrow(scores_df)),rep('newObs', nrow(scores_new))), fix.empty.names = F)
     colnames(scores_new) = c("x", "y")
@@ -3123,9 +3183,37 @@ biPlot = function(x,
   colnames(scores_df) = c("x", "y")
 
   if(!is.null(newObs)){
-    newObs = newObs[,colnames(x$X)]
+    if (!inherits(newObs, "list")){
+      if(!all(sapply(newObs, is.numeric))) {
+        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+        P = Preparing(newObs, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
+      } else {
+        P = Preparing(newObs, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
+      }
+      newObs = P$x
 
-    #Meto la funcion preparing aqui?
+    } else{
+      b_names = names(newObs)
+      P = lapply(newObs, function(y){
+        if(!all(sapply(y, is.numeric))) {
+          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          Preparing(y, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
+        } else {
+          Preparing(y, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
+        }
+      })
+      newObs = setNames(lapply(b_names, function(y) P[[y]]$x), b_names)
+      blocks = rep(seq_along(newObs), times = sapply(newObs, ncol) )
+      newObs = do.call(cbind, newObs)
+    }
+
+    if(length(setdiff(colnames(x$X),colnames(newObs)))!=0){
+      x1 = matrix(0,nrow = nrow(newObs),ncol = length(setdiff(colnames(x$X),colnames(newObs))))
+      colnames(x1) = setdiff(colnames(x$X),colnames(newObs))
+      newObs = cbind(newObs,x1)
+    }
+
+    newObs = newObs[,colnames(x$X)]
 
     # Scale validation data acording to scaling parameters of training data
     newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
@@ -3336,24 +3424,43 @@ biPlotmb = function(x,
   if(is.null(comp)) comp = 1:2
   b_names = names(x$X)
 
+  if (!is.null(newObs)){
+
+    newObs = setNames(lapply(seq_along(newObs), function(i){
+      y = newObs[[i]]
+      if(!all(sapply(y, is.numeric))) {
+        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+        P = Preparing(y, includeFactors = T, CVfilter = -0.01, excludeNA = 0.2)
+      } else {
+        P = Preparing(y, CVfilter = -0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
+      }
+      y = P$x
+
+      if(length(setdiff(colnames(x$X[[i]]),colnames(y)))!=0){
+        x1 = matrix(0,nrow = nrow(y),ncol = length(setdiff(colnames(x$X[[i]]),colnames(y))))
+        colnames(x1) = setdiff(colnames(x$X[[i]]),colnames(y))
+        y = cbind(y,x1)
+      }
+
+      y = y[,colnames(x$X[[i]])]
+      y = sweep(y, 2, x$scaling[[i]]$center, FUN = "-")
+      y = sweep(y, 2, x$scaling[[i]]$scale, FUN = "/")
+      return(y)
+    }), b_names)
+  }
+
   for (i in 1:length(x$X)) {
     scores_df = as.data.frame(x$Bscores[[i]][,comp])
     colnames(scores_df) = c("x", "y")
 
     if(!is.null(newObs)){
-      newObsb = newObs[[i]][,colnames(x$X[[i]])]
 
-      #Meto la funcion preparing aqui?
-
-      # Scale validation data acording to scaling parameters of training data
-      newObsb = sweep(newObsb, 2, x$scaling[[i]]$center, FUN = "-")
-      newObsb = sweep(newObsb, 2, x$scaling[[i]]$scale, FUN = "/")
-
-      newObs[[i]] = newObsb
+      newObsb = newObs[[i]]
 
       #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
       if(any(is.na(newObs))){
-        return(stop('NAs not supported in MBPCA'))
+        x$loadings = x$Bloadings[[i]]
+        scores_new = project.obs.nipals(x, newObsb, comp)
       } else{
         scores_new = (as.matrix(newObsb) %*% x$Bloadings[[i]])[,comp]
       }
@@ -3549,14 +3656,12 @@ biPlotmb = function(x,
   scores_df = as.data.frame(x$Sscores[,comp])
   colnames(scores_df) = c("x", "y")
 
-  if(!is.null(newObs)){ # Mirar como se corrige esto
+  if(!is.null(newObs)){
 
-    #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
     if(any(unlist(lapply(x$X, is.na)))){
-      #Por el momento no se permitiran valores faltantes
       return(stop('NAs are not allowed in new observations to plot super scores'))
     } else{
-      scores_new = project.obs.nipalsmb(x, newObs, x$ncomp)[,comp]
+      scores_new = project.obs.nipalsmb(x, newObs, comp)
     }
     shapeBynew = colBynew = data.frame(c(rep('modelObs',nrow(scores_df)),rep('newObs', nrow(scores_new))), fix.empty.names = F)
     colnames(scores_new) = c("x", "y")
@@ -3736,17 +3841,17 @@ biPlotmb = function(x,
 }
 
 biPlotPLS = function(x,
-                  comp = NULL,
-                  col = 'main',
-                  colBy = NULL,
-                  shape = c(18, 'arrow'),
-                  shapeBy = NULL,
-                  selVars = NULL,
-                  labels = c(FALSE,TRUE),
-                  labelTop = NULL, #percentage
-                  ellipses = FALSE,
-                  repel = TRUE,
-                  newObs = NULL) {
+                     comp = NULL,
+                     col = 'main',
+                     colBy = NULL,
+                     shape = c(18, 'arrow'),
+                     shapeBy = NULL,
+                     selVars = NULL,
+                     labels = c(FALSE,TRUE),
+                     labelTop = NULL, #percentage
+                     ellipses = FALSE,
+                     repel = TRUE,
+                     newObs = NULL) {
 
   # Primero se plotean los scores y luego se anaden los variables escaladas al plot
 
@@ -3758,9 +3863,38 @@ biPlotPLS = function(x,
   colnames(scores_df) = c("x", "y")
 
   if(!is.null(newObs)){
-    newObs = newObs[,colnames(x$X)]
 
-    #Meto la funcion preparing aqui?
+    if (!inherits(newObs, "list")){
+      if(!all(sapply(newObs, is.numeric))) {
+        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+        P = Preparing(newObs, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
+      } else {
+        P = Preparing(newObs, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
+      }
+      newObs = P$x
+
+    } else{
+      b_names = names(newObs)
+      P = lapply(newObs, function(y){
+        if(!all(sapply(y, is.numeric))) {
+          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          Preparing(y, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
+        } else {
+          Preparing(y, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
+        }
+      })
+      newObs = setNames(lapply(b_names, function(y) P[[y]]$x), b_names)
+      blocks = rep(seq_along(newObs), times = sapply(newObs, ncol) )
+      newObs = do.call(cbind, newObs)
+    }
+
+    if(length(setdiff(colnames(x$X),colnames(newObs)))!=0){
+      x1 = matrix(0,nrow = nrow(newObs),ncol = length(setdiff(colnames(x$X),colnames(newObs))))
+      colnames(x1) = setdiff(colnames(x$X),colnames(newObs))
+      newObs = cbind(newObs,x1)
+    }
+
+    newObs = newObs[,colnames(x$X)]
 
     # Scale validation data acording to scaling parameters of training data
     newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
@@ -3940,7 +4074,7 @@ biPlotPLS = function(x,
 
   if(shape[2] == 'arrow'){
     ggp = ggp + ggnewscale::new_scale_color() + geom_segment(data = load_df, aes(x = 0, y = 0, xend = x, yend = y, color = type), inherit.aes = FALSE,
-                             arrow = arrow(length = unit(0.2, "cm")))
+                                                             arrow = arrow(length = unit(0.2, "cm")))
   } else{
     ggp = ggp + ggnewscale::new_scale_color()  + geom_point(aes(color=type),shape = as.numeric(shape[1]), size = 3)
   }

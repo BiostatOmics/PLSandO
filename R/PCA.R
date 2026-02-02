@@ -43,14 +43,14 @@ pca = function(x,
 
     P = lapply(x, function(y){
       if(!all(sapply(y, is.numeric))) {
-        warning('Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.')
+        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
         Preparing(y, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
       } else {
         Preparing(y, CVfilter = 0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
       }
     })
-
     x = setNames(lapply(b_names, function(y) P[[y]]$x), b_names)
+
     X = x
 
     if(is.null(ncomp)) ncomp = min(sapply(X, function(x) min(nrow(x)-1, ncol(x))))
@@ -92,8 +92,8 @@ pca = function(x,
 
     desSummary = setNames(lapply(b_names, function(y){
       des = data.frame(c("Samples","Variables","Excluded Near-Zero Variables","Missing Values"),
-                 c(nrow(x[[y]]),ncol(x[[y]]),length(which(P[[y]]$removed$Variables$Problem == 'Low CV')),
-                   paste0(length(which(is.na(x[[y]]))), " (",round((length(which(is.na(x[[y]]))) / (nrow(x[[y]]) * ncol(x[[y]]))) * 100, 2), "%)")), stringsAsFactors = FALSE)
+                       c(nrow(x[[y]]),ncol(x[[y]]),length(which(P[[y]]$removed$Variables$Problem == 'Low CV')),
+                         paste0(length(which(is.na(x[[y]]))), " (",round((length(which(is.na(x[[y]]))) / (nrow(x[[y]]) * ncol(x[[y]]))) * 100, 2), "%)")), stringsAsFactors = FALSE)
       colnames(des) = NULL
       return(des)
     }),b_names)
@@ -115,7 +115,7 @@ pca = function(x,
 
     if (!inherits(x, "list")){
       if(!all(sapply(x, is.numeric))) {
-        warning('Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.')
+        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
         P = Preparing(x, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
         x = P$x
       } else {
@@ -132,7 +132,7 @@ pca = function(x,
       b_names = names(x)
       P = lapply(x, function(y){
         if(!all(sapply(y, is.numeric))) {
-          warning('Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.')
+          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           Preparing(y, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
         } else {
           Preparing(y, CVfilter = 0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
@@ -154,7 +154,7 @@ pca = function(x,
     if(!inherits(x, "list") && scaling %in% c('softBlock','hardBlock')) blocks = rep(1, times = ncol(x)) else blocks = NULL
 
     if (inherits(x, "list")) {
-      if (!scaling %in% c("softBlock", "hardBlock")) warning('When blocks are considered we recommend using either softBlock or hardBlock scaling')
+      if (!scaling %in% c("softBlock", "hardBlock")) cat('Warning: When blocks are considered we recommend using either softBlock or hardBlock scaling\n')
       if (length(unique(sapply(x, nrow)))!=1) return(stop('All blocks must have the same observations'))
       blocks = rep(seq_along(x), times = sapply(x, ncol) )
       x = do.call(cbind, x)

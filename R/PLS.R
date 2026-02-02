@@ -1197,6 +1197,24 @@ plsPlot = function(x,
 
     ### biPlot
 
+    if (type == 'biPlot'){
+
+      #TO DO: Verificar que está funcionando
+
+      if(is.null(shape)) shape = 'arrow'
+      if(is.null(labels)) labels = TRUE
+
+      ggp = biPlotmb(x,
+                     comp = comp,
+                     col = col,
+                     colBy = colBy,
+                     shape = shape,
+                     selVars = selVars,
+                     labels = labels,
+                     labelTop = labelTop,
+                     repel = repel)
+    }
+
     ### R2
 
     if (type == 'R2'){
