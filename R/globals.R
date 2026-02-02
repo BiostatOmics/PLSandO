@@ -2,6 +2,7 @@
 #' @import stats
 #' @import graphics
 #' @import biostatcolors
+#' @importFrom corpcor pseudoinverse
 #' @importFrom naniar prop_miss_row miss_var_summary
 #' @importFrom utils setTxtProgressBar txtProgressBar
 #' @importFrom reshape2 melt

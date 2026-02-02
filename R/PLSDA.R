@@ -246,7 +246,8 @@ plsda = function(x, y,
 
     for (i in 1:ncomp) {
 
-      weightsStar = mypls$weights[,1:i,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))
+      weightsStar =  try(suppressWarnings(mypls$weights[,1:i,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))),silent = TRUE)
+      if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:i,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))
       coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:i,drop=FALSE])
       Ttest = as.matrix(xTest) %*% weightsStar
 

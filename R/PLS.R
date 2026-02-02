@@ -17,7 +17,7 @@ pls = function(x, y,
 
     if(any(is.na(x))) return(stop('mbpls can not be applied when missing values are present in the data. Consider using nipals algorithm instead, which supports missing values, together with a suitable block-scaling approach'))
 
-    if (class(x)[1]!='list') return(stop('To perform multiblock PLS, please provide the block information as a list where each element corresponds to one block'))
+    if (!inherits(x,'list')) return(stop('To perform multiblock PLS, please provide the block information as a list where each element corresponds to one block'))
     if (length(unique(sapply(x, nrow)))!=1) return(stop('All blocks must have the same observations'))
 
     b_names = names(x)
@@ -375,7 +375,7 @@ pls = function(x, y,
 
     if(!inherits(x, "list") && scaling %in% c('softBlock','hardBlock')) blocks = rep(1, times = ncol(x)) else blocks = NULL
 
-    if (class(x)[1]=='list') {
+    if (inherits(x,'list')) {
       if (!scaling %in% c("softBlock", "hardBlock")) warning('When blocks are considered we recommend using either softBlock or hardBlock scaling')
       if (length(unique(sapply(x, nrow)))!=1) return(stop('All blocks must have the same observations'))
       blocks = rep(seq_along(x), times = sapply(x, ncol) )
@@ -544,7 +544,9 @@ pls = function(x, y,
 
       for (i in 1:ncomp) {
 
-        weightsStar = mypls$weights[,1:i,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))
+        weightsStar =  try(suppressWarnings(mypls$weights[,1:i,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))),silent = TRUE)
+        if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:i,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))
+
         coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:i,drop=FALSE])
         Ttest = as.matrix(xTest) %*% weightsStar
 
@@ -1199,7 +1201,7 @@ plsPlot = function(x,
 
     if (type == 'biPlot'){
 
-      #TO DO: Verificar que está funcionando
+      #TO DO: Verificar que esta funcionando
 
       if(is.null(shape)) shape = 'arrow'
       if(is.null(labels)) labels = TRUE

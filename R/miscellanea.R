@@ -474,7 +474,8 @@ nipals_pls = function(X, Y, ncomp = NULL ){
 
   }
 
-  weightsStar = weights%*%solve(crossprod(loadings, weights))
+  weightsStar =  try(suppressWarnings(weights%*%solve(crossprod(loadings, weights))),silent = TRUE)
+  if(inherits(weightsStar,'try-error')) weightsStar = weights%*%(corpcor::pseudoinverse(crossprod(loadings, weights)))
 
   coefficients = tcrossprod(weightsStar, loadingsY)
 
@@ -667,7 +668,8 @@ crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed){
     mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
 
     for (j in 1:ncomp){
-      weightsStar = mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
+      weightsStar =  try(suppressWarnings(mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))),silent = TRUE)
+      if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:j,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
       coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:j,drop=FALSE])
       preds[folds[[i]], , j] = as.matrix(Xval) %*% coefficients
       coef_cv[j,,,i] = coefficients
@@ -888,7 +890,8 @@ crossVal_plsda = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scaling
     mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
 
     for (j in 1:ncomp){
-      weightsStar = mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
+      weightsStar =  try(suppressWarnings(mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))),silent = TRUE)
+      if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:j,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
       coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:j,drop=FALSE])
       preds[folds[[i]], , j] = as.matrix(Xval) %*% coefficients
       coef_cv[j,,,i] = coefficients
