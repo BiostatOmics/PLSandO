@@ -1,5 +1,0 @@
-"0","set.seed(13)"
-"0","sd_cols = apply(X[,1:100],2,sd) #exclude noise variables"
-"0","pooled_sd = sqrt(mean(sd_cols^2))"
-"0","X_noisy = X + matrix(rnorm(50*200, mean = 0, sd = 0.1*pooled_sd),"
-"0","                      nrow = 50, ncol = 200)"

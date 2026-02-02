@@ -1,4 +1,0 @@
-"0","datos2$Mitosiscut = cut(Mitosis, breaks = c(-0.01,0.01,5,Inf))"
-"2","Error in `$<-.data.frame`(`*tmp*`, Mitosiscut, value = c(2L, 2L, 2L, 2L,  : 
-  replacement has 607 rows, data has 1201
-"

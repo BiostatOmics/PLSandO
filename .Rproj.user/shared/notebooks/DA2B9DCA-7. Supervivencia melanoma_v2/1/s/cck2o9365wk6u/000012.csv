@@ -1,2 +1,0 @@
-"0","fit0 <- survfit(os0~ TIL, data = datos2)"
-"0","ggsurvplot(fit0, data = datos2, pval = TRUE, xlab='Years', risk.table = TRUE, risk.table.col=""strata"",legend.labs = c('Not Applicable','Absence', 'Non-brisk','Brisk'), legend.title = 'Tumor Infiltrating\n Lymphocytes', title = 'Overall survival')"

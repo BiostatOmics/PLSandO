@@ -1,2 +1,0 @@
-"0","set.seed(123)"
-"0","Tx = matrix(rnorm(40*5, mean = 0, sd = 1), nrow=40)"

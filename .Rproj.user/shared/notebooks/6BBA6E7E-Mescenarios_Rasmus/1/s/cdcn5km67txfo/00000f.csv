@@ -1,3 +1,0 @@
-"0","set.seed(13)"
-"0","sd_Y = sd(Y)"
-"0","Y_noisy = Y +as.matrix(rnorm(50, mean = 0, sd = 0.15*sd_Y))"

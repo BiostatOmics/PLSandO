@@ -1,8 +1,0 @@
-"0","fit0 <- survfit(os0~ etiogrupos, data = datos2)"
-"0","p = ggsurvplot(fit0, data = datos2, pval = TRUE, xlab='Years', risk.table = TRUE, risk.table.col=""strata"",legend.labs = c('(Weakly) Nevogenic','H-NCRF', 'I-NCRF','L-NCRF', 'Mixed-CSD', 'Mucosal-Acral'), legend.title = 'Etiopathogenic \n groups', title = 'Overall survival', palette = c('#7332a7','#d11d56', '#FF7F05', '#657FCC',""#d6b0e9"", '#3bdfa2'))"
-"0",""
-"0","p$plot <- p$plot + theme("
-"0","     legend.title = element_text(size = 14),"
-"0","     legend.text  = element_text(size = 12)"
-"0",")"
-"0","p"

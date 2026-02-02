@@ -1,5 +1,0 @@
-"0","df2 = read_excel(""UPV_Sonia Tarzona_definitivo.xlsx"", sheet=""UPV_Sonia_Tarzona"")"
-"0","df2=as.data.frame(df2)"
-"0","rownames(df2)=df2$N_ID"
-"0","df2 = df2[ , -1]"
-"0","df2 = df2[, c(73:83)]"

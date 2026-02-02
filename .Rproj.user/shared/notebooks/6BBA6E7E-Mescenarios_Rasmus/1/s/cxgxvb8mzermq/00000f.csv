@@ -1,3 +1,0 @@
-"0","set.seed(321)"
-"0","Psel_unique = matrix(rnorm(2*30, mean = 0, sd = 1), nrow=2)"
-"0","Psel = rbind(Psel_unique, matrix(0,nrow = 1,ncol = 30))"

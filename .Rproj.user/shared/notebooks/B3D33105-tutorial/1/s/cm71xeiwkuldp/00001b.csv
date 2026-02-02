@@ -1,7 +1,0 @@
-"0","data(""iris"")"
-"0",""
-"0","# Preprocess the data"
-"0","x_prepared = Preparing(iris,includeFactors = TRUE, CVfilter = 0.00001, excludeNA = 0.2)"
-"2","Aviso: To avoid problems with numeric identifiers, we added r prefix to the identifiers"
-"0","#Observe the modifies dataset"
-"0","head(x_prepared$x)"

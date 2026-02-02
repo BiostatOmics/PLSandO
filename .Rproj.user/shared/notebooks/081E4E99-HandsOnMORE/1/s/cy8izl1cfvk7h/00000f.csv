@@ -1,3 +1,0 @@
-"2","Error in loadNamespace(j <- i[[1L]], c(lib.loc, .libPaths()), versionCheck = vI[[j]]) : 
-  namespace ‘xfun’ 0.50 is being loaded, but >= 0.51 is required
-"

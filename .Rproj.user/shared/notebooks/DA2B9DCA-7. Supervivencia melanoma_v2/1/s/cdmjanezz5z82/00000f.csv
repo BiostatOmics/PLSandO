@@ -1,2 +1,0 @@
-"0","datos1 = datos1[-which(datos1$Estadio=='0'),, drop=FALSE]"
-"0","datos1$Estadio = droplevels(datos1$Estadio)"

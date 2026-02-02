@@ -1,1 +1,0 @@
-{"frames":[{"func":"pcaPlot(mb_model, type = \"scree\")","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0}],"message":"Error in plot_layout(ncol = 2) : could not find function \"plot_layout\"\n"}

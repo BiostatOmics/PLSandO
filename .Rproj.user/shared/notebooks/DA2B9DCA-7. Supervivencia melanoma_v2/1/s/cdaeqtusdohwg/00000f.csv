@@ -1,2 +1,0 @@
-"0","fit1 <- survfit(os0~ Ulceracion, data = datos2)"
-"0","ggsurvplot(fit1, data = datos2, pval = TRUE, xlab='Years',risk.table = TRUE, risk.table.col=""strata"", legend.labs=c('No','Yes'), legend.title = 'Ulceration', title='Overall survival')"

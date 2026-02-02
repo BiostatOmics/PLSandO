@@ -1,1 +1,0 @@
-"0","pcaPlot(pca_model, type = 'scores', newObs = x_new, colBy = 'Sepal.Length')"

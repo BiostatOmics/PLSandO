@@ -1,4 +1,0 @@
-"0","Y = 2*(rowMeans(Xsel)) + matrix(rnorm(30, mean = 0, sd = 1), nrow=30)
-"
-"2","Error: object 'Xsel' not found
-"

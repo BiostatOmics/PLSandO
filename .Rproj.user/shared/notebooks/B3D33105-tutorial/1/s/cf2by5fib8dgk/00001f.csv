@@ -1,3 +1,0 @@
-"0",""
-"0","# 2. Score Plot: Observations colored by Species"
-"0","pcaPlot(mypca, type = 'scores', colBy = 'Species', labels = FALSE)"

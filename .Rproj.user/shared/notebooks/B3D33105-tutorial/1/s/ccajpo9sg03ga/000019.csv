@@ -1,2 +1,0 @@
-"0","# 5. Correlation Plot: Evaluates variable representation and correlations"
-"0","pcaPlot(mypca, type = 'corr', shape = 'arrow', colBy = 'cos2', labels = TRUE)"

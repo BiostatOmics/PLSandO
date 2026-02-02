@@ -1,2 +1,0 @@
-"0","#Recodificar estatus"
-"0","datos$Exitus<-as.numeric(datos$Exitus)-1"

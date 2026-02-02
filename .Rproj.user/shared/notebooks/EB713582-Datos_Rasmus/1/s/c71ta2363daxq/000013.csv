@@ -1,4 +1,0 @@
-"0","sd_cols = apply(X[,1:60],2,sd) #exclude noise variables"
-"0","pooled_sd = sqrt(mean(sd_cols^2))"
-"0","X_noisy = X + matrix(rnorm(30*90, mean = 0, sd = 0.2*pooled_sd),"
-"0","                      nrow = 30, ncol = 90)"

@@ -1,2 +1,0 @@
-"0","# 4. Biplot: Observations and variables in the same space"
-"0","pcaPlot(mypca, type = 'biplot', colBy = 'Sepal.Length', labels = c(FALSE, TRUE))"

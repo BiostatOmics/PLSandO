@@ -1,4 +1,0 @@
-"0","mypca = pca(iris)"
-"2","Aviso: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.
- If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies."
-"2","Aviso: To avoid problems with numeric identifiers, we added r prefix to the identifiers"

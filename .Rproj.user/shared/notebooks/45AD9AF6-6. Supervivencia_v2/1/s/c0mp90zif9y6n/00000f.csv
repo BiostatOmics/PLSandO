@@ -1,2 +1,0 @@
-"0","datos$meses<-difftime( datos$fecha,datos$Fecha_diagnóstico,  units = 'weeks')/52.1429"
-"0","datos$meses<-as.numeric(datos$meses)"
