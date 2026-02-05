@@ -16,6 +16,5 @@ If FALSE, returns data in the original units. By default, FALSE.}
 A matrix with original values and imputed NAs.
 }
 \description{
-Reconstructs missing values (NAs) in the original matrix using
-the underlying structure captured by the PCA model.
+Reconstructs missing values (NAs) in the original matrix using the underlying structure captured by the PCA/PLS model.
 }

@@ -14,7 +14,7 @@
 #' @return A list containing:
 #' \itemize{
 #'   \item \code{scores} or \code{Sscores}: Matrix of scores for each component (Super-scores in MB-PCA).
-#'   \item \code{loadings} or \code{Sloadings}: Matrix of variable loadings for each component (Super-loadings in MB-PCA).
+#'   \item \code{loadings} or \code{Sweights}: Matrix of variable loadings for each component (Super-weights in MB-PCA).
 #'   \item \code{Bscores}: List of block scores (only for MB-PCA).
 #'   \item \code{Bloadings}: List of block loadings (only for MB-PCA).
 #'   \item \code{X}: The preprocessed and scaled data matrix (or list of matrices) used for model fitting.
@@ -101,14 +101,14 @@ pca = function(x,
     return(list("Bscores" = mypca$block_scores,
                 "Bloadings" = mypca$block_loadings,
                 "Sscores" = mypca$super_scores,
-                "Sloadings" = mypca$super_loadings,
+                "Sweights" = mypca$super_loadings,
                 "X" = x, ### con escalado y sin variables con baja variabilidad
                 "scaling" = scal_param,
                 "explVar" = explVar, ### Quizas habria que cambiar este nombre a summary para que cuadre con lo del PLS
                 "BexplVar" = explVarBlock,
                 "PreproSummary" = desSummary, ## completar si se desea dar + info de lo que se ha hecho
                 "ncomp" = ncomp,
-                "input" = list("scalingType" = scaling, "X" = X, 'algo' = algo)))
+                "input" = list("scalingType" = scaling, "X" = X, 'algo' = algo, "model" = 'pca')))
 
 
   } else{
@@ -188,7 +188,7 @@ pca = function(x,
                 "explVar" = explVar,
                 "PreproSummary" = desSummary, ## completar si se desea dar + info de lo que se ha hecho
                 "ncomp" = ncomp,
-                "input" = list("scalingType" = scaling, "X" = X, 'algo' = algo)))
+                "input" = list("scalingType" = scaling, "X" = X, 'algo' = algo, "model" = 'pca')))
   }
 
 }
@@ -234,7 +234,7 @@ pca = function(x,
 #'   \item For \strong{Multi-block PCA}:
 #'     \itemize{
 #'       \item Prints individual plots for each data block.
-#'       \item Returns (or prints) the global "Super-score/Super-loading" plot.
+#'       \item Returns (or prints) the global "Super-score/Super-weights" plot.
 #'     }
 #' }
 #' @export
@@ -559,8 +559,7 @@ outlierContrib = function(x, outliers, labelSize = 1) {
 
 #' Missing Value Imputation via NIPALS
 #'
-#' @description Reconstructs missing values (NAs) in the original matrix using
-#' the underlying structure captured by the PCA model.
+#' @description Reconstructs missing values (NAs) in the original matrix using the underlying structure captured by the PCA/PLS model.
 #'
 #' @param x An object returned by the \code{pca()} function.
 #' @param scaled Logical. If TRUE, returns data in the model's scale (centered/scaled).
@@ -571,8 +570,13 @@ outlierContrib = function(x, outliers, labelSize = 1) {
 
 imputeNipals = function(x, scaled = FALSE){
   X = x$X
-  Xest = x$scores  %*% t(x$loadings)
+  if(x$input$model == 'pca'){
+    Xest = tcrossprod(x$scores, x$loadings)
+  } else{
+    Xest = tcrossprod(x$scoresX, x$loadingsX)
+  }
   X[is.na(X)] = Xest[is.na(X)]
+
   if(!scaled){
     X = sweep(X, 2, x$scaling$scale, FUN = "*")
     X = sweep(X, 2, x$scaling$center, FUN = "+")

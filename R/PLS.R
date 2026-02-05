@@ -1,10 +1,52 @@
-
 ### PLS model
 
-# x: matrix or data.frame or list (if multi-block). Ver esto porque prefiera que metamos la opcion de multiblock como algoritmo
-# y: matrix or data.frame
-# ncomp: If NULL, estima las maximas. Si NA, automatico.
-# train: Percentage to take as training set
+#' Partial Least Squares (PLS) and Multi-block PLS regression models
+#'
+#'
+#' @description Performs Partial Least Squares and multi-block PLS regression models using the NIPALS algorithm.
+#' Includes automatic preprocessing, filtering of low-variance variables, automatic cross-validation for optimal
+#' component selection and additional functionalities for model validation.
+#'
+#' @param x Matrix, data.frame, or list of blocks (for MBPLS algorithm).
+#' @param y Matrix or data.frame containing the response variables.
+#' @param ncomp Number of components. If \code{NULL}, it is estimated via cross-validation.
+#' @param cvFolds Number of cross-validation folds. Default is 10.
+#' @param rep Number of cross-validation repetitions. Default is 10.
+#' @param perm Number of permutations for model validation. Default is 20.
+#' @param scaling Scaling method for X: "none", "center", "standard" (default), "softBlock", or "hardBlock".
+#' @param scalingY Scaling method for Y: "none", "center" (default), or "standard".
+#' @param algo Algorithm to use: "nipals" (standard PLS, default) or "mbpls" (Multi-block PLS).
+#' @param train Training set percentage (0 to 1). Default is 1 (all data).
+#' @param alpha Significance level for Jack-knife confidence intervals. Default is 0.05.
+#' @param parallel Logical. If \code{TRUE}, cross-validation runs in parallel.
+#'
+#' @return A list containing:
+#' \itemize{
+#'   \item \code{scoresX} or \code{Sscores}: Matrix of scores for the X block (Super-scores in MB-PLS).
+#'   \item \code{loadingsX} or \code{BloadingsX}: Matrix or list of loadings for the X block (Block-loadings in MB-PLS).
+#'   \item \code{scoresY}: Matrix of scores for the Y block.
+#'   \item \code{loadingsY}: Matrix of loadings for the Y block.
+#'   \item \code{weights} or \code{Bweights}: Matrix or list of weights (Block-weights in MB-PLS).
+#'   \item \code{Sweights}: Matrix of Super-weights (only for MB-PLS).
+#'   \item \code{BscoresX}: List of block scores (only for MB-PLS).
+#'   \item \code{coefficients}: Matrix or list (in multiresponse scenarios or multi-block) of regression coefficients for the model.
+#'   \item \code{coefficients_summary}: Data frame or list with coefficients, Jack-knife p-values, and confidence intervals.
+#'   \item \code{vip}: Vector of Variable Importance in Projection (VIP) values.
+#'   \item \code{bip}: Vector of Block Importance in Projection (BIP) values (only for MB-PLS).
+#'   \item \code{X}: The preprocessed and scaled data matrix (or list of matrices) used for model fitting.
+#'   \item \code{Y}: The preprocessed and scaled Y data matrix.
+#'   \item \code{scaling}: Data frame or list (only in MB-PLS) with centering and scaling parameters of each variable for both X and Y blocks.
+#'   \item \code{summary}: Data frame with R2X, R2Y, Q2, and RMSE metrics per component, including test set results if applicable.
+#'   \item \code{BexplVar}: List of explained variance per block (only for MB-PLS).
+#'   \item \code{validation}: Data frame with R2, Q2, PRESS, RMSE and Similarity obtained in permutation testing.
+#'   \item \code{cv_results}: Detailed results from the cross-validation procedure.
+#'   \item \code{PreproSummary}: Summary of data dimensions, missing values, and excluded low-variance variables.
+#'   \item \code{ncomp}: The final number of components used in the model (optimized via cross-validation).
+#'   \item \code{test}: List containing the processed \code{xTest} and \code{yTest} data if a training percentage was specified.
+#'   \item \code{input}: List of input parameters used (\code{scalingType}, \code{algo}, \code{alpha}, original X and Y, etc.).
+#' }
+#' @export
+
 
 pls = function(x, y,
                ncomp = NULL, cvFolds = 10, rep = 10, perm = 20,
@@ -135,7 +177,7 @@ pls = function(x, y,
       })
       resum_coef = do.call(rbind, block_tables)
 
-    } else{ # TO DO: Revise that it is correct with multiple response
+    } else{
 
       block_tables = lapply(b_names, function(b) {
 
@@ -286,7 +328,7 @@ pls = function(x, y,
 
     }
 
-    bip = sqrt(length(b_names)*rowSums( (mypls$weights^2) * matrix(r2y_diff, nrow = length(b_names), ncol = ncomp, byrow = TRUE) )/mean_r2_per_component[ncomp])
+    bip = sqrt(length(b_names)*rowSums( (mypls$weights^2) * matrix(r2y_diff, nrow = length(b_names), ncol = ncomp, byrow = TRUE) )/R2Y[ncomp])
     names(bip) = b_names
 
     res_val = plsValidation(X2,Y2,scaling, scalingY,ncomp,cvFolds,perm,algo,parallel)
@@ -310,7 +352,7 @@ pls = function(x, y,
                 "BloadingsX" = mypls$block_loadings,
                 "scoresY" = mypls$scoresY,
                 "loadingsY" = mypls$loadingsY,
-                "weights" = mypls$weights,
+                "Sweights" = mypls$weights,
                 "Bweights" = mypls$block_weight,
                 "coefficients" = mypls$block_coefficients,
                 "BexplVar" = explVarBlock,
@@ -328,7 +370,7 @@ pls = function(x, y,
                 "cv_results" = res_cross,
                 "PreproSummary" = desSummary,
                 "input" = list("scalingType" = scaling,"scalingTypeY" = scalingY, "X" = X2, "Y" = Y2 ,
-                               'algo' = algo, "alpha" = alpha, "perm" = perm, "blocks" = NULL)))
+                               'algo' = algo, "alpha" = alpha, "perm" = perm, "blocks" = NULL, "model" = 'pls')))
 
     ## ACABA EL MBPLS
 
@@ -434,10 +476,10 @@ pls = function(x, y,
       res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = ncomp, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
 
       q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
-      mean_q2_per_component = apply(q2_array, 1, mean)
+      mean_q2_per_component = if(inherits(q2_array,'numeric')) mean(q2_array) else apply(q2_array, 1, mean)
 
       rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
-      mean_rmse_per_component = apply(rmse_array, 1, mean)
+      mean_rmse_per_component = if(inherits(rmse_array,'numeric')) mean(rmse_array) else apply(rmse_array, 1, mean)
 
     }
 
@@ -496,8 +538,10 @@ pls = function(x, y,
       })
     }
 
+    #TO DO: Comentar si queremos imputar el valor faltante a la hora de calcularlo
+
     ypred = as.matrix(x) %*% mypls$coefficients
-    SCEY = sum(colSums(ypred**2))
+    SCEY = sum(colSums(ypred**2, na.rm = T))
 
     SCEYa =  sapply(1:ncomp, function(j) sum(tcrossprod(mypls$scores[, j], mypls$loadingsY[, j])^2))
     vip = sqrt(ncol(x) * rowSums(sweep(mypls$weights^2, 2,SCEYa, "*")) / SCEY)
@@ -509,12 +553,12 @@ pls = function(x, y,
         xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
         #R2X
-        SCR = sum(colSums((xpred-x)**2))
-        SCT = sum(colSums(x**2))
+        SCR = sum(colSums((xpred-x)**2,na.rm = T))
+        SCT = sum(colSums(x**2,na.rm = T))
         R2[i] = 1- (SCR/SCT)
         #R2Y
-        SCRY = sum(colSums((ypred-y)**2))
-        SCTY = sum(colSums(y**2))
+        SCRY = sum(colSums((ypred-y)**2,na.rm = T))
+        SCTY = sum(colSums(y**2,na.rm = T))
         R2Y[i] = 1- (SCRY/SCTY)
       }
 
@@ -553,23 +597,23 @@ pls = function(x, y,
         xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
         #R2X
-        SCR = sum(colSums((xpred-x)**2))
-        SCT = sum(colSums(x**2))
+        SCR = sum(colSums((xpred-x)**2,na.rm = T))
+        SCT = sum(colSums(x**2,na.rm = T))
         R2[i] = 1- (SCR/SCT)
         #R2Y
-        SCRY = sum(colSums((ypred-y)**2))
-        SCTY = sum(colSums(y**2))
+        SCRY = sum(colSums((ypred-y)**2,na.rm = T))
+        SCTY = sum(colSums(y**2,na.rm = T))
         R2Y[i] = 1- (SCRY/SCTY)
 
         xpred = tcrossprod(Ttest[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = as.matrix(xTest) %*% coefficients
         #R2Xtest
-        SCR = sum(colSums((xpred-xTest)**2))
-        SCT = sum(colSums(xTest**2))
+        SCR = sum(colSums((xpred-xTest)**2,na.rm = T))
+        SCT = sum(colSums(xTest**2,na.rm = T))
         R2test[i] = 1- (SCR/SCT)
         #R2Ytest
-        SCRY = sum(colSums((ypred-yTest)**2))
-        SCTY = sum(colSums(yTest**2))
+        SCRY = sum(colSums((ypred-yTest)**2,na.rm = T))
+        SCTY = sum(colSums(yTest**2,na.rm = T))
         R2Ytest[i] = 1- (SCRY/SCTY)
       }
       r2test_diff = diff(R2test)
@@ -617,28 +661,37 @@ pls = function(x, y,
                 "cv_results" = res_cross,
                 "PreproSummary" = desSummary,
                 "input" = list("scalingType" = scaling,"scalingTypeY" = scalingY, "X" = X2, "Y" = Y2 ,
-                               'algo' = algo, "alpha" = alpha, "perm" = perm, "blocks" = blocks)))
+                               'algo' = algo, "alpha" = alpha, "perm" = perm, "blocks" = blocks, "model" = 'pls')))
   }
 
 }
 
-
-
-
 ### PLS predictions
 
-# x: PLS object
+#' Prediction for PLS Models
+#'
+#' @description Uses previously fitted PLS or MB-PLS model to obtain the predictions of new observations.
+#'
+#' @param x A pls object returned by the \code{pls()} function.
+#' @param new A matrix, data.frame, or list of blocks (for MB-PLS or for PLS with block-scaling) containing
+#'   the new observations to be predicted.
+#' @param plot Logical. If \code{TRUE}, the function generates a score plot
+#'   showing the projection of the new observations.
+#'
+#' @return A matrix containing the predicted values for the response variable(s) Y.
+#' @export
 
 plsPredict = function(x, new = NULL, plot = TRUE) {
   ## proyectar nuevas observaciones antes de predecir
 
   if(x$input$algo=='nipals'){
 
-    x$explVar = data.frame("comp" = factor(1:ncomp),
+    x$explVar = data.frame("comp" = factor(1:x$ncomp),
                            "percVar" = round(100*x$summary$R2X,4),
                            "cumPercVar" = round(100*x$summary$cumR2X,4))
+    x$scores = x$scoresX
 
-    if(plot) scorePlot(x, newObs = new)
+    if(plot) print(scorePlot(x, newObs = new))
 
     new = as.data.frame(new)
     new = new[,colnames(x$X)]
@@ -646,32 +699,47 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
     new = sweep(new, 2, x$scaling$center, FUN = "-")
     new = sweep(new, 2, x$scaling$scale, FUN = "/")
 
-    prediction = as.matrix(new) %*% x$coefficients
+    if(any(rowSums(is.na(new))>0)){
+      scores = project.obs.nipals.pls(x, new, 1:x$ncomp)
+      prediction = tcrossprod(scores, x$loadingsY)
+    } else{
+      prediction = as.matrix(new) %*% x$coefficients
+    }
+    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
+    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
 
   } else{
 
     if(!inherits(new, "list")) return(stop('Please provide the new data structured in blocks'))
 
-    x$explVar = data.frame("comp" = factor(1:ncomp),
+    x$explVar = data.frame("comp" = factor(1:x$ncomp),
                            "percVar" = round(100*x$summary$R2X,4),
                            "cumPercVar" = round(100*x$summary$cumR2X,4))
+    x$Bscores = x$BscoresX; x$Sscores = x$SscoresX
 
     if(plot) scorePlotmb(x, newObs = new)
 
     new = lapply(new, as.matrix)
     b_names = names(x$X)
-    new = lapply(b_names, function(b) new[[b]][,colnames(x$X[[b]])])
+    new = setNames(lapply(b_names, function(b) new[[b]][,colnames(x$X[[b]])]),b_names)
 
     centrado = x$scaling$center
-    escalado = x$scaling$scaling
+    escalado = x$scaling$scale
 
-    new = setNames(lapply(seq_along(x), function(b) {
-      tmp = sweep(xTest[[b]], 2, centrado[[b]], "-")
+    new = setNames(lapply(seq_along(new), function(b) {
+      tmp = sweep(new[[b]], 2, centrado[[b]], "-")
       return(sweep(tmp, 2, escalado[[b]], "/"))
     }),b_names)
 
-    block_coef = lapply(mypls$coefficients, function(b) apply(b[,,1:i, drop = FALSE], c(1,2), sum))
-    prediction = do.call('+',lapply(b_names, function(b) as.matrix(new[[b]])%*%block_coef[[b]]))
+    if(any(unlist(lapply(new, function(x) any(rowSums(is.na(x))>0))))){
+      return(stop('NAs are not allowed in new observations. Consider using PLS with block-scaling rather than MBPLS'))
+    } else{
+      block_coef = lapply(x$coefficients, function(b) apply(b[,,1:x$ncomp, drop = FALSE], c(1,2), sum))
+      prediction = do.call('+',lapply(b_names, function(b) as.matrix(new[[b]])%*%block_coef[[b]]))
+    }
+
+    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
+    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
 
   }
 
@@ -679,35 +747,57 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
 
 }
 
-
-
-
-### PLS error metrics
-
-# x: PLS object
-
-plsError = function(x) {
-
-  ## Metrics:   RMSE,
-  # plots???
-
-  # Train
-
-
-  # Repeated CV --> especialmente para cuando no haya test
-  # Calcular error medio por fold, por run y global
-
-
-  # Test
-
-
-}
-
-
-
 ### PLS plots
 
-# x: Object return by pls() function
+#' Visualize PLS Results
+#'
+#' @description Generates diagnostic and results plots for objects created with the \code{pls()} function.
+#'
+#' @param x A pls object returned by the \code{pls()} function.
+#' @param type Character. The type of visualization to generate:
+#' \itemize{
+#'   \item \code{"R2vsQ2"}: Line plot of R2 and Q2 metrics per component.
+#'   \item \code{"loadings"}: Joint visualization of X and Y loadings (for standard PLS).
+#'   \item \code{"scoresX"}: Scatter plot of observation projections for X blocks.
+#'   \item \code{"loadingsX"}: Scatter plot of variable contributions for X blocks.
+#'   \item \code{"scoresY"}: Scatter plot of observation projections for Y block.
+#'   \item \code{"loadingsY"}: Scatter plot of variable contributions for Y block.
+#'   \item \code{"weights"}: Scatter plot of PLS weights.
+#'   \item \code{"linearity"}: Scatter plot of X vs Y scores to check the inner relation.
+#'   \item \code{"overfitting"}: Permutation test results to check for model overfitting.
+#'   \item \code{"R2"}: Variance explained per variable/component.
+#'   \item \code{"corr"}: Correlation circle plot (variables vs components).
+#'   \item \code{"biplot"}: Simultaneous visualization of scores and loadings.
+#'   \item \code{"coef"}: Bar plot of regression coefficients with Jack-knife confidence intervals.
+#' }
+#' @param comp Numeric vector. Components to plot (e.g., \code{c(1,2)}). By default, components 1 and 2 are used.
+#' @param col Character. A predefined color palette name (e.g., "main", "oficial", ...) or a vector of custom colors.
+#' @param colBy Variable used to color the points.
+#' \itemize{
+#'   \item For \strong{Scores}: A column name from the dataset or an external vector.
+#'   \item For \strong{Loadings/Correlation}: Can be one of: \code{"contrib"} (to color by variable contribution)
+#'   or \code{"cos2"} (to color by the quality of representation).
+#' }
+#' By default, no variable is used.
+#' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.
+#' @param shapeBy Variable used to change point shapes. Can be a column name from the original dataset or an external vector/factor. Must be categorical.
+#' @param ellipses Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.
+#' @param selVars Numeric. The number of top variables to display in loading, correlation, or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.
+#' @param labels Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.
+#' @param labelTop Numeric (0 to 1). Percentage of variables to label based on their importance.
+#' @param repel Logical. If \code{TRUE}, uses \code{ggrepel} to prevent label overlap.
+#' @param newObs Optional. A data frame (or list for MB-PLS) containing new observations to project onto the existing model.
+#'
+#' @return Depending on the model type:
+#' \itemize{
+#'   \item For \strong{Standard PLS}: Returns a \code{ggplot} object.
+#'   \item For \strong{Multi-block PLS}:
+#'     \itemize{
+#'       \item Prints individual plots for each data block.
+#'       \item Returns (or prints) the global "Super-score/Super-weights" plot.
+#'     }
+#' }
+#' @export
 
 plsPlot = function(x,
                    type = c("R2vsQ2", "loadings", "scoresX",  "loadingsX", "scoresY", "loadingsY",
@@ -778,8 +868,6 @@ plsPlot = function(x,
 
   ### Coef
 
-  #TO DO: Quizas estaria bien indicar de que bloque provienen
-
   if (type == "coef"){
 
     if(inherits(x$coefficients_summary, "list")){
@@ -791,12 +879,14 @@ plsPlot = function(x,
         coefficients_summary = x$coefficients_summary[[i]]
         coefficients_summary$Variable = rownames(coefficients_summary)
         coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
-
         coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
+        blocks = "Block" %in% colnames(x$coefficients_summary)
 
         # Create plot
         ggp = ggplot(coefficients_summary, aes(x = Variable, y = coefficient)) +
-          geom_col(fill = "skyblue", width = 0.6) +  # Bars
+          {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+            else geom_col(fill = "skyblue", width = 0.6)} +
           geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
           geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
           geom_text(
@@ -810,6 +900,23 @@ plsPlot = function(x,
             subtitle = paste("Response variable: ", names(x$coefficients_summary)[i])
           ) +
           theme_minimal(base_size = 12)
+
+        if(blocks){
+          if (length(col)>1){
+            if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+            custom_colors = setNames(col, names(x$X))
+          } else{
+            num_unique = length(x$X)
+            if(num_unique== 2){
+              color_palette = colorbiostat(num_unique+1, palette = col)
+              custom_colors = setNames(color_palette[-2], names(x$X))
+            } else{
+              color_palette = colorbiostat(num_unique, palette = col)
+              custom_colors = setNames(color_palette, names(x$X))
+            }
+          }
+          ggp = ggp + scale_fill_manual(values = custom_colors)
+        }
 
         plots[[i]] = ggp
 
@@ -827,12 +934,14 @@ plsPlot = function(x,
       coefficients_summary$Variable = rownames(coefficients_summary)
       coefficients_summary$Coefficient = coefficients_summary[,1]
       coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
-
       coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
+      blocks = "Block" %in% colnames(x$coefficients_summary)
 
       # Create plot
       ggp = ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
-        geom_col(fill = "skyblue", width = 0.6) +  # Bars
+        {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+          else geom_col(fill = "skyblue", width = 0.6)} +
         geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
         geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
         geom_text(
@@ -846,6 +955,23 @@ plsPlot = function(x,
           title = "Coefficients with Jack-Knifed Confidence Intervals"
         ) +
         theme_minimal(base_size = 12)
+
+      if(blocks){
+        if (length(col)>1){
+          if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+          custom_colors = setNames(col, names(x$X))
+        } else{
+          num_unique = length(x$X)
+          if(num_unique== 2){
+            color_palette = colorbiostat(num_unique+1, palette = col)
+            custom_colors = setNames(color_palette[-2], names(x$X))
+          } else{
+            color_palette = colorbiostat(num_unique, palette = col)
+            custom_colors = setNames(color_palette, names(x$X))
+          }
+        }
+        ggp = ggp + scale_fill_manual(values = custom_colors)
+      }
 
     }
 
@@ -1081,6 +1207,8 @@ plsPlot = function(x,
     if(is.null(ellipses)) ellipses = TRUE
 
     x$scores = x$SscoresX
+    x$Bscores = x$BscoresX
+    x$Bloadings = x$BloadingsX
 
     ggp = scorePlotmb(x,
                     comp = comp,
@@ -1197,24 +1325,30 @@ plsPlot = function(x,
 
     ### Correlation
 
+    if (type == 'corr'){
+      return(stop('In MBPLS corrPlot is not provided'))
+    }
+
     ### biPlot
 
-    if (type == 'biPlot'){
+    if (type == 'biplot'){
 
-      #TO DO: Verificar que esta funcionando
+      if(is.null(shape)) shape = c(18,'arrow')
+      if(is.null(labels)) labels = c(FALSE, TRUE)
+      if(is.null(ellipses)) ellipses = FALSE
 
-      if(is.null(shape)) shape = 'arrow'
-      if(is.null(labels)) labels = TRUE
-
-      ggp = biPlotmb(x,
+      ggp = biPlotPLSmb(x,
                      comp = comp,
                      col = col,
                      colBy = colBy,
                      shape = shape,
+                     shapeBy = shapeBy,
                      selVars = selVars,
                      labels = labels,
                      labelTop = labelTop,
-                     repel = repel)
+                     ellipses = ellipses,
+                     repel = repel,
+                     newObs = newObs)
     }
 
     ### R2
@@ -1263,25 +1397,44 @@ plsPlot = function(x,
 
 ### PLS outliers
 
-# x: Object return by pca() function
-# K: Number of componentes to be used for outlier detection. If NULL, all components in the object will be used.
 
-plsOutliers = function(x, K = NULL,
+#' PLS Outlier Detection
+#'
+#' @description Identifies atypical observations using Hotelling's T2 distance
+#' and Residual Sum of Squares (RSS).
+#'
+#' @param x An object returned by the \code{pls()} function.
+#' @param ncomp Integer. Number of components to use for outlier calculation. If NULL, all components in the pca object will be used. By default, NULL.
+#' @param method Character. Detection method: "T2" (Hotellings-T2), "RSS" (Residuals Sum of Squares), or "both".
+#' @param conf Numeric. Confidence level for the critical limit (e.g., 95, 99).
+#'
+#' @return A list of identified moderate and severe outliers.
+#' @export
+
+plsOutliers = function(x, ncomp = NULL,
                        method = c("T2", "RSS", "both")[3],
                        conf = 99) {
 
-  if (is.null(K)) K = x$ncomp
+  if (is.null(ncomp)) ncomp = x$ncomp
+
+  eigenvalues = apply(x$scoresX, 2, function(t) crossprod(t)/(nrow(x$X)-1) )
+  x$explVar = data.frame("comp" = factor(1:x$ncomp),
+                         "percVar" = round(100*x$summary$R2X,4),
+                         "cumPercVar" = round(100*x$summary$cumR2X,4),
+                         "eigenVal" = eigenvalues)
+  x$scores = x$scoresX
+  x$loadings = x$loadingsX
 
   if (method == "T2") {
 
-    out = T2plot(x = x, K = K, conf = conf)
+    out = T2plot(x = x, K = ncomp, conf = conf)
     return(out)
 
   }
 
   if (method == "RSS") {
 
-    out = RSSplot(x = x, K = K, conf = conf)
+    out = RSSplot(x = x, K = ncomp, conf = conf)
     return(out)
 
   }
@@ -1289,8 +1442,8 @@ plsOutliers = function(x, K = NULL,
   if (method == "both") {
 
     par(mfrow = c(1,2))
-    outS = T2plot(x = x, K = K, conf = conf)
-    outM = RSSplot(x = x, K = K, conf = conf)
+    outS = T2plot(x = x, K = ncomp, conf = conf)
+    outM = RSSplot(x = x, K = ncomp, conf = conf)
     par(mfrow = c(1,1))
 
     return(c(outS, outM))
@@ -1301,22 +1454,36 @@ plsOutliers = function(x, K = NULL,
 
 }
 
+#' Outlier Contribution Analysis
+#'
+#' @description Analyzes which variables contribute most to an observation being
+#' identified as an outlier.
+#'
+#' @param x An object returned by the \code{pls()} function.
+#' @param outliers Output from the \code{plsOutliers()} function.
+#' @param labelSize Numeric. Font size for axis labels in the contribution plots.
+#'
+#' @return Bar plots of contributions and a list of numerical contribution values.
+#' @export
 
-# x:  pca object
-# outliers:  output of pcaOutliers
-
-outlierContrib = function(x, outliers, labelSize = 1) {
+plsOutlierContrib = function(x, outliers, labelSize = 1) {
 
   # Severe outliers (T2)
   severos = outliers$SevereOutliers
   num = length(severos)
+
+  eigenvalues = apply(x$scoresX, 2, function(t) crossprod(t)/(nrow(x$X)-1) )
+  x$explVar = data.frame("comp" = factor(1:x$ncomp),
+                         "percVar" = round(100*x$summary$R2X,4),
+                         "cumPercVar" = round(100*x$summary$cumR2X,4),
+                         "eigenVal" = eigenvalues)
 
   if (num == 0) {
     cat("There are no severe outliers in the data or they were not computed.\n")
     miscontrT2 = NULL
   } else {
     cat (paste0("There are ", num, " severe outliers in the data.\n"))
-    miscontrT2 = contribT2(X = x$X, scores = x$scores, loadings = x$loadings,
+    miscontrT2 = contribT2(X = x$X, scores = x$scoresX, loadings = x$loadingsX,
                            eigenval = x$explVar$eigenVal, observ = severos,
                            cutoff = 2)
     colnames(miscontrT2) = severos
@@ -1328,7 +1495,7 @@ outlierContrib = function(x, outliers, labelSize = 1) {
 
     for (i in severos) {
       barplot(sort(miscontrT2[,i], decreasing = TRUE),
-              las=2, cex.names = labelSize, border = NA, col = "red3",
+              las=2, cex.names = labelSize, border = NA, col = "lightcoral",
               main = paste0("Severe outlier: ", i))
     }
 
@@ -1353,33 +1520,35 @@ outlierContrib = function(x, outliers, labelSize = 1) {
     }
     for (i in modera) {
       barplot(sort(miscontrRSS[i,], decreasing = TRUE),
-              las=2, cex.names = labelSize, border = NA, col = "blue4",
+              las=2, cex.names = labelSize, border = NA, col = "skyblue",
               main = paste0("Moderate outlier: ", i))
     }
   }
 
-  return(list(contribT2 = t(miscontrT2), contribRSS = miscontrRSS))
+  return(list(contribT2 = if(!is.null(miscontrT2)) t(miscontrT2) else NULL, contribRSS = miscontrRSS))
 
 }
 
-### NIPALS pseudo-imputation
-
-#x :  pca object
-#scaled: If we want to return the values in the ranges of the original values or not
-
-imputeNipals = function(x, scaled = FALSE){
-  X = x$X
-  Xest = x$scores  %*% t(x$loadings)
-  X[is.na(X)] = Xest[is.na(X)]
-  if(!scaled){
-    X = sweep(X, 2, x$scaling$scale, FUN = "*")
-    X = sweep(X, 2, x$scaling$center, FUN = "+")
-  }
-  return(X)
-
-}
 
 #### Variable selection
+
+#' Variable Selection for PLS models
+#'
+#' @description Performs variable selection using different metrics such as Jack-knife resampling,
+#' Permutation tests, Variable Importance in Projection (VIP), or Significance Multivariate Correlation (sMC).
+#'
+#' @param x A pls object returned by the \code{pls()} function.
+#' @param type Selection method: "Jack" (default), "Perm", "VIP", or "sMC".
+#' @param cvFolds Number of folds for cross-validation (used in Jack-knife). Default is 5.
+#' @param rep Number of repetitions or permutations. Default is 10.
+#' @param threshold Numerical value for selection (e.g., p-value < 0.05 or VIP > 1).
+#'   If \code{NULL}, default statistical thresholds are applied (p-value = 0.05 and VIP = 1).
+#' @param parallel Logical. If \code{TRUE}, computations are performed in parallel.
+#'
+#' @return Data frame or list containing the selected variables and their respective scores/p-values. Results are plotted
+#' for Jack and Perm variable selection.
+#'
+#' @export
 
 plsVarSel = function(x,
                      type = c('Jack','Perm','VIP','sMC')[1],
@@ -1404,6 +1573,9 @@ plsVarSel = function(x,
         rownames(vars) = rownames(x$coefficients)
         vars = vars[vars<threshold,,drop=FALSE]
       } else{
+        b_names = names(x$X)
+        block_coef_cv = setNames(lapply(seq_along(b_names), function(b) array(unlist(lapply(x$cv_results, function(r) r$block_coef_cv[[b]])), dim = c(dim(x$cv_results[[1]]$block_coef_cv[[1]])[1:3], dim(x$cv_results[[1]]$block_coef_cv[[1]])[4] * rep)) ), b_names)
+        blockJack = setNames(lapply(seq_along(b_names), function(b) p.jack(block_coef[[b]], block_coef_cv[[b]], x$ncomp, threshold) ), b_names)
         block_tables = lapply(b_names, function(b) {
           coef_mat = data.frame( "coefficient" = block_coef[[b]],
                                  "pValJK" = blockJack[[b]]$pval,
@@ -1420,12 +1592,14 @@ plsVarSel = function(x,
       names(coefficients_summary)[1] = "Coefficient"
       coefficients_summary$Variable = rownames(coefficients_summary)
       coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
-
       coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
+      blocks = "Block" %in% colnames(x$coefficients_summary)
+
       # Create plot
-      ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
-        geom_col(fill = "skyblue", width = 0.6) +  # Bars
+      ggp = ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
+        {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+          else geom_col(fill = "skyblue", width = 0.6)} +
         geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
         geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
         geom_text(
@@ -1439,6 +1613,23 @@ plsVarSel = function(x,
           title = "Coefficients with Jack-Knifed Confidence Intervals"
         ) +
         theme_minimal(base_size = 12)
+      if(blocks){
+        if (length(col)>1){
+          if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+          custom_colors = setNames(col, names(x$X))
+        } else{
+          num_unique = length(x$X)
+          if(num_unique== 2){
+            color_palette = colorbiostat(num_unique+1, palette = col)
+            custom_colors = setNames(color_palette[-2], names(x$X))
+          } else{
+            color_palette = colorbiostat(num_unique, palette = col)
+            custom_colors = setNames(color_palette, names(x$X))
+          }
+        }
+        ggp = ggp + scale_fill_manual(values = custom_colors)
+      }
+      print(ggp)
 
 
     } else{
@@ -1471,12 +1662,14 @@ plsVarSel = function(x,
         coefficients_summary = resum_coef[[i]]
         coefficients_summary$Variable = rownames(coefficients_summary)
         coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
-
         coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
+        blocks = "Block" %in% colnames(x$coefficients_summary)
 
         # Create plot
         ggp = ggplot(coefficients_summary, aes(x = Variable, y = coefficient)) +
-          geom_col(fill = "skyblue", width = 0.6) +  # Bars
+          {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+            else geom_col(fill = "skyblue", width = 0.6)} +
           geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
           geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
           geom_text(
@@ -1490,6 +1683,23 @@ plsVarSel = function(x,
             subtitle = paste("Response variable: ", names(x$coefficients_summary)[i])
           ) +
           theme_minimal(base_size = 12)
+
+        if(blocks){
+          if (length(col)>1){
+            if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+            custom_colors = setNames(col, names(x$X))
+          } else{
+            num_unique = length(x$X)
+            if(num_unique== 2){
+              color_palette = colorbiostat(num_unique+1, palette = col)
+              custom_colors = setNames(color_palette[-2], names(x$X))
+            } else{
+              color_palette = colorbiostat(num_unique, palette = col)
+              custom_colors = setNames(color_palette, names(x$X))
+            }
+          }
+          ggp = ggp + scale_fill_manual(values = custom_colors)
+        }
 
         plots[[i]] = ggp
 
@@ -1522,18 +1732,21 @@ plsVarSel = function(x,
         coefficients_summary = data.frame("Coefficient" = x$coefficients_summary[,'coefficient',drop=FALSE],
                                           "pValPerm" = as.vector(rPerm$pval),
                                           "LCI_Perm" = rPerm$LCI_coef,
-                                          "UCI_Perm" = rPerm$UCI_coef)
+                                          "UCI_Perm" = rPerm$UCI_coef,
+                                          "Block" = x$coefficients_summary[,'Block',drop=FALSE])
       }
 
       names(coefficients_summary)[1] = "Coefficient"
       coefficients_summary$Variable = rownames(coefficients_summary)
       coefficients_summary$Significant = coefficients_summary$pValPerm < 0.05
-
       coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
+      blocks = "Block" %in% colnames(x$coefficients_summary)
+
       # Create plot
-      ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
-        geom_col(fill = "skyblue", width = 0.6) +  # Bars
+      ggp = ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
+        {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+          else geom_col(fill = "skyblue", width = 0.6)} +
         geom_errorbar(aes(ymin = LCI_Perm, ymax = UCI_Perm), width = 0.2, color = "gray40") +  # Error bars
         geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
         geom_text(
@@ -1548,6 +1761,24 @@ plsVarSel = function(x,
           subtitle = 'IC defines the range of non-significance'
         ) +
         theme_minimal(base_size = 12)
+      if(blocks){
+        if (length(col)>1){
+          if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+          custom_colors = setNames(col, names(x$X))
+        } else{
+          num_unique = length(x$X)
+          if(num_unique== 2){
+            color_palette = colorbiostat(num_unique+1, palette = col)
+            custom_colors = setNames(color_palette[-2], names(x$X))
+          } else{
+            color_palette = colorbiostat(num_unique, palette = col)
+            custom_colors = setNames(color_palette, names(x$X))
+          }
+        }
+        ggp = ggp + scale_fill_manual(values = custom_colors)
+      }
+
+      print(ggp)
 
       vars = coefficients_summary[,'pValPerm',drop=FALSE]
       vars = vars[vars<threshold,,drop=FALSE]
@@ -1581,12 +1812,13 @@ plsVarSel = function(x,
         coefficients_summary = resum_coef[[i]]
         coefficients_summary$Variable = rownames(coefficients_summary)
         coefficients_summary$Significant = coefficients_summary$pValPerm < 0.05
-
         coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
+        blocks = "Block" %in% colnames(x$coefficients_summary)
         # Create plot
         ggp = ggplot(coefficients_summary, aes(x = Variable, y = coefficient)) +
-          geom_col(fill = "skyblue", width = 0.6) +  # Bars
+          {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+            else geom_col(fill = "skyblue", width = 0.6)} +
           geom_errorbar(aes(ymin = LCI_Perm, ymax = UCI_Perm), width = 0.2, color = "gray40") +  # Error bars
           geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
           geom_text(
@@ -1600,6 +1832,23 @@ plsVarSel = function(x,
             subtitle = paste("Response variable: ", names(x$coefficients_summary)[i])
           ) +
           theme_minimal(base_size = 12)
+
+        if(blocks){
+          if (length(col)>1){
+            if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+            custom_colors = setNames(col, names(x$X))
+          } else{
+            num_unique = length(x$X)
+            if(num_unique== 2){
+              color_palette = colorbiostat(num_unique+1, palette = col)
+              custom_colors = setNames(color_palette[-2], names(x$X))
+            } else{
+              color_palette = colorbiostat(num_unique, palette = col)
+              custom_colors = setNames(color_palette, names(x$X))
+            }
+          }
+          ggp = ggp + scale_fill_manual(values = custom_colors)
+        }
 
         plots[[i]] = ggp
 

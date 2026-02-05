@@ -203,4 +203,195 @@ We can also look at the explained variance of the variables and the blocks to th
 pcaPlot(mb_model, type = 'R2')
 ```
 
+# PLS
+
+The `pls()` function allows modeling the relationship between a predictor matrix `X` and a response matrix `Y`. This is particularly useful when predictors are highly collinear or high-dimensional.
+
+In line with PCA, the `Preparing()` function can be called prior to fitting a PLS model to handle essential matrix preprocessing. However, if the data is passed directly to the `pls()` function, the model automatically applies conservative default parameters to ensure the data is appropriately preprocessed for PLS modelling. 
+
+## Running Single-response PLS (PLS1)
+
+Even if the dataset we have been using is not intended for this end, we will continue using the iris dataset to show case how to apply `pls()` function of `PLSandO` package. We will just take one of the variables as the response variable and we will try to model its relation with the rest of the variables.
+
+A PLS model can easily be run by:
+
+```{r}
+# Define X and Y
+X = iris[, 1:3, drop = FALSE]
+Y = iris[, 4, drop = FALSE]
+
+# Fit PLS model
+mypls = pls(X, Y)
+```
+
+## Running Multi-response PLS (PLS2)
+
+If Y contains multiple response variables, the package automatically performs PLS2. A PLS2 can be easily run by:
+
+```{r}
+# Define X and Y
+X2 = iris[, 1:2, drop = FALSE]
+Y2 = iris[, 3:4, drop = FALSE]
+
+# Fit PLS model
+mypls2 = pls(X2, Y2)
+```
+
+## Results exploration
+
+Once the model has been fitted, some brief summary can be explored to evaluate the performance of the model has been fitted. The `pls()` output includes information about the explained variance, the predictive ability through evaluated via cross-validation, and some other metrics that allowed to determine the optimal number of components and which can be used to assess the reliability of the model's predictions.
+
+These results can easily be evaluated via:
+
+```{r}
+mypls$summary
+```
+
+Results from the cross-validation can also be explored via:
+
+```{r, eval = FALSE}
+mypls$cv_results
+```
+
+## Results visualization
+
+The `plsPlot()` function is a versatile wrapper for different plots for PLS results visualization.
+
+### Essential Visualization
+
+First the code for visualizing a R2vsQ2 Plot is introduced:
+
+```{r}
+# 1. R2vsQ2
+plsPlot(mypls, type = 'R2vsQ2')
+```
+
+Then, the codes for the Score, Loading and Weight plots are introduced. In the Score plot, the observations will be colored by the Species variable including the 95\% confidence ellipses. In the Loading plot, variables will be colored according to if they relate to `X` or `Y` matrices. In both cases, first and second components will be shown. In the Weights plot, no additional functionalities will be asked.
+
+```{r}
+# 2. Score Plot: Observations colored by Species
+plsPlot(mypls, type = 'scoresX', colBy = as.data.frame(iris[, 5, drop = FALSE]), ellipses = TRUE)
+
+# 3. Loading Plot
+plsPlot(mypls, type = 'loadings')
+
+# 4. Weight Plot
+plsPlot(mypls, type = 'weights')
+
+```
+
+Additionally, PLSandO includes the option to create some plots to validate the PLS model created. 
+
+```{r}
+# 5. Validating the internal relation between u and t scores
+plsPlot(mypls, type = 'linearity')
+
+# 6. Validating there are no overfitting problems
+plsPlot(mypls, type = 'overfitting')
+```
+
+We can also analyze the explained variance of each variable per component via:
+
+```{r}
+#7. R2 per variable and component
+plsPlot(mypls, type = 'R2')
+```
+
+### Prediction
+
+As a supervised model, once the PLS model has been fitted, we can predict values for new observations using the `plsPredict()` function. Beyond generating numeric predictions, the function itself can create a plot to project these new observations into the latent space. This allows you to verify that the new data points belong to the same population as the training set, ensuring that the predictions for those observations are reliable and not based on extreme extrapolations.
+
+```{r}
+# Splitting data for prediction
+X_train = iris[1:125, 1:3, drop = FALSE]
+Y_train = iris[1:125, 4, drop = FALSE]
+X_new = iris[126:150, 1:3, drop = FALSE]
+
+# Re-fitting and predicting
+mypls_train = pls(X_train, Y_train)
+pred = plsPredict(mypls_train, new = X_new)
+head(pred)
+```
+
+We can also create extra plots also projecting new observations via:
+
+```{r}
+# Biplot with new observations
+plsPlot(mypls_train, type = 'biplot', newObs = X_new)
+```
+
+### Missing values
+
+The package is robust to missing data, as PLS naturally handles NAs during training and prediction. Beyond this, the model could use the latent space structure to provide reliable imputations for missing values.
+
+```{r}
+# Introducing missing values
+X[1,1] = NA
+Xnew = iris[126:150,1:3,drop=FALSE]
+Xnew[2,1] = NA
+
+mypls_na = pls(X,Y)
+
+#Return X matrix without missing data using the latent structure
+X_complete = imputeNipals(mypls_na, scaled = F)
+head(X_complete)
+#Predict values even there are missing values
+head(plsPredict(mypls_na,Xnew))
+```
+
+### Outlier detection
+
+PLSandO also provides functionalities to identify influential outliers.
+
+```{r, fig.show='hold', out.width='50%'}
+# Outlier detection and contribution analysis
+out = plsOutliers(mypls)
+plsOutlierContrib(mypls, outliers = out)
+```
+
+### Variable selection
+
+For variable selection, the `plsVarSel()` function identifies the most influential predictors in your model, allowing you to simplify your model and focus on the key variables that drive the model. It supports the variable selection according to different criteria: by Variable Importance in Projection (VIP), by the significant Multivariate Correlation (sMC), p-values obtained from Jack-Kniffing or by Permutation sampling. 
+
+```{r}
+# Summary of models variables and Jack-Knife resampling results
+mypls$coefficients_summary
+
+# Identify key predictors using Permutation testing
+plsVarSel(mypls, type = 'Perm')
+
+# Identify key predictors using VIP scores
+plsVarSel(mypls, type = 'VIP')
+```
+
+## Running Multi-block PLS (MBPLS)
+
+When your predictors are organized into logical groups — such as different omics layers, distinct experimental conditions, or separate sensor arrays — Multi-block PLS (MBPLS) allows you to model their relationship with a response `Y` while preserving the underlying block structure. As with MBPCA, the package automates permits to apply block-scaling to apply the PLS on the concatenated matrices or to apply the MBPLS modelling.
+
+To run an MBPLS, provide you can provide `X` data as a named list where each element is a block, and specify `algo = 'mbpls'`.
+
+```{r}
+# Organize data into blocks (e.g., Petal vs Sepal)
+X_blocks = list('Petal' = iris[, c(3, 4)], 'Sepal' = iris[, c(1, 2)])
+Y_target = iris[, 3, drop = FALSE]
+
+# Fit Multi-block PLS
+mymbpls = pls(X_blocks, Y_target, algo = 'mbpls')
+```
+
+MBPLS allows for exploring the Block Importance on Projection (BIP).
+
+```{r}
+mymbpls$bip
+```
+
+All previously presented plots are also allowed in MBPLS, but results are show at block and super level. An example will be showed with the visualization of the Scores and loadings.
+
+```{r, fig.show='hold', out.width='50%'}
+# Global Score Plot (Super-scores) colored by Species
+plsPlot(mymbpls, type = 'scoresX', colBy = as.data.frame(iris[, 5, drop=FALSE]), ellipses = TRUE)
+
+# Block Loadings to see variable contributions within their respective blocks
+plsPlot(mymbpls, type = 'loadingsX')
+```
 

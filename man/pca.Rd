@@ -24,7 +24,7 @@ pca(
 A list containing:
 \itemize{
   \item \code{scores} or \code{Sscores}: Matrix of scores for each component (Super-scores in MB-PCA).
-  \item \code{loadings} or \code{Sloadings}: Matrix of variable loadings for each component (Super-loadings in MB-PCA).
+  \item \code{loadings} or \code{Sweights}: Matrix of variable loadings for each component (Super-weights in MB-PCA).
   \item \code{Bscores}: List of block scores (only for MB-PCA).
   \item \code{Bloadings}: List of block loadings (only for MB-PCA).
   \item \code{X}: The preprocessed and scaled data matrix (or list of matrices) used for model fitting.

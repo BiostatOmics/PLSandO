@@ -122,10 +122,10 @@ plsda = function(x, y,
     res_cross = pls_cross_plsda(X = x, Y = y, Y2=Y, scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = ncomp, folds = cvFolds, rep = rep, parallel = parallel, algo = algo)
 
     q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
-    mean_q2_per_component = apply(q2_array, 1, mean)
+    mean_q2_per_component = if(inherits(q2_array,'numeric')) mean(q2_array) else apply(q2_array, 1, mean)
 
     rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
-    mean_rmse_per_component = apply(rmse_array, 1, mean)
+    mean_rmse_per_component = if(inherits(q2_array,'numeric')) mean(rmse_array) else apply(rmse_array, 1, mean)
 
   }
 
@@ -375,7 +375,7 @@ plsda = function(x, y,
 
 # x: PLS object
 
-plsPredict = function(x, new = NULL, plot = TRUE) {
+plsdaPredict = function(x, new = NULL, plot = TRUE) {
   ## proyectar nuevas observaciones antes de predecir
 
   x$explVar = data.frame("comp" = factor(1:ncomp),
@@ -395,32 +395,6 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
   return(prediction)
 
 }
-
-
-
-
-### PLS error metrics
-
-# x: PLS object
-
-plsError = function(x) {
-
-  ## Metrics:   RMSE,
-  # plots???
-
-  # Train
-
-
-  # Repeated CV --> especialmente para cuando no haya test
-  # Calcular error medio por fold, por run y global
-
-
-  # Test
-
-
-}
-
-
 
 ### PLS plots
 
