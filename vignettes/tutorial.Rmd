@@ -257,8 +257,6 @@ mypls$cv_results
 
 The `plsPlot()` function is a versatile wrapper for different plots for PLS results visualization.
 
-### Essential Visualization
-
 First the code for visualizing a R2vsQ2 Plot is introduced:
 
 ```{r}
@@ -297,7 +295,7 @@ We can also analyze the explained variance of each variable per component via:
 plsPlot(mypls, type = 'R2')
 ```
 
-### Prediction
+## Prediction
 
 As a supervised model, once the PLS model has been fitted, we can predict values for new observations using the `plsPredict()` function. Beyond generating numeric predictions, the function itself can create a plot to project these new observations into the latent space. This allows you to verify that the new data points belong to the same population as the training set, ensuring that the predictions for those observations are reliable and not based on extreme extrapolations.
 
@@ -320,7 +318,7 @@ We can also create extra plots also projecting new observations via:
 plsPlot(mypls_train, type = 'biplot', newObs = X_new)
 ```
 
-### Missing values
+## Missing values
 
 The package is robust to missing data, as PLS naturally handles NAs during training and prediction. Beyond this, the model could use the latent space structure to provide reliable imputations for missing values.
 
@@ -339,7 +337,7 @@ head(X_complete)
 head(plsPredict(mypls_na,Xnew))
 ```
 
-### Outlier detection
+## Outlier detection
 
 PLSandO also provides functionalities to identify influential outliers.
 
@@ -349,7 +347,7 @@ out = plsOutliers(mypls)
 plsOutlierContrib(mypls, outliers = out)
 ```
 
-### Variable selection
+## Variable selection
 
 For variable selection, the `plsVarSel()` function identifies the most influential predictors in your model, allowing you to simplify your model and focus on the key variables that drive the model. It supports the variable selection according to different criteria: by Variable Importance in Projection (VIP), by the significant Multivariate Correlation (sMC), p-values obtained from Jack-Kniffing or by Permutation sampling. 
 
@@ -393,5 +391,155 @@ plsPlot(mymbpls, type = 'scoresX', colBy = as.data.frame(iris[, 5, drop=FALSE]),
 
 # Block Loadings to see variable contributions within their respective blocks
 plsPlot(mymbpls, type = 'loadingsX')
+```
+
+# PLSDA
+
+## Running PLS Discriminant Analysis (PLS-DA)
+
+When the response variable `Y` is categorical (e.g., treatment groups, phenotypes, or disease status), PLS-DA is the appropriate approach to model the relationship between the predictor matrix `X`and the response `Y`. In PLS-DA, latent components maximize class separation while capturing the covariance structure between `X` and `Y`.
+
+In line with PCA, the `Preparing()` function can be called prior to fitting a PLS-DA model to handle essential matrix preprocessing. However, if the data is passed directly to the `plsda()` function, the model automatically applies conservative default parameters to ensure the data is appropriately preprocessed for PLS modelling. 
+
+In PLSandO, the `plsda()` function can easily be applied by:
+
+```{r}
+
+X = iris[, 1:4]
+Y = iris[, 5, drop = FALSE]
+
+# Fit PLS-DA model
+myplsda = plsda(X, Y)
+```
+
+## Results exploration
+
+Once the model has been fitted, similarly to `pls` case, some brief summary can be explored to evaluate the performance of the model has been fitted. The `pls()` output includes information about the explained variance, the predictive ability through evaluated via cross-validation, and some other metrics that allowed to determine the optimal number of components and which can be used to assess the reliability of the model's predictions.
+
+These results can easily be evaluated via:
+
+```{r}
+myplsda$summary
+```
+
+## Results visualization
+
+The `plsdaPlot()` function serves as a versatile wrapper for visualizing PLS-DA results. It inherits most of the plotting capabilities found in `plsPlot()`, providing a consistent interface for model exploration.
+
+In PLS-DA an additional plotting option `type='ncomp'` is introduced. While the package internally determines the optimal number of components based on the Balanced Error Rate (BER) to ensure robust performance across different class sizes, this visualization allows for a more comprehensive assessment. By using this plot, users can evaluate the choice of components through multiple lenses, including various model performance indicators and classification error metrics, to ensure the most stable model selection.
+
+```{r, fig.show='hold', out.width='50%'}
+# Performance and Model selection
+plsdaPlot(myplsda, type = 'R2vsQ2')
+plsdaPlot(myplsda, type = 'ncomp')
+```
+
+To better visualize group differentiation, `plsdaPlot()` automatically incorporates 95\% confidence ellipses for the `Y` categories. These ellipses provide a statistical boundary that helps in assessing the separation and overlap between different classes in the score space.
+
+```{r, fig.show='hold', out.width='50%'}
+# Space visualization
+plsdaPlot(myplsda, type = 'scoresX')
+plsdaPlot(myplsda, type = 'biplot')
+```
+
+```{r, fig.show='hold', out.width='50%'}
+# Variables contribution
+plsdaPlot(myplsda, type = 'loadings')
+plsdaPlot(myplsda, type = 'weights')
+```
+
+## Prediction
+
+Prediction can easily be performed by `plsdaPrediction()` function which outputs the categorical prediction of the model and the prediction of the pls model.
+
+```{r}
+X_train = iris[1:125, 1:4]
+Y_train = iris[1:125, 5, drop = FALSE]
+
+X_test = iris[126:150, 1:4]
+
+# Fit and Predict
+myplsda_subset = plsda(X_train, Y_train)
+predictions = plsdaPredict(myplsda_subset, new = X_test)
+
+head(predictions$prediction)
+head(predictions$plsprediction)
+```
+
+## Missing values
+
+It is also robust against missing values.
+
+```{r}
+# Example with missing data and new observations
+X_train = iris[1:125, 1:4]
+Y_train = iris[1:125, 5, drop = FALSE]
+X_train[1, 1] = NA # Introducing a missing value
+
+X_test = iris[126:150, 1:4]
+X_test[2, 1] = NA  # Missing value in new data
+
+# Fit 
+myplsda_subset = plsda(X_train, Y_train)
+
+# Visualize new observations in the existing space
+plsdaPlot(myplsda_subset, type = 'biplot', newObs = X_test)
+```
+
+## Variable selection
+
+Variable selection is also available for the same methodologies introduced in `plsVarSel()`.
+
+```{r}
+# Variable selection via Jackknife
+plsdaVarSel(myplsda, type = 'Jack')
+```
+
+## Outliers
+
+Finally, some additional analysis can be perfomed for outlier detection.
+
+```{r, fig.show='hold', out.width='50%'}
+# Outlier detection and their contribution to the model
+out = plsdaOutliers(myplsda)
+plsdaOutlierContrib(myplsda, outliers = out)
+```
+
+## Running Multi-block PLS Discriminant Analysis (MBPLSDA)
+
+Similarly to MBPLS, the MBPLS-DA algorithm is used when predictors are structured in blocks but the goal is classification. 
+
+To run an MBPLS-DA, provide the `X` data as a list and set `algo = 'mbplsda'`.
+
+```{r}
+# Organize data into blocks
+X= list('Petal' = iris[, c(3, 4)], 'Sepal' = iris[, c(1, 2)])
+Y = iris[, 5, drop = FALSE]
+
+# Fit Multi-block PLS-DA
+mymbplsda = plsda(X, Y, algo = 'mbplsda')
+```
+
+All previously presented plots are also allowed in MBPLSDA, but results are show at block and super level. An example will be showed with the visualization of the Scores and loadings.
+
+```{r, fig.show='hold', out.width='50%'}
+# Score plot with ellipses for classes
+plsdaPlot(mymbplsda, type = 'scoresX')
+
+# Evaluate linearity and overfitting
+plsdaPlot(mymbplsda, type = 'overfitting')
+```
+
+Predicting with multi-block data requires the new input to maintain the same list structure as the training blocks.
+
+```{r, fig.show='hold', out.width='33%'}
+# Define training and test sets for blocks
+X_train = list('Petal' = iris[1:125, c(3, 4)], 'Sepal' = iris[1:125, c(1, 2)])
+X_test = list('Petal' = iris[126:150, c(3, 4)], 'Sepal' = iris[126:150, c(1, 2)])
+Y_train = iris[1:125, 5, drop = FALSE]
+
+# Model and Predict
+mymbplsda2 = plsda(X_train, Y_train, algo = 'mbplsda', ncomp = 2)
+mb_preds = plsdaPredict(mymbplsda2, new = X_test)
 ```
 

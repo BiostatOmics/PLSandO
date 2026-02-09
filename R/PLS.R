@@ -1404,7 +1404,7 @@ plsPlot = function(x,
 #' and Residual Sum of Squares (RSS).
 #'
 #' @param x An object returned by the \code{pls()} function.
-#' @param ncomp Integer. Number of components to use for outlier calculation. If NULL, all components in the pca object will be used. By default, NULL.
+#' @param ncomp Integer. Number of components to use for outlier calculation. If NULL, all components in the pls object will be used. By default, NULL.
 #' @param method Character. Detection method: "T2" (Hotellings-T2), "RSS" (Residuals Sum of Squares), or "both".
 #' @param conf Numeric. Confidence level for the critical limit (e.g., 95, 99).
 #'
