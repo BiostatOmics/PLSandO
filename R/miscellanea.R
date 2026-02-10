@@ -613,6 +613,20 @@ nipals_mbpls = function(X, Y, ncomp = NULL ){
 
 }
 
+# Missing values ----------------------
+
+impute_nipals = function(X, Y = NULL, mypls = NULL , inObs =TRUE, ncomp = NULL){
+
+  if(!inObs){
+    mypls = nipals_pls(X, Y , ncomp = ncomp)
+  }
+
+  Xest = tcrossprod(mypls$scores, mypls$loadings)
+  X[is.na(X)] = Xest[is.na(X)]
+
+  return(X)
+}
+
 # CV PLS ------------------
 
 createFold = function(X, k, seed = NULL){
@@ -665,6 +679,12 @@ crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed){
     if (scalingY != 'none') {
       escaladoY = Scaling(Yfold, scaling= scalingY, blocks = NULL)
       Yfold = escaladoY$x
+      centrado = escaladoY$centering
+      escalado = escaladoY$scaling
+      Yval = sweep(Y[folds[[i]],,drop=FALSE], 2, centrado, FUN = "-")
+      Yval = sweep(Yval, 2, escalado, FUN = "/")
+    }else{
+      Yval = Y[folds[[i]],,drop=FALSE]
     }
     mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
 
@@ -672,15 +692,13 @@ crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed){
       weightsStar =  try(suppressWarnings(mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))),silent = TRUE)
       if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:j,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
       coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:j,drop=FALSE])
-      #TO DO: Revisar esto para los casos con NAs. Es más correcto imputar usando el modelo para los valores faltantes? Por el momento por la media
-      if(any(is.na(Xval))) Xval[is.na(Xval)]= 0
+      if(any(is.na(Xval))) Xval = impute_nipals(Xval, Yval, inObs = FALSE, ncomp = j)
       preds[folds[[i]], , j] = as.matrix(Xval) %*% coefficients
       coef_cv[j,,,i] = coefficients
     }
   }
 
   #Calculate metrics
-
   if (scalingY != 'none') {
     escaladoY = Scaling(Y, scaling= scalingY, blocks = NULL)
     Y = escaladoY$x
@@ -698,17 +716,16 @@ crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed){
     Ypred = as.matrix(preds[,,j])
 
     #RMSE
-    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2,na.rm = T))
+    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2))
 
     #R2
     yhat = tcrossprod(plsr2$scores[,1:j,drop=FALSE],plsr2$loadingsY[,1:j,drop=FALSE])
-
-    SCR = sum((Y-yhat)^2,na.rm = T)
-    SCT = sum(Y^2,na.rm = T)
+    SCR = sum((Y-yhat)^2)
+    SCT = sum(Y^2)
     R2[j] = 1- (SCR/SCT)
 
     #PRESS
-    PRESS[j] = sum((Y - Ypred)^2,na.rm = T)
+    PRESS[j] = sum((Y - Ypred)^2)
 
     #Q2
     Q2[j] = 1- (PRESS[j]/SCT)
@@ -885,6 +902,12 @@ crossVal_plsda = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scaling
     if (scalingY != 'none') {
       escaladoY = Scaling(Yfold, scaling= scalingY, blocks = NULL)
       Yfold = escaladoY$x
+      centrado = escaladoY$centering
+      escalado = escaladoY$scaling
+      Yval = sweep(Y[folds[[i]],,drop=FALSE], 2, centrado, FUN = "-")
+      Yval = sweep(Yval, 2, escalado, FUN = "/")
+    }else{
+      Yval = Y[folds[[i]],,drop=FALSE]
     }
 
     mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
@@ -893,8 +916,7 @@ crossVal_plsda = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scaling
       weightsStar =  try(suppressWarnings(mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))),silent = TRUE)
       if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:j,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
       coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:j,drop=FALSE])
-      #TO DO: NAs
-      if(any(is.na(Xval))) Xval[is.na(Xval)]= 0
+      if(any(is.na(Xval))) Xval = impute_nipals(Xval, Yval, inObs = FALSE, ncomp = j)
       preds[folds[[i]], , j] = as.matrix(Xval) %*% coefficients
       coef_cv[j,,,i] = coefficients
     }
@@ -919,17 +941,16 @@ crossVal_plsda = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scaling
     Ypred = as.matrix(preds[,,j])
 
     #RMSE
-    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2,na.rm = TRUE))
+    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2))
 
     #R2
     yhat = tcrossprod(plsr2$scores[,1:j,drop=FALSE],plsr2$loadingsY[,1:j,drop=FALSE])
-
-    SCR = sum((Y-yhat)^2,na.rm = TRUE)
-    SCT = sum(Y^2,na.rm = TRUE)
+    SCR = sum((Y-yhat)^2)
+    SCT = sum(Y^2)
     R2[j] = 1- (SCR/SCT)
 
     #PRESS
-    PRESS[j] = sum((Y - Ypred)^2,na.rm = TRUE)
+    PRESS[j] = sum((Y - Ypred)^2)
 
     #Q2
     Q2[j] = 1- (PRESS[j]/SCT)
@@ -1285,11 +1306,17 @@ crossForVal = function(iter, X, Y, ncomp, k = 5, scaling, scalingY, seed, method
     if (scalingY != 'none') {
       escaladoY = Scaling(Yfold, scaling= scalingY, blocks = NULL)
       Yfold = escaladoY$x
+      centrado = escaladoY$centering
+      escalado = escaladoY$scaling
+      Yval = sweep(Y[folds[[i]],,drop=FALSE], 2, centrado, FUN = "-")
+      Yval = sweep(Yval, 2, escalado, FUN = "/")
+    }else{
+      Yval = Y[folds[[i]],,drop=FALSE]
     }
 
     mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
-    #TO DO: Revisar esto con la decision de NAs
-    if(any(is.na(Xval))) Xval[is.na(Xval)]= 0
+
+    if(any(is.na(Xval))) Xval = impute_nipals(Xval, Yval, inObs = FALSE, ncomp = ncomp)
     preds[folds[[i]],] = as.matrix(Xval) %*% mypls$coefficients
   }
 
@@ -1313,11 +1340,11 @@ crossForVal = function(iter, X, Y, ncomp, k = 5, scaling, scalingY, seed, method
   RMSE = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2))
 
   #R2
-  #TO DO: NAs
+  if(any(is.na(X))) X = impute_nipals(X = X, mypls = plsr2)
   yhat = as.matrix(X) %*% plsr2$coefficients
   yhat = yhat[rownames(Y),,drop=FALSE]
 
-  SCR = sum((Y-yhat)^2, na.rm = T)
+  SCR = sum((Y-yhat)^2)
   SCT = sum(Y^2)
   R2 = 1- (SCR/SCT)
 
@@ -4891,8 +4918,7 @@ biPlotPLSmb = function(x,
 R2varcomp = function(x, col) {
 
   X = x$X
-  #TO DO: Revisar NAs
-  SCT = colSums(X**2,na.rm = T)
+  SCT = colSums(X**2)
   mat = NULL
 
   # Loop through components and calculate cumulative R2 for each
@@ -5205,8 +5231,8 @@ SMC = function(X, coefficients){
   Xhat = tcrossprod(yhat,coefficients)/drop(crossprod(coefficients))
   Xres = X - Xhat
 
-  SST = colSums(Xhat^2,na.rm = T)
-  SSR = colSums(Xres^2, na.rm = T)
+  SST = colSums(Xhat^2)
+  SSR = colSums(Xres^2)
 
   #smc = SST/(SSR/(nrow(X)-2))
   smc = SST/SSR

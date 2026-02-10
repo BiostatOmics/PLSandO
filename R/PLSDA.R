@@ -521,6 +521,7 @@ plsda = function(x, y,
       } )
       rowtrain = unlist(train_indices)
       xTest = x[-rowtrain, ,drop=FALSE]
+      missNATest = any(is.na(xTest))
       x = x[rowtrain,, drop=FALSE]
       yTest = y[-rowtrain,, drop=FALSE ]
       y = y[rowtrain,,drop=FALSE]
@@ -532,6 +533,8 @@ plsda = function(x, y,
     }
     X2 = x
     Y2 = y
+
+    missNA = any(is.na(x))
 
     #Calcular los parametros optimos
 
@@ -614,8 +617,9 @@ plsda = function(x, y,
       return(out)
     })
 
+    if(missNA) x = impute_nipals(X = x, mypls = mypls)
     ypred = as.matrix(x) %*% mypls$coefficients
-    SCEY = sum(colSums(ypred**2,na.rm = TRUE))
+    SCEY = sum(colSums(ypred**2))
 
     SCEYa =  sapply(1:ncomp, function(j) sum(tcrossprod(mypls$scores[, j], mypls$loadingsY[, j])^2))
     vip = sqrt(ncol(x) * rowSums(sweep(mypls$weights^2, 2,SCEYa, "*")) / SCEY)
@@ -627,8 +631,8 @@ plsda = function(x, y,
         xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
         #R2X
-        SCR = sum(colSums((xpred-x)**2,na.rm = TRUE))
-        SCT = sum(colSums(x**2,na.rm = TRUE))
+        SCR = sum(colSums((xpred-x)**2))
+        SCT = sum(colSums(x**2))
         R2[i] = 1- (SCR/SCT)
         #R2Y
         SCRY = sum(colSums((ypred-y)**2))
@@ -687,13 +691,15 @@ plsda = function(x, y,
         weightsStar =  try(suppressWarnings(mypls$weights[,1:i,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))),silent = TRUE)
         if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:i,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))
         coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:i,drop=FALSE])
+
+        if(missNATest) xTest = impute_nipals(xTest, yTest, inObs = FALSE, ncomp = i)
         Ttest = as.matrix(xTest) %*% weightsStar
 
         xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
         #R2X
-        SCR = sum(colSums((xpred-x)**2,na.rm = TRUE))
-        SCT = sum(colSums(x**2,na.rm = TRUE))
+        SCR = sum(colSums((xpred-x)**2))
+        SCT = sum(colSums(x**2))
         R2[i] = 1- (SCR/SCT)
         #R2Y
         SCRY = sum(colSums((ypred-y)**2))

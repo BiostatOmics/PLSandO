@@ -443,11 +443,14 @@ pls = function(x, y,
       x = x[rowtrain,, drop=FALSE]
       yTest = y[-rowtrain,, drop=FALSE ]
       y = y[rowtrain,,drop=FALSE]
+      missNATest = any(is.na(xTest))
     } else {
       xTest = yTest = NULL
     }
     X2 = x
     Y2 = y
+
+    missNA = any(is.na(x))
 
     #Calcular los parametros optimos
 
@@ -538,10 +541,9 @@ pls = function(x, y,
       })
     }
 
-    #TO DO: Comentar si queremos imputar el valor faltante a la hora de calcularlo
-
+    if(missNA) x = impute_nipals(X = x, mypls = mypls)
     ypred = as.matrix(x) %*% mypls$coefficients
-    SCEY = sum(colSums(ypred**2, na.rm = T))
+    SCEY = sum(colSums(ypred**2))
 
     SCEYa =  sapply(1:ncomp, function(j) sum(tcrossprod(mypls$scores[, j], mypls$loadingsY[, j])^2))
     vip = sqrt(ncol(x) * rowSums(sweep(mypls$weights^2, 2,SCEYa, "*")) / SCEY)
@@ -553,12 +555,13 @@ pls = function(x, y,
         xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
         #R2X
-        SCR = sum(colSums((xpred-x)**2,na.rm = T))
-        SCT = sum(colSums(x**2,na.rm = T))
+        SCR = sum(colSums((xpred-x)**2))
+        SCT = sum(colSums(x**2))
         R2[i] = 1- (SCR/SCT)
+        #TO DO: Mirar que hacer para valores faltantes en la variable respuesta
         #R2Y
-        SCRY = sum(colSums((ypred-y)**2,na.rm = T))
-        SCTY = sum(colSums(y**2,na.rm = T))
+        SCRY = sum(colSums((ypred-y)**2))
+        SCTY = sum(colSums(y**2))
         R2Y[i] = 1- (SCRY/SCTY)
       }
 
@@ -590,15 +593,16 @@ pls = function(x, y,
 
         weightsStar =  try(suppressWarnings(mypls$weights[,1:i,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))),silent = TRUE)
         if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:i,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:i,drop=FALSE], mypls$weights[,1:i,drop=FALSE]))
-
         coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:i,drop=FALSE])
+
+        if(missNATest) xTest = impute_nipals(xTest, yTest, inObs = FALSE, ncomp = i)
         Ttest = as.matrix(xTest) %*% weightsStar
 
         xpred = tcrossprod(mypls$scores[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = tcrossprod(mypls$scores[,1:i,drop=FALSE],mypls$loadingsY[,1:i,drop=FALSE])
         #R2X
-        SCR = sum(colSums((xpred-x)**2,na.rm = T))
-        SCT = sum(colSums(x**2,na.rm = T))
+        SCR = sum(colSums((xpred-x)**2))
+        SCT = sum(colSums(x**2))
         R2[i] = 1- (SCR/SCT)
         #R2Y
         SCRY = sum(colSums((ypred-y)**2,na.rm = T))
@@ -608,8 +612,8 @@ pls = function(x, y,
         xpred = tcrossprod(Ttest[,1:i,drop=FALSE], mypls$loadings[,1:i,drop=FALSE])
         ypred = as.matrix(xTest) %*% coefficients
         #R2Xtest
-        SCR = sum(colSums((xpred-xTest)**2,na.rm = T))
-        SCT = sum(colSums(xTest**2,na.rm = T))
+        SCR = sum(colSums((xpred-xTest)**2))
+        SCT = sum(colSums(xTest**2))
         R2test[i] = 1- (SCR/SCT)
         #R2Ytest
         SCRY = sum(colSums((ypred-yTest)**2,na.rm = T))
