@@ -9,7 +9,7 @@
 #' @param x A matrix, data.frame, or a list of blocks (for MB-PCA).
 #' @param ncomp Integer. Number of components to extract. If NULL, the maximum number of principal components allowed by the data is extracted (min(number_observations-1,number_variables)).
 #' @param algo Character. Algorithm to use: "nipals", "svd" (Single Value Decomposition), or "mbpca" (multi-block PCA).
-#' @param scaling Character. Scaling method: "none", "center", "standard" (UV), "softBlock", or "hardBlock".
+#' @param scaling Character. Scaling method: "none", "center", "standard" (default), "softBlock", or "hardBlock".
 #'
 #' @return A list containing:
 #' \itemize{

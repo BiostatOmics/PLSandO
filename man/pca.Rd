@@ -18,7 +18,7 @@ pca(
 
 \item{algo}{Character. Algorithm to use: "nipals", "svd" (Single Value Decomposition), or "mbpca" (multi-block PCA).}
 
-\item{scaling}{Character. Scaling method: "none", "center", "standard" (UV), "softBlock", or "hardBlock".}
+\item{scaling}{Character. Scaling method: "none", "center", "standard" (default), "softBlock", or "hardBlock".}
 }
 \value{
 A list containing:

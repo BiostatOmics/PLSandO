@@ -165,6 +165,7 @@ remove_CV = function(x, CVfilter = 0.01, removed_vars){
 
   cv = lapply(x, function(x){
     meanx = mean(x, na.rm = T)
+    if(meanx == 0) return(0)
     sdx = sd(x, na.rm = T)
     return(abs(sdx/meanx))
   }) #Dejarlo en valor absoluto
@@ -848,15 +849,14 @@ BER = function(TP,FP,FN,TN, epsilon){
 }
 
 createFold_plsda = function(X, Y, k, seed = NULL){
-
   if(!is.null(seed)) set.seed(seed)
 
-  n = nrow(X)
-  group_indices = split(1:n,Y)
-
+  group_indices = split(1:nrow(X), Y, drop = TRUE)
   indices = lapply(group_indices, sample)
 
-  indices = unlist(do.call(mapply, c(FUN = c, indices, SIMPLIFY = FALSE)))
+  indices = do.call(rbind,lapply(indices, function(x) data.frame(idx = x, order = seq_along(x))))
+  indices = indices[order(indices$order), ]$idx
+  names(indices) = as.character(Y[[1]])[indices]
 
   folds = vector('list', k)
   assignment = rep(1:k, length.out = length(indices))
@@ -1843,15 +1843,39 @@ scorePlot = function(x,
 
       newObs = newObs[,colnames(x$X)]
 
-      # Scale validation data acording to scaling parameters of training data
-      newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
-      newObs = sweep(newObs, 2, x$scaling$scale, FUN = "/")
+      if(is.null(x$multi)){
+        # Scale validation data acording to scaling parameters of training data
+        newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
+        newObs = sweep(newObs, 2, x$scaling$scale, FUN = "/")
 
-      if(x$input$model == 'pca'){
-        scores_new = project.obs.nipals(x, newObs, comp)
+        if(x$input$model == 'pca'){
+          scores_new = project.obs.nipals(x, newObs, comp)
+        } else{
+          scores_new = project.obs.nipals.pls(x, newObs, comp)
+        }
       } else{
-        scores_new = project.obs.nipals.pls(x, newObs, comp)
+        newObsW = sweep(newObs, 2, as.numeric(x$Xm[1,colnames(x$X)]), FUN = "-")
+
+        design = as.data.frame(x$newdesign)
+        if(all(order(rownames(design))!= order(rownames(newObs)))) rownames(design) = rownames(newObs)
+        design = design[rownames(newObs),,drop=FALSE]
+        colnames(design) = c('group')
+
+        for (g in unique(design$group)){
+          idx <- g == design$group
+          newObsW[idx,] = sweep(newObsW[idx,,drop=FALSE],2, colMeans(newObsW[idx,,drop=FALSE]))
+        }
+
+        newObsW = sweep(newObsW, 2, x$scaling$center, FUN = "-")
+        newObsW = sweep(newObsW, 2, x$scaling$scale, FUN = "/")
+
+        if(x$input$model == 'pca'){
+          scores_new = project.obs.nipals(x, newObsW, comp)
+        } else{
+          scores_new = project.obs.nipals.pls(x, newObsW, comp)
+        }
       }
+
       shapeBynew = colBynew = data.frame(c(rep('modelObs',nrow(scores_df)),rep('newObs', nrow(scores_new))), fix.empty.names = F)
       colnames(scores_new) = c("x", "y")
       scores_df = rbind(scores_df, scores_new)
@@ -2432,6 +2456,8 @@ loadingPlot = function(x,
 
     if(labels) labels = rownames(load_df) else labels = ''
 
+    if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+
     if(!is.null(colBy)){
       if(is.character(colBy)){
         num = T
@@ -2446,7 +2472,7 @@ loadingPlot = function(x,
           colByname = 'cos2'
         }
         if(!is.null(selVars)){
-          top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(load_df))]
+          top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
           load_df = load_df[top_vars,,drop=FALSE]
           labels = labels[top_vars]
         }
@@ -2549,6 +2575,8 @@ loadingPlotmb = function(x,
 
       if(labels) labels = rownames(load_df) else labels = ''
 
+      if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+
       if(!is.null(colBy)){
         if(is.character(colBy)){
           num = T
@@ -2560,7 +2588,7 @@ loadingPlotmb = function(x,
             return(stop('cos2 is not available for MBPCA. Please consider using contrib instead to color variables by importance.'))
           }
           if(!is.null(selVars)){
-            top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(load_df))]
+            top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
             load_df = load_df[top_vars,,drop=FALSE]
             labels = labels[top_vars]
           }
@@ -2635,6 +2663,7 @@ loadingPlotmb = function(x,
       colnames(load_df) = c("x", "y")
 
       if(labels) labels = rownames(load_df) else labels = ''
+      if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
 
       if(!is.null(colBy)){
         if(is.character(colBy)){
@@ -2647,7 +2676,7 @@ loadingPlotmb = function(x,
             return(stop('cos2 is not available for MBPCA. Please consider using contrib instead to color variables by importance.'))
           }
           if(!is.null(selVars)){
-            top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(load_df))]
+            top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
             load_df = load_df[top_vars,,drop=FALSE]
             labels = labels[top_vars]
           }
@@ -2784,6 +2813,7 @@ loadingPlotPLS = function(x,
     }
 
     if(labels) labels = rownames(load_df) else labels = ''
+    if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
 
     if(!is.null(colBy)){
       if(is.character(colBy)){
@@ -2799,7 +2829,7 @@ loadingPlotPLS = function(x,
           colByname = 'cos2'
         }
         if(!is.null(selVars)){
-          top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(load_df))]
+          top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
           load_df = load_df[top_vars,,drop=FALSE]
           labels = labels[top_vars]
         }
@@ -2950,6 +2980,7 @@ loadingPlotPLSmb = function(x,
       }
 
       if(labels) labels = rownames(load_df) else labels = ''
+      if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
 
       if(!is.null(colBy)){
         if(is.character(colBy)){
@@ -2965,7 +2996,7 @@ loadingPlotPLSmb = function(x,
             colByname = 'cos2'
           }
           if(!is.null(selVars)){
-            top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(load_df))]
+            top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
             load_df = load_df[top_vars,,drop=FALSE]
             labels = labels[top_vars]
           }
@@ -3444,6 +3475,7 @@ corrPlot = function(x,
     }
 
     if(labels) labels = rownames(corr_df) else labels = ''
+    if(!is.null(selVars) & is.null(colBy)) colBy = 'cos2'
 
     if(!is.null(colBy) && length(colBy)==1){ #Mirar esto tambien
       if(colBy == 'contrib') return(stop('contrib not permitted in correlation plot'))
@@ -3452,7 +3484,7 @@ corrPlot = function(x,
       colBy = corr_df$colBy
       colByname = 'cos2'
       if(!is.null(selVars)){
-        top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(corr_df))]
+        top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
         corr_df = corr_df[top_vars,,drop=FALSE]
         labels = labels[top_vars]
       }
@@ -3585,16 +3617,41 @@ biPlot = function(x,
 
       newObs = newObs[,colnames(x$X)]
 
-      # Scale validation data acording to scaling parameters of training data
-      newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
-      newObs = sweep(newObs, 2, x$scaling$scale, FUN = "/")
+      if(is.null(x$multi)){
+        # Scale validation data acording to scaling parameters of training data
+        newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
+        newObs = sweep(newObs, 2, x$scaling$scale, FUN = "/")
 
-      #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
-      if(any(is.na(newObs))){
-        scores_new = project.obs.nipals(x, newObs, comp)
+        #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
+        if(any(is.na(newObs))){
+          scores_new = project.obs.nipals(x, newObs, comp)
+        } else{
+          scores_new = (as.matrix(newObs) %*% x$loadings)[,comp]
+        }
+
       } else{
-        scores_new = (as.matrix(newObs) %*% x$loadings)[,comp]
+        newObsW = sweep(newObs, 2, as.numeric(x$Xm[1,colnames(x$X)]), FUN = "-")
+
+        design = as.data.frame(x$newdesign)
+        if(all(order(rownames(design))!= order(rownames(newObs)))) rownames(design) = rownames(newObs)
+        design = design[rownames(newObs),,drop=FALSE]
+        colnames(design) = c('group')
+
+        for (g in unique(design$group)){
+          idx <- g == design$group
+          newObsW[idx,] = sweep(newObsW[idx,,drop=FALSE],2, colMeans(newObsW[idx,,drop=FALSE]))
+        }
+
+        newObsW = sweep(newObsW, 2, x$scaling$center, FUN = "-")
+        newObsW = sweep(newObsW, 2, x$scaling$scale, FUN = "/")
+
+        if(any(is.na(newObs))){
+          scores_new = project.obs.nipals(x, newObsW, comp)
+        } else{
+          scores_new = (as.matrix(newObsW) %*% x$loadings)[,comp]
+        }
       }
+
       shapeBynew = colBynew = data.frame(c(rep('modelObs',nrow(scores_df)),rep('newObs', nrow(scores_new))), fix.empty.names = F)
       colnames(scores_new) = c("x", "y")
       scores_df = rbind(scores_df, scores_new)
@@ -3741,7 +3798,7 @@ biPlot = function(x,
       eig = x$explVar[,'eigenVal'][comp]
       cos2 = rowSums(sweep(load_df[, c("x", "y")], 2, sqrt(eig), FUN = "/")^2)
 
-      top_vars = order(cos2, decreasing = T)[1:min(selVars, nrow(load_df))]
+      top_vars = order(cos2, decreasing = T)[1:ceiling(length(colBy) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labels = labels[top_vars]
     }
@@ -3995,7 +4052,7 @@ biPlotmb = function(x,
 
       if(!is.null(selVars)){
         contrib = rowSums(load_df^2)
-        top_vars = order(contrib, decreasing = T)[1:min(selVars, nrow(load_df))]
+        top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
         load_df = load_df[top_vars,,drop=FALSE]
         labelsLoad = labelsLoad[top_vars]
       }
@@ -4180,7 +4237,7 @@ biPlotmb = function(x,
 
     if(!is.null(selVars)){
       contrib = rowSums(load_df^2)
-      top_vars = order(contrib, decreasing = T)[1:min(selVars, nrow(load_df))]
+      top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labelsLoad = labelsLoad[top_vars]
     }
@@ -4273,12 +4330,32 @@ biPlotPLS = function(x,
 
       newObs = newObs[,colnames(x$X)]
 
-      # Scale validation data acording to scaling parameters of training data
-      newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
-      newObs = sweep(newObs, 2, x$scaling$scale, FUN = "/")
+      if(is.null(x$multi)){
+        # Scale validation data acording to scaling parameters of training data
+        newObs = sweep(newObs, 2, x$scaling$center, FUN = "-")
+        newObs = sweep(newObs, 2, x$scaling$scale, FUN = "/")
 
-      #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
-      scores_new = project.obs.nipals.pls(x, newObs, comp)
+        #Habra que tener en cuenta el caso de que la nueva matriz de datos pueda contener valores faltantes.
+        scores_new = project.obs.nipals.pls(x, newObs, comp)
+
+      } else{
+        newObsW = sweep(newObs, 2, as.numeric(x$Xm[1,colnames(x$X)]), FUN = "-")
+
+        design = as.data.frame(x$newdesign)
+        if(all(order(rownames(design))!= order(rownames(newObs)))) rownames(design) = rownames(newObs)
+        design = design[rownames(newObs),,drop=FALSE]
+        colnames(design) = c('group')
+
+        for (g in unique(design$group)){
+          idx <- g == design$group
+          newObsW[idx,] = sweep(newObsW[idx,,drop=FALSE],2, colMeans(newObsW[idx,,drop=FALSE]))
+        }
+
+        newObsW = sweep(newObsW, 2, x$scaling$center, FUN = "-")
+        newObsW = sweep(newObsW, 2, x$scaling$scale, FUN = "/")
+
+        scores_new = project.obs.nipals.pls(x, newObsW, comp)
+      }
 
       shapeBynew = colBynew = data.frame(c(rep('modelObs',nrow(scores_df)),rep('newObs', nrow(scores_new))), fix.empty.names = F)
       colnames(scores_new) = c("x", "y")
@@ -4434,7 +4511,7 @@ biPlotPLS = function(x,
       eig = x$explVar[,'eigenVal'][comp]
       cos2 = rowSums(sweep(load_df[, c("x", "y")], 2, sqrt(eig), FUN = "/")^2)
 
-      top_vars = order(cos2, decreasing = T)[1:min(selVars, nrow(load_df))]
+      top_vars = order(cos2, decreasing = T)[1:ceiling(length(colBy) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labels = labels[top_vars]
     }
@@ -4691,7 +4768,7 @@ biPlotPLSmb = function(x,
 
       if(!is.null(selVars)){
         contrib = rowSums(load_df^2)
-        top_vars = order(contrib, decreasing = T)[1:min(selVars, nrow(load_df))]
+        top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
         load_df = load_df[top_vars,,drop=FALSE]
         labelsLoad = labelsLoad[top_vars]
       }
@@ -4877,7 +4954,7 @@ biPlotPLSmb = function(x,
 
     if(!is.null(selVars)){
       contrib = rowSums(load_df^2)
-      top_vars = order(contrib, decreasing = T)[1:min(selVars, nrow(load_df))]
+      top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labelsLoad = labelsLoad[top_vars]
     }

@@ -450,7 +450,7 @@ plsdaPlot(myplsda, type = 'weights')
 
 ## Prediction
 
-Prediction can easily be performed by `plsdaPrediction()` function which outputs the categorical prediction of the model and the prediction of the pls model.
+Prediction can easily be performed by `plsdaPredict()` function which outputs the categorical prediction of the model and the prediction of the pls model.
 
 ```{r}
 X_train = iris[1:125, 1:4]
@@ -542,4 +542,160 @@ Y_train = iris[1:125, 5, drop = FALSE]
 mymbplsda2 = plsda(X_train, Y_train, algo = 'mbplsda', ncomp = 2)
 mb_preds = plsdaPredict(mymbplsda2, new = X_test)
 ```
+
+# Multilevel Analysis
+
+The `multilevel()` function is specifically designed for study designs with repeated measures or crossover structures. It accounts for variability across different levels of the data (for example, between subjects or clusters) so that these sources of variation are properly separated from the effects of interest.
+
+The multilevel approach handles this by decomposing the data matrix into three separate parts before applying multivariate models:
+- Offset (`X_m`): Captures the mean of all variables in `X`.
+- Within-subject variation (`X_w`): Captures the changes occurring within the same individual across different conditions. This is typically the variation of interest.
+- Between-subject variation (`X_b`): Captures the intrinsic differences between individuals.
+
+To demonstrate the functionality of the `multilevel()` function, we will use a repeated-measures dataset from the mixOmics package.
+
+## Running multilevel PCA
+
+```{r,warning=FALSE}
+# Loading mixOmics data and preparing the data as needed for PLSandO
+library(mixOmics)
+data(vac18)
+X = vac18$gene
+design = vac18$sample
+names(design) = rownames(X)
+head(design)#show the design format
+```
+
+Once the data is prepared the multilevel will be applied to account for the study design when exploring the data.
+
+```{r}
+# Fit a Multilevel PCA
+multipca = multilevel(X, design = design)
+names(multipca)
+```
+
+### Results Visualization
+
+The `multilevelPlot()` function automatically accounts for the structure of multilevel objects, and all options available in `pcaPlot()` can also be used here. For exploratory analysis, both within- and between-subject variations can be visualized jointly. In addition, the `$Within` and `$Between` objects of a multilevel object are themselves PCA objects, meaning that all standard PCA functionalities can be applied to them separately. Some examples are shown below.
+
+```{r}
+#Create the scree plot
+multilevelPlot(multipca, type ='scree' )
+
+#Obtain the same plot for the Within part using pcaPlot
+pcaPlot(multipca$Within, type ='scree')
+```
+
+To have a look at the scores, we can simply run:
+
+```{r}
+#Explore the score plot
+multilevelPlot(multipca, type='scores')
+```
+
+## Running multilevel PLSDA
+
+The dataset also contains class information that can be used for supervised analysis. We will use it to illustrate how to run a PLS-DA model with repeated measurements.
+
+```{r}
+# Loading mixOmics data and preparing the data as needed for PLSandO
+Y = as.data.frame(vac18$stimulation)
+rownames(Y) = rownames(X)
+```
+
+Once the data are prepared, the multilevel approach can be applied to account for the study design during model fitting and exploration.
+
+```{r}
+# Fit a Multilevel PLSDA
+multiplsda = multilevel(X, Y, design = design, method = 'plsda')
+names(multiplsda)
+```
+
+### Results Visualization
+
+The `multilevelPlot()` function automatically handles the structure of multilevel objects, regardless of the method used. When `method = 'plsda'`, it focuses on visualizing within-subject variation.
+
+First, the optimal number of components should be determined. For this purpose, we examine the plot with `type = 'ncomp'`.
+
+```{r}
+#Create the scree plot based on different metrics
+multilevelPlot(multiplsda, type ='ncomp' )
+```
+
+Most classification error–based metrics indicate that 3 components are optimal. The model is therefore re-fitted using this number of components.
+
+```{r}
+multiplsda = multilevel(X, Y, design = design, method = 'plsda', ncomp = 3)
+```
+
+Finally, the results can be explored.
+
+```{r}
+#Explore the model results
+multiplsda$model$summary
+```
+
+```{r}
+#Create the score plot
+multilevelPlot(multiplsda, type='scoresX')
+```
+
+```{r}
+#Look at the model coefficients
+multilevelPlot(multiplsda, type = 'coef')
+```
+
+### Prediction
+
+Prediction in a multilevel context requires both the new data (`new`) and the information specifying the subject to which each sample belongs (`design`). Prediction can easily be performed by `multilevelPredict()` function which outputs the categorical prediction of the model and the prediction of the pls model.
+
+In the following example, a subset of samples is held from the training data and used to evaluate the prediction procedure.
+
+```{r}
+#Prepare the training data
+X = vac18$genes[-c(4,17,26,37,7,28,39),]
+Y = as.data.frame(vac18$stimulation[-c(4,17,26,37,7,28,39)])
+rownames(Y) = rownames(X)
+
+design = vac18$sample[-c(4,17,26,37,7,28,39)]
+names(design) = rownames(Y)
+
+#Fit the model
+mymultiplsda = multilevel(X, Y, design, method = 'plsda')
+
+#Select the optimal number of components
+multilevelPlot(mymultiplsda, type ='ncomp')
+```
+
+```{r}
+#Fit the model with the optimal number of components
+mymultiplsda = multilevel(X, Y, design, method = 'plsda', ncomp = 3)
+```
+
+```{r}
+#Test data preparation
+Xtest = vac18$genes[c(4,17,26,37,7,28,39),]
+designTest = vac18$sample[c(4,17,26,37,7,28,39)]
+names(designTest) = rownames(Xtest)
+
+#Test data prediction
+myprediction = multilevelPredict(mymultiplsda, new = Xtest, design = designTest)
+head(myprediction$prediction)
+head(myprediction$plsprediction)
+```
+
+## Running multilevel PLS
+
+The PLS model is run in a similar way. In this case, we do not include a full example with results, but the following code illustrates how the model can be fitted.
+
+```{r, eval = FALSE}
+multipls = multilevel(X, Y, design = design, method = 'pls')
+```
+
+
+
+
+
+
+
 

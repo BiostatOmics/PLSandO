@@ -2,6 +2,9 @@
 
 export(Preparing)
 export(imputeNipals)
+export(multilevel)
+export(multilevelPlot)
+export(multilevelPredict)
 export(outlierContrib)
 export(pca)
 export(pcaOutliers)

@@ -1018,7 +1018,14 @@ plsdaPlot = function(x,
     plot_metric = function(values, title, ylab, decreasing = FALSE, base_size = 10, color = 'skyblue'){
       comp = length(values)
       df = data.frame(Component = 1:comp, Value = values)
-      ncomp = if(comp < 3) if(decreasing) which.min(values) else which.max(values) else kneedle::kneedle(1:comp, values, decreasing = decreasing)[1]
+
+      if(comp < 3){
+        ncomp  = if(decreasing) which.min(values) else which.max(values)
+      } else{
+        ncomp = tryCatch({
+          kneedle::kneedle(1:comp, values, decreasing = decreasing)[1]
+        }, error = function(e) {which.min(values)})
+      }
       ggp = ggplot(df, aes(Component, Value)) +
         geom_line(linewidth = 1, color = color) +
         geom_point(size = 3, color = color) +
