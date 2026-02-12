@@ -556,7 +556,7 @@ To demonstrate the functionality of the `multilevel()` function, we will use a r
 
 ## Running multilevel PCA
 
-```{r,warning=FALSE}
+```{r,warning=FALSE,echo=FALSE}
 # Loading mixOmics data and preparing the data as needed for PLSandO
 library(mixOmics)
 data(vac18)
@@ -692,8 +692,15 @@ The PLS model is run in a similar way. In this case, we do not include a full ex
 multipls = multilevel(X, Y, design = design, method = 'pls')
 ```
 
+# Parallelization
 
+The whole package supports parallel computation for model fitting, which can be easily enabled by setting `parallel = TRUE`. This feature is available across all implemented methods, including PCA, MBPCA, PLS, MBPLS, PLSDA, MBPLSDA, and multilevel approaches. Parallelization is particularly beneficial when working with high-dimensional datasets, where computational demands can be substantial. 
 
+An example with prior dataset is provided below to illustrate its use.
+
+```{r, warning=FALSE}
+multiplsda = multilevel(X, Y, design = design, method = 'plsda', parallel=TRUE)
+```
 
 
 
