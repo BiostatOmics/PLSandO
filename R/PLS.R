@@ -781,6 +781,7 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
 #'   \item For \strong{Scores}: A column name from the dataset or an external vector.
 #'   \item For \strong{Loadings/Correlation}: Can be one of: \code{"contrib"} (to color by variable contribution)
 #'   or \code{"cos2"} (to color by the quality of representation).
+#'   \item For \strong{biPlot}: A column name from the dataset or an external vector to color the observations.
 #' }
 #' By default, no variable is used.
 #' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.
@@ -998,6 +999,7 @@ plsPlot = function(x,
       if(is.null(shape)) shape = 18
       if(is.null(labels)) labels = FALSE
       if(is.null(ellipses)) ellipses = TRUE
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
 
       x$scores = x$scoresX
 
@@ -1009,6 +1011,8 @@ plsPlot = function(x,
                       shapeBy = shapeBy,
                       ellipses = ellipses,
                       labels = labels,
+                      labelTop = labelTop,
+                      repel = repel,
                       newObs = newObs)
 
     }
@@ -1018,6 +1022,7 @@ plsPlot = function(x,
       if(is.null(shape)) shape = 18
       if(is.null(labels)) labels = FALSE
       if(is.null(ellipses)) ellipses = TRUE
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
 
       x$scores = x$scoresY
 
@@ -1033,6 +1038,8 @@ plsPlot = function(x,
                       shapeBy = shapeBy,
                       ellipses = ellipses,
                       labels = labels,
+                      labelTop = labelTop,
+                      repel = repel,
                       newObs = newObs)
 
     }
@@ -1466,15 +1473,21 @@ plsOutliers = function(x, ncomp = NULL,
 #' @param x An object returned by the \code{pls()} function.
 #' @param outliers Output from the \code{plsOutliers()} function.
 #' @param labelSize Numeric. Font size for axis labels in the contribution plots.
+#' @param specificObs Character or vector of characters. Names of the specific observations to plot.
 #'
 #' @return Bar plots of contributions and a list of numerical contribution values.
 #' @export
 
-plsOutlierContrib = function(x, outliers, labelSize = 1) {
+plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 
   # Severe outliers (T2)
-  severos = outliers$SevereOutliers
-  num = length(severos)
+  if (!is.null(specificObs)) {
+    severos = specificObs
+    num = length(intersect(severos, outliers$SevereOutliers))
+  } else {
+    severos = outliers$SevereOutliers
+    num = length(severos)
+  }
 
   eigenvalues = apply(x$scoresX, 2, function(t) crossprod(t)/(nrow(x$X)-1) )
   x$explVar = data.frame("comp" = factor(1:x$ncomp),
@@ -1507,8 +1520,13 @@ plsOutlierContrib = function(x, outliers, labelSize = 1) {
 
 
   # Moderate outliers (RSS)
-  modera = outliers$ModerateOutliers
-  num = length(modera)
+  if (!is.null(specificObs)) {
+    modera = specificObs
+    num = length(intersect(modera, outliers$ModerateOutliers))
+  } else {
+    modera = outliers$ModerateOutliers
+    num = length(modera)
+  }
 
   if (num == 0) {
     cat("There are no moderate outliers in the data or they were not computed.\n")

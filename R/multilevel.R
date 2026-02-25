@@ -124,6 +124,7 @@ multilevel = function(x, y = NULL, design =NULL,
 #'   \item For \strong{Scores}: A column name from the dataset or an external vector.
 #'   \item For \strong{Loadings/Correlation}: Can be one of: \code{"contrib"} (to color by variable contribution)
 #'   or \code{"cos2"} (to color by the quality of representation).
+#'   \item For \strong{biPlot}: A column name from the dataset or an external vector to color the observations.
 #' }
 #' By default, no variable is used.
 #' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.

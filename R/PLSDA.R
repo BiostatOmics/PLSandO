@@ -930,6 +930,7 @@ plsdaPredict = function(x, new = NULL, plot = TRUE) {
 #'   \item For \strong{Scores}: A column name from the dataset or an external vector.
 #'   \item For \strong{Loadings/Correlation}: Can be one of: \code{"contrib"} (to color by variable contribution)
 #'   or \code{"cos2"} (to color by the quality of representation).
+#'   \item For \strong{biPlot}: A column name from the dataset or an external vector to color the observations.
 #' }
 #' By default, no variable is used.
 #' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.
@@ -1116,7 +1117,9 @@ plsdaPlot = function(x,
 
       x$scores = x$scoresX
 
-      if (is.null(newObs)){
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+
+      if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
       } else{
         colBy = as.data.frame(c(x$input$Y[,1], as.factor(rep('newObs',nrow(Xnew)))))
@@ -1131,6 +1134,8 @@ plsdaPlot = function(x,
                       shapeBy = shapeBy,
                       ellipses = ellipses,
                       labels = labels,
+                      labelTop = labelTop,
+                      repel = repel,
                       newObs = newObs)
 
     }
@@ -1142,7 +1147,9 @@ plsdaPlot = function(x,
       if(is.null(ellipses)) ellipses = FALSE
 
       x$scores = x$scoresY
-      if (is.null(newObs)){
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+
+      if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
       } else{
         colBy = as.data.frame(c(x$input$Y[,1], as.factor(rep('newObs',nrow(Xnew)))))
@@ -1157,6 +1164,8 @@ plsdaPlot = function(x,
                       shapeBy = shapeBy,
                       ellipses = ellipses,
                       labels = labels,
+                      labelTop = labelTop,
+                      repel = repel,
                       newObs = newObs)
 
     }
@@ -1673,10 +1682,11 @@ plsdaOutliers = function(x, ncomp = NULL,
 #' @param x An object returned by the \code{plsda()} function.
 #' @param outliers Output from the \code{plsdaOutliers()} function.
 #' @param labelSize Numeric. Font size for axis labels in the contribution plots.
+#' @param specificObs Character or vector of characters. Names of the specific observations to plot.
 #'
 #' @return Bar plots of contributions and a list of numerical contribution values.
 #' @export
 
-plsdaOutlierContrib = function(x, outliers, labelSize = 1){
-  return(plsOutlierContrib(x,outliers,labelSize ))
+plsdaOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL){
+  return(plsOutlierContrib(x,outliers,labelSize , specificObs))
 }

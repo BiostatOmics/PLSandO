@@ -1790,6 +1790,8 @@ scorePlot = function(x,
                      shapeBy = NULL,
                      ellipses = TRUE,
                      labels = FALSE,
+                     labelTop = NULL,
+                     repel = TRUE,
                      newObs = NULL) {
 
   shapeBynew = colBynew = NULL
@@ -1798,13 +1800,13 @@ scorePlot = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses, labelTop and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
     labels = TRUE
     labelTop = 1
     x$value = x$scores[,comp,drop=FALSE]
     title = paste0('Score Plot Comp',comp)
-    ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = 1, title = title)
+    ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = 1, title = title) #To Do: Revisar para que esto se pueda hacer
   } else {
     scores_df = as.data.frame(x$scores[,comp])
     colnames(scores_df) = c("x", "y")
@@ -1891,6 +1893,12 @@ scorePlot = function(x,
       # Dejar que el usuario pueda meter sus labels
       if(length(labels)!=nrow(scores_df)) return(stop('labels vector must have the same length as observations in the dataset'))
       rownames(scores_df) = labels
+    }
+
+    if(!is.null(labelTop) & !is.null(labels)){
+      hip = rowSums(scores_df^2)
+      top_vars =  order(hip, decreasing = T)[1:ceiling(length(hip) * labelTop)]
+      labels[-top_vars] = ''
     }
 
     if(!is.null(colBy) || !is.null(colBynew)) {  # col by given variable or by a variable in the original dataset
@@ -2004,10 +2012,19 @@ scorePlot = function(x,
         scale_shape_manual(values = rev(0:18)[1:length(unique(scores_df$shapeBy))], name = shapeByname)
     }
 
-    if(!is.null(labels)) {
+    if (repel & !is.null(labels)) {
+      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels),
+                                           max.overlaps = 100,
+                                           box.padding = 0.25,
+                                           point.padding = 0.25,
+                                           segment.color = "black", show.legend = F)
+    }
+
+    if(!repel & !is.null(labels)) {
       ggp = ggp +
         geom_text(aes(label = labels), size = 3, angle = 60, hjust = 1, vjust = 1, show.legend = F)  # Add labels
     }
+
   }
 
   return(ggp)
@@ -2022,6 +2039,8 @@ scorePlotmb = function(x,
                        shapeBy = NULL,
                        ellipses = TRUE,
                        labels = FALSE,
+                       labelTop = NULL,
+                       repel = TRUE,
                        newObs = NULL) {
 
   shapeBynew = colBynew = colByd = shapeByd = newObsb = NULL
@@ -2030,7 +2049,7 @@ scorePlotmb = function(x,
   if(is.null(comp) & x$ncomp!=1) comp = 1:2
 
   if(is.null(comp) | length(comp) == 1) {
-    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses, labelTop and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
     for (i in 1:length(x$X)){
       x$value = x$Bscores[[i]][,comp,drop=FALSE]
@@ -2104,6 +2123,11 @@ scorePlotmb = function(x,
         # Dejar que el usuario pueda meter sus labels
         if(length(labels)!=nrow(scores_df)) return(stop('labels vector must have the same length as observations in the dataset'))
         rownames(scores_df) = labels
+      }
+      if(!is.null(labelTop) & !is.null(labels)){
+        hip = rowSums(scores_df^2)
+        top_vars =  order(hip, decreasing = T)[1:ceiling(length(hip) * labelTop)]
+        labels[-top_vars] = ''
       }
 
       if(!is.null(colBy) || !is.null(colBynew)) {  # col by given variable or by a variable in the original dataset
@@ -2230,7 +2254,15 @@ scorePlotmb = function(x,
         }
       }
 
-      if(!is.null(labels)) {
+      if (repel & !is.null(labels)) {
+        ggp = ggp + ggrepel::geom_text_repel(aes(label = labels),
+                                             max.overlaps = 100,
+                                             box.padding = 0.25,
+                                             point.padding = 0.25,
+                                             segment.color = "black", show.legend = F)
+      }
+
+      if(!repel & !is.null(labels)) {
         ggp = ggp +
           geom_text(aes(label = labels), size = 3, angle = 60, hjust = 1, vjust = 1, show.legend = F)  # Add labels
       }
@@ -2270,6 +2302,11 @@ scorePlotmb = function(x,
       # Dejar que el usuario pueda meter sus labels
       if(length(labels)!=nrow(scores_df)) return(stop('labels vector must have the same length as observations in the dataset'))
       rownames(scores_df) = labels
+    }
+    if(!is.null(labelTop) & !is.null(labels)){
+      hip = rowSums(scores_df^2)
+      top_vars =  order(hip, decreasing = T)[1:ceiling(length(hip) * labelTop)]
+      labels[-top_vars] = ''
     }
 
     if(!is.null(colBy) || !is.null(colBynew)) {  # col by given variable or by a variable in the original dataset
@@ -2384,7 +2421,15 @@ scorePlotmb = function(x,
         scale_shape_manual(values = rev(0:18)[1:length(unique(scores_df$shapeBy))], name = shapeByname)
     }
 
-    if(!is.null(labels)) {
+    if (repel & !is.null(labels)) {
+      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels),
+                                           max.overlaps = 100,
+                                           box.padding = 0.25,
+                                           point.padding = 0.25,
+                                           segment.color = "black", show.legend = F)
+    }
+
+    if(!repel & !is.null(labels)) {
       ggp = ggp +
         geom_text(aes(label = labels), size = 3, angle = 60, hjust = 1, vjust = 1, show.legend = F)  # Add labels
     }
@@ -3431,6 +3476,7 @@ corrPlot = function(x,
                     shape = c('arrow', 'point')[1],
                     selVars = NULL,
                     labels = TRUE,
+                    labelTop = NULL,
                     repel = FALSE,
                     newObs = NULL) {
 
@@ -3478,15 +3524,28 @@ corrPlot = function(x,
     if(!is.null(selVars) & is.null(colBy)) colBy = 'cos2'
 
     if(!is.null(colBy) && length(colBy)==1){ #Mirar esto tambien
-      if(colBy == 'contrib') return(stop('contrib not permitted in correlation plot'))
-      num = T
-      corr_df$colBy = rowSums(corr_df[, c("x", "y")]^2) #Verificar esto
-      colBy = corr_df$colBy
-      colByname = 'cos2'
+
+      if(colBy == 'contrib'){
+        num = T
+        load_df = as.data.frame(x$loadings[,comp,drop=FALSE])
+        colnames(load_df) = c("x", "y")
+        corr_df$colBy = rowSums(load_df^2)
+        colBy = corr_df$colBy
+        colByname = 'contrib'
+      } else if(colBy == 'cos2'){
+        num = T
+        corr_df$colBy = rowSums(corr_df[, c("x", "y")]^2)
+        colBy = corr_df$colBy
+        colByname = 'cos2'
+      }
       if(!is.null(selVars)){
         top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
         corr_df = corr_df[top_vars,,drop=FALSE]
         labels = labels[top_vars]
+      }
+      if (!is.null(labelTop)) {
+        top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * labelTop)]
+        labels[-top_vars] = ''
       }
     }
 

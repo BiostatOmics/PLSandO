@@ -4,7 +4,7 @@
 \alias{plsdaOutlierContrib}
 \title{Outlier Contribution Analysis}
 \usage{
-plsdaOutlierContrib(x, outliers, labelSize = 1)
+plsdaOutlierContrib(x, outliers, labelSize = 1, specificObs = NULL)
 }
 \arguments{
 \item{x}{An object returned by the \code{plsda()} function.}
@@ -12,6 +12,8 @@ plsdaOutlierContrib(x, outliers, labelSize = 1)
 \item{outliers}{Output from the \code{plsdaOutliers()} function.}
 
 \item{labelSize}{Numeric. Font size for axis labels in the contribution plots.}
+
+\item{specificObs}{Character or vector of characters. Names of the specific observations to plot.}
 }
 \value{
 Bar plots of contributions and a list of numerical contribution values.

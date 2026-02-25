@@ -80,10 +80,12 @@ pca = function(x,
     #Habria que discutir si metemos el caso de valores faltantes a MBPCA
     mypca = nipals_mbpca(x, ncomp = ncomp)
 
+    totalVar = sum(sapply(x, function(y) sum(apply(y, 2, function(z) var(z,na.rm = TRUE)))))
+
     explVar = data.frame("comp" = factor(1:ncomp),
                          "eigenVal" = mypca$eigen,
-                         "percVar" = round(100*mypca$eigen/sum(mypca$eigen),4),
-                         "cumPercVar" = round(100*cumsum(mypca$eigen/sum(mypca$eigen)),4))
+                         "percVar" = round(100*mypca$eigen/totalVar,4),
+                         "cumPercVar" = round(100*cumsum(mypca$eigen/totalVar),4))
     explVarBlock = setNames(lapply(b_names, function(y){
       expl = data.frame("comp" = factor(1:ncomp),
                         "percVar" = round(c(mypca$explvarB[[y]][1] ,diff(as.numeric(mypca$explvarB[[y]]))),4),
@@ -172,14 +174,16 @@ pca = function(x,
       centrado = rep(0, times = ncol(x))
     }
 
+    totalVar = sum(apply(x, 2, function(x) var(x,na.rm = TRUE)))
+
     if(any(is.na(x)) && algo == 'svd') return(stop('Missing values detected. Please remove or impute them, or use the nipals algorithm instead'))
 
     mypca = if(algo == 'svd') svd_pca(x, ncomp = ncomp) else nipals_pca(x, ncomp = ncomp)
 
     explVar = data.frame("comp" = factor(1:length(mypca$eigen)),
                          "eigenVal" = mypca$eigen,
-                         "percVar" = round(100*mypca$eigen/sum(mypca$eigen),4),
-                         "cumPercVar" = round(100*cumsum(mypca$eigen/sum(mypca$eigen)),4))
+                         "percVar" = round(100*mypca$eigen/totalVar,4),
+                         "cumPercVar" = round(100*cumsum(mypca$eigen/totalVar),4))
 
     return(list("scores" = mypca$scores,
                 "loadings" = mypca$loadings,
@@ -217,6 +221,7 @@ pca = function(x,
 #'   \item For \strong{Scores}: A column name from the dataset or an external vector.
 #'   \item For \strong{Loadings/Correlation}: Can be one of: \code{"contrib"} (to color by variable contribution)
 #'   or \code{"cos2"} (to color by the quality of representation).
+#'   \item For \strong{biPlot}: A column name from the dataset or an external vector to color the observations.
 #' }
 #' By default, no variable is used.
 #' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.
@@ -224,7 +229,7 @@ pca = function(x,
 #' @param ellipses Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.
 #' @param selVars Numeric. The number of top variables to display in loading, correlation, or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.
 #' @param labels Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.
-#' @param labelTop Numeric (0 to 1). Percentage of variables to label based on their importance (contribution or cos2).
+#' @param labelTop Numeric (0 to 1). Percentage of variables/observations to label based on their importance (contribution or cos2).
 #' @param repel Logical. If \code{TRUE}, uses \code{ggrepel} to prevent label overlap (recommended for loadings and biplots).
 #' @param newObs Optional. A data frame (or list of data frames for MB-PCA) containing new observations to project onto the existing model.
 #'
@@ -250,7 +255,7 @@ pcaPlot = function(x,
                    selVars = NULL,
                    labels = NULL,
                    labelTop = NULL, #percentage expressed in 0-1 range
-                   repel = TRUE, #not implemented for scores
+                   repel = TRUE,
                    newObs = NULL #data.frame or list of data.frames in case of mbpca
                    ) {
 
@@ -309,6 +314,7 @@ pcaPlot = function(x,
     if(is.null(shape)) shape = 18
     if(is.null(labels)) labels = FALSE
     if(is.null(ellipses)) ellipses = TRUE
+    if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
 
     if(x$input$algo!='mbpca'){
       ggp = scorePlot(x,
@@ -319,6 +325,8 @@ pcaPlot = function(x,
                       shapeBy = shapeBy,
                       ellipses = ellipses,
                       labels = labels,
+                      labelTop = labelTop,
+                      repel = repel,
                       newObs = newObs)
     } else{
       ggp = scorePlotmb(x,
@@ -329,6 +337,8 @@ pcaPlot = function(x,
                         shapeBy = shapeBy,
                         ellipses = ellipses,
                         labels = labels,
+                        labelTop = labelTop,
+                        repel = repel,
                         newObs = newObs)
     }
   }
@@ -381,6 +391,7 @@ pcaPlot = function(x,
                      shape = shape,
                      selVars = selVars,
                      labels = labels,
+                     labelTop = labelTop,
                      repel = repel,
                      newObs = newObs)
     } else return(stop('In MBPCA corrPlot is not provided'))
@@ -494,21 +505,27 @@ pcaOutliers = function(x, ncomp = NULL,
 #' @param x An object returned by the \code{pca()} function.
 #' @param outliers Output from the \code{pcaOutliers()} function.
 #' @param labelSize Numeric. Font size for axis labels in the contribution plots.
+#' @param specificObs Character or vector of characters. Names of the specific observations to plot.
 #'
 #' @return Bar plots of contributions and a list of numerical contribution values.
 #' @export
 
-outlierContrib = function(x, outliers, labelSize = 1) {
+outlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 
   # Severe outliers (T2)
-  severos = outliers$SevereOutliers
-  num = length(severos)
+  if (!is.null(specificObs)) {
+    severos = specificObs
+    num = length(intersect(severos, outliers$SevereOutliers))
+  } else {
+    severos = outliers$SevereOutliers
+    num = length(severos)
+  }
 
   if (num == 0) {
     cat("There are no severe outliers in the data or they were not computed.\n")
     miscontrT2 = NULL
   } else {
-    cat (paste0("There are ", num, " severe outliers in the data.\n"))
+    cat (paste0("There are ", num, " severe outliers in the data provided.\n"))
     miscontrT2 = contribT2(X = x$X, scores = x$scores, loadings = x$loadings,
                            eigenval = x$explVar$eigenVal, observ = severos,
                            cutoff = 2)
@@ -521,7 +538,7 @@ outlierContrib = function(x, outliers, labelSize = 1) {
 
     for (i in severos) {
       barplot(sort(miscontrT2[,i], decreasing = TRUE),
-              las=2, cex.names = labelSize, border = NA, col = "red3",
+              las=2, cex.names = labelSize, border = NA, col = "lightcoral",
               main = paste0("Severe outlier: ", i))
     }
 
@@ -529,14 +546,19 @@ outlierContrib = function(x, outliers, labelSize = 1) {
 
 
   # Moderate outliers (RSS)
-  modera = outliers$ModerateOutliers
-  num = length(modera)
+  if (!is.null(specificObs)) {
+    modera = specificObs
+    num = length(intersect(modera, outliers$ModerateOutliers))
+  } else {
+    modera = outliers$ModerateOutliers
+    num = length(modera)
+  }
 
   if (num == 0) {
     cat("There are no moderate outliers in the data or they were not computed.\n")
     miscontrRSS = NULL
   } else {
-    cat (paste0("There are ", num, " moderate outliers in the data.\n"))
+    cat (paste0("There are ", num, " moderate outliers in the data provided.\n"))
     miscontrRSS = ContriSCR(E = outliers$E, SCR = outliers$RSS)
     miscontrRSS = miscontrRSS[modera,,drop = FALSE]
     if (num > 10) {
@@ -546,12 +568,12 @@ outlierContrib = function(x, outliers, labelSize = 1) {
     }
     for (i in modera) {
       barplot(sort(miscontrRSS[i,], decreasing = TRUE),
-              las=2, cex.names = labelSize, border = NA, col = "blue4",
+              las=2, cex.names = labelSize, border = NA, col = "skyblue",
               main = paste0("Moderate outlier: ", i))
     }
   }
 
-  return(list(contribT2 = t(miscontrT2), contribRSS = miscontrRSS))
+  return(list(contribT2 = if(!is.null(miscontrT2)) t(miscontrT2) else NULL, contribRSS = miscontrRSS))
 
 }
 

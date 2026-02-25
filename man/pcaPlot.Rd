@@ -43,6 +43,7 @@ pcaPlot(
   \item For \strong{Scores}: A column name from the dataset or an external vector.
   \item For \strong{Loadings/Correlation}: Can be one of: \code{"contrib"} (to color by variable contribution)
   or \code{"cos2"} (to color by the quality of representation).
+  \item For \strong{biPlot}: A column name from the dataset or an external vector to color the observations.
 }
 By default, no variable is used.}
 
@@ -56,7 +57,7 @@ By default, no variable is used.}
 
 \item{labels}{Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.}
 
-\item{labelTop}{Numeric (0 to 1). Percentage of variables to label based on their importance (contribution or cos2).}
+\item{labelTop}{Numeric (0 to 1). Percentage of variables/observations to label based on their importance (contribution or cos2).}
 
 \item{repel}{Logical. If \code{TRUE}, uses \code{ggrepel} to prevent label overlap (recommended for loadings and biplots).}
 
