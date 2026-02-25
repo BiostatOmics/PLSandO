@@ -31,12 +31,12 @@ devtools::install_github("BiostatOmics/PLSandO")
 
 # Load PLSandO
 
-```{r, echo=FALSE,include=FALSE}
+```{r, echo=FALSE,include=FALSE, eval=FALSE}
 devtools::load_all(".")
 ```
 
 
-```{r, echo=FALSE,eval=FALSE}
+```{r, echo=FALSE}
 library(PLSandO)
 ```
 
