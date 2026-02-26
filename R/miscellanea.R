@@ -3199,7 +3199,7 @@ weightsPlot = function(x,
           colByname = 'cos2'
         }
         if(!is.null(selVars)){
-          top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(weight_df))]
+          top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
           weight_df = weight_df[top_vars,,drop=FALSE]
           labels = labels[top_vars]
         }
@@ -3317,7 +3317,7 @@ weightsPlotmb = function(x,
             return(stop('cos2 is not available for MBPLS. Please consider using contrib instead to color variables by importance.'))
           }
           if(!is.null(selVars)){
-            top_vars = order(colBy, decreasing = T)[1:min(selVars, nrow(weight_df))]
+            top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
             weight_df = weight_df[top_vars,,drop=FALSE]
             labels = labels[top_vars]
           }
@@ -3857,7 +3857,7 @@ biPlot = function(x,
       eig = x$explVar[,'eigenVal'][comp]
       cos2 = rowSums(sweep(load_df[, c("x", "y")], 2, sqrt(eig), FUN = "/")^2)
 
-      top_vars = order(cos2, decreasing = T)[1:ceiling(length(colBy) * selVars)]
+      top_vars = order(cos2, decreasing = T)[1:ceiling(length(cos2) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labels = labels[top_vars]
     }
@@ -4111,7 +4111,7 @@ biPlotmb = function(x,
 
       if(!is.null(selVars)){
         contrib = rowSums(load_df^2)
-        top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
+        top_vars = order(contrib, decreasing = T)[1:ceiling(length(contrib) * selVars)]
         load_df = load_df[top_vars,,drop=FALSE]
         labelsLoad = labelsLoad[top_vars]
       }
@@ -4296,7 +4296,7 @@ biPlotmb = function(x,
 
     if(!is.null(selVars)){
       contrib = rowSums(load_df^2)
-      top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
+      top_vars = order(contrib, decreasing = T)[1:ceiling(length(contrib) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labelsLoad = labelsLoad[top_vars]
     }
@@ -4570,7 +4570,7 @@ biPlotPLS = function(x,
       eig = x$explVar[,'eigenVal'][comp]
       cos2 = rowSums(sweep(load_df[, c("x", "y")], 2, sqrt(eig), FUN = "/")^2)
 
-      top_vars = order(cos2, decreasing = T)[1:ceiling(length(colBy) * selVars)]
+      top_vars = order(cos2, decreasing = T)[1:ceiling(length(cos2) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labels = labels[top_vars]
     }
@@ -4827,7 +4827,7 @@ biPlotPLSmb = function(x,
 
       if(!is.null(selVars)){
         contrib = rowSums(load_df^2)
-        top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
+        top_vars = order(contrib, decreasing = T)[1:ceiling(length(contrib) * selVars)]
         load_df = load_df[top_vars,,drop=FALSE]
         labelsLoad = labelsLoad[top_vars]
       }
@@ -5013,7 +5013,7 @@ biPlotPLSmb = function(x,
 
     if(!is.null(selVars)){
       contrib = rowSums(load_df^2)
-      top_vars = order(contrib, decreasing = T)[1:ceiling(length(colBy) * selVars)]
+      top_vars = order(contrib, decreasing = T)[1:ceiling(length(contrib) * selVars)]
       load_df = load_df[top_vars,,drop=FALSE]
       labelsLoad = labelsLoad[top_vars]
     }
@@ -5054,7 +5054,8 @@ biPlotPLSmb = function(x,
 R2varcomp = function(x, col) {
 
   X = x$X
-  SCT = colSums(X**2)
+  if(any(is.na(x$X))) X = imputeNipals(x, scaled = T)
+  SCT = colSums(X**2, na.rm = T)
   mat = NULL
 
   # Loop through components and calculate cumulative R2 for each
@@ -5122,7 +5123,7 @@ R2varcompmb = function(x, col) {
 
   for( i in 1:length(x$X)){
     X = x$X[[i]]
-    SCT = colSums(X**2)
+    SCT = colSums(X**2, na.rm = T)
     mat = NULL
 
     # Loop through components and calculate cumulative R2 for each
