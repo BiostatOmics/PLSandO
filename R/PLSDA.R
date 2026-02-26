@@ -1118,6 +1118,7 @@ plsdaPlot = function(x,
       x$scores = x$scoresX
 
       if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
       if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
@@ -1148,6 +1149,7 @@ plsdaPlot = function(x,
 
       x$scores = x$scoresY
       if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
       if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
@@ -1274,7 +1276,10 @@ plsdaPlot = function(x,
       if(is.null(labels)) labels = c(FALSE, TRUE)
       if(is.null(ellipses)) ellipses = FALSE
 
-      if (is.null(newObs)){
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
+
+      if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
       } else{
         colBy = as.data.frame(c(x$input$Y[,1], as.factor(rep('newObs',nrow(Xnew)))))
@@ -1426,7 +1431,10 @@ plsdaPlot = function(x,
       x$Bscores = x$BscoresX
       x$Bloadings = x$BloadingsX
 
-      if (is.null(newObs)){
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
+
+      if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
       } else{
         colBy = as.data.frame(c(x$input$Y[,1], as.factor(rep('newObs',nrow(Xnew)))))
@@ -1441,6 +1449,8 @@ plsdaPlot = function(x,
                         shapeBy = shapeBy,
                         ellipses = ellipses,
                         labels = labels,
+                        labelTop = labelTop,
+                        repel = repel,
                         newObs = newObs)
 
     }
@@ -1456,7 +1466,11 @@ plsdaPlot = function(x,
                              "cumPercVar" = round(100*x$summary$cumR2Y,4))
 
       x$scores = x$scoresY
-      if (is.null(newObs)){
+
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
+
+      if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
       } else{
         colBy = as.data.frame(c(x$input$Y[,1], as.factor(rep('newObs',nrow(Xnew)))))
@@ -1471,6 +1485,8 @@ plsdaPlot = function(x,
                       shapeBy = shapeBy,
                       ellipses = ellipses,
                       labels = labels,
+                      labelTop = labelTop,
+                      repel = repel,
                       newObs = newObs)
 
     }
@@ -1566,7 +1582,10 @@ plsdaPlot = function(x,
       if(is.null(labels)) labels = c(FALSE, TRUE)
       if(is.null(ellipses)) ellipses = FALSE
 
-      if (is.null(newObs)){
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
+
+      if (is.null(newObs) & is.null(colBy)){
         colBy = x$input$Y
       } else{
         colBy = as.data.frame(c(x$input$Y[,1], as.factor(rep('newObs',nrow(Xnew)))))

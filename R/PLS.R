@@ -1000,6 +1000,7 @@ plsPlot = function(x,
       if(is.null(labels)) labels = FALSE
       if(is.null(ellipses)) ellipses = TRUE
       if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
       x$scores = x$scoresX
 
@@ -1023,6 +1024,7 @@ plsPlot = function(x,
       if(is.null(labels)) labels = FALSE
       if(is.null(ellipses)) ellipses = TRUE
       if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
       x$scores = x$scoresY
 
@@ -1148,6 +1150,9 @@ plsPlot = function(x,
       if(is.null(labels)) labels = c(FALSE, TRUE)
       if(is.null(ellipses)) ellipses = FALSE
 
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
+
       ggp = biPlotPLS(x,
                       comp = comp,
                       col = col,
@@ -1217,6 +1222,9 @@ plsPlot = function(x,
     if(is.null(labels)) labels = FALSE
     if(is.null(ellipses)) ellipses = TRUE
 
+    if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+    if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
+
     x$scores = x$SscoresX
     x$Bscores = x$BscoresX
     x$Bloadings = x$BloadingsX
@@ -1229,6 +1237,8 @@ plsPlot = function(x,
                     shapeBy = shapeBy,
                     ellipses = ellipses,
                     labels = labels,
+                    labelTop = labelTop,
+                    repel = repel,
                     newObs = newObs)
 
     }
@@ -1238,6 +1248,9 @@ plsPlot = function(x,
       if(is.null(shape)) shape = 18
       if(is.null(labels)) labels = FALSE
       if(is.null(ellipses)) ellipses = TRUE
+
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
       x$explVar = data.frame("comp" = factor(1:x$ncomp),
                              "percVar" = round(100*x$summary$R2Y,4),
@@ -1253,6 +1266,8 @@ plsPlot = function(x,
                       shapeBy = shapeBy,
                       ellipses = ellipses,
                       labels = labels,
+                      labelTop = labelTop,
+                      repel = repel,
                       newObs = newObs)
 
     }
@@ -1347,6 +1362,9 @@ plsPlot = function(x,
       if(is.null(shape)) shape = c(18,'arrow')
       if(is.null(labels)) labels = c(FALSE, TRUE)
       if(is.null(ellipses)) ellipses = FALSE
+
+      if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+      if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
       ggp = biPlotPLSmb(x,
                      comp = comp,

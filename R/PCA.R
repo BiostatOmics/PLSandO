@@ -315,6 +315,7 @@ pcaPlot = function(x,
     if(is.null(labels)) labels = FALSE
     if(is.null(ellipses)) ellipses = TRUE
     if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+    if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
     if(x$input$algo!='mbpca'){
       ggp = scorePlot(x,
@@ -405,6 +406,9 @@ pcaPlot = function(x,
     if(is.null(shape)) shape = c(18,'arrow')
     if(is.null(labels)) labels = c(FALSE, TRUE)
     if(is.null(ellipses)) ellipses = FALSE
+
+    if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
+    if(!is.null(shapeBy) & length(shapeBy)>1) shapeBy = as.data.frame(shapeBy)
 
     if(x$input$algo!='mbpca'){
       ggp = biPlot(x,
