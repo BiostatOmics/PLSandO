@@ -13,6 +13,7 @@ pcaPlot(
   colBy = NULL,
   shape = NULL,
   shapeBy = NULL,
+  size = NULL,
   ellipses = NULL,
   selVars = NULL,
   labels = NULL,
@@ -50,6 +51,8 @@ By default, no variable is used.}
 \item{shape}{Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.}
 
 \item{shapeBy}{Variable used to change point shapes. Can be a column name from the original dataset or an external vector/factor. Must be categorical.}
+
+\item{size}{Numeric. The size of the points in the Score plots.}
 
 \item{ellipses}{Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.}
 

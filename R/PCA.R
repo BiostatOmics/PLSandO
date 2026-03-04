@@ -226,6 +226,7 @@ pca = function(x,
 #' By default, no variable is used.
 #' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.
 #' @param shapeBy Variable used to change point shapes. Can be a column name from the original dataset or an external vector/factor. Must be categorical.
+#' @param size Numeric. The size of the points in the Score plots.
 #' @param ellipses Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.
 #' @param selVars Numeric. The number of top variables to display in loading, correlation, or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.
 #' @param labels Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.
@@ -251,6 +252,7 @@ pcaPlot = function(x,
                    colBy = NULL,
                    shape = NULL,
                    shapeBy = NULL,
+                   size = NULL,
                    ellipses = NULL,  # only for scores
                    selVars = NULL,
                    labels = NULL,
@@ -312,6 +314,7 @@ pcaPlot = function(x,
   if (type == "scores") {
 
     if(is.null(shape)) shape = 18
+    if(is.null(size)) size = 3 # redundant I think as scorePlot child function defines "size = 3" as default value
     if(is.null(labels)) labels = FALSE
     if(is.null(ellipses)) ellipses = TRUE
     if(!is.null(colBy) & length(colBy)>1) colBy = as.data.frame(colBy)
@@ -324,6 +327,7 @@ pcaPlot = function(x,
                       colBy = colBy,
                       shape = shape,
                       shapeBy = shapeBy,
+                      size = size,
                       ellipses = ellipses,
                       labels = labels,
                       labelTop = labelTop,

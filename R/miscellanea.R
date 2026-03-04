@@ -1788,6 +1788,7 @@ scorePlot = function(x,
                      colBy = NULL,
                      shape = 18,
                      shapeBy = NULL,
+                     size = 3,
                      ellipses = TRUE,
                      labels = FALSE,
                      labelTop = NULL,
@@ -1975,7 +1976,7 @@ scorePlot = function(x,
                                 limits = c(min(colBy, na.rm = TRUE), max(colBy,na.rm = TRUE)),
                                 breaks = pretty(range(colBy,na.rm = TRUE), n = 5))+
           theme(legend.position = "right") +
-          geom_point(shape = shape, size = 3)
+          geom_point(shape = shape, size = size)
 
       } else{
 
@@ -1996,7 +1997,7 @@ scorePlot = function(x,
         ggp = ggp +
           aes(color = colBy, fill = colBy) +
           scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)+
-          geom_point(shape = shape, size = 3)
+          geom_point(shape = shape, size = size)
         if(ellipses){
           ggp = ggp +
             stat_ellipse(aes(group = colBy, fill = colBy), type = "norm", level = 0.95, geom = "polygon", alpha = 0.2)
@@ -2004,11 +2005,11 @@ scorePlot = function(x,
       }
     } else{
       if (col %in% c('main', 'complete', 'cblindfriendly', 'sunshine','hot','warm','grass','oficial')) col = 'skyblue4'
-      ggp = ggp + geom_point(shape = shape, size = 3, color = col)
+      ggp = ggp + geom_point(shape = shape, size = size, color = col)
     }
 
     if(!is.null(shapeBy)){
-      ggp = ggp + geom_point(aes(shape = shapeBy), size = 3) +  # Default color if colBy is NULL
+      ggp = ggp + geom_point(aes(shape = shapeBy), size = size) +  # Default color if colBy is NULL
         scale_shape_manual(values = rev(0:18)[1:length(unique(scores_df$shapeBy))], name = shapeByname)
     }
 
@@ -2022,7 +2023,7 @@ scorePlot = function(x,
 
     if(!repel & !is.null(labels)) {
       ggp = ggp +
-        geom_text(aes(label = labels), size = 3, angle = 60, hjust = 1, vjust = 1, show.legend = F)  # Add labels
+        geom_text(aes(label = labels), size = size, angle = 60, hjust = 1, vjust = 1, show.legend = F)  # Add labels
     }
 
   }
