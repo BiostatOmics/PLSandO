@@ -3490,6 +3490,8 @@ corrPlot = function(x,
     eig = x$explVar[,'eigenVal'][comp]
     corr_df[,c('x','y')] = sweep(corr_df[, c("x", "y")], 2, sqrt(eig), FUN = "*")
 
+    if(x$input$scalingType!='standard') corr_df[,c('x','y')] = t(apply(x$X,2, function(y) cor(y, x$scores)))[,comp,drop=F]
+
     if(!is.null(newObs)){
       if(!all(sapply(newObs, is.numeric))) return(stop('Categorical variables detected on newObs consider using Preparing function before including them'))
 
