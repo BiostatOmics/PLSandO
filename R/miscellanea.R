@@ -2458,7 +2458,7 @@ loadingPlot = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (!is.null(selVars) | shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (!is.null(selVars) | shape!=18 | !is.null(newObs)) cat('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
     x$value = x$loadings[,comp,drop=FALSE]
     title = paste0('Loading Plot Comp', comp)
@@ -2602,7 +2602,7 @@ loadingPlotmb = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (shape!=18 | !is.null(selVars)) cat('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (shape!=18 | !is.null(selVars)) cat('Warning: shape and selVars parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
 
     for (i in 1:length(x$X)){
