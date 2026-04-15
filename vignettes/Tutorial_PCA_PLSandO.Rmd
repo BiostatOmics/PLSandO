@@ -1,0 +1,306 @@
+---
+title: "Principal Component Analysis (PCA)"
+author: "Sonia Tarazona & Maider Aguerralde"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, warning=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+## Installing PLSandO
+# install.packages("devtools")
+# devtools::install_github("BiostatOmics/PLSandO")
+library(PLSandO)
+library(gridExtra)
+```
+
+
+
+# Data reading and preparation
+
+In this tutorial we will use the example data *Cereals.csv*:
+
+```{r datos1}
+cereals = read.csv("Cereals.csv", row.names = 1, as.is = TRUE)
+```
+
+
+The **Preparing()** function from the *PLSandO* library applies the following procedures for data cleaning and preparation:
+
+* Transforms categorical variables into 0-1 dummy variables, so that they can be included in the PCA model, or excludes them (depending on the option chosen).
+
+* Removes variables with low variability (see default value).
+
+* Removes variables or observations with a high percentage of missing values (see default value). If missing values remain, we have two options: (1) Impute the missing values, or (2) Choose the NIPALS algorithm to estimate the PCA model with the *PLSandO* library, which supports missing values.
+
+
+Our goal is to analyse the nutritional content of cereals and its relationship with the *rating* variable, in order to understand what criteria the experts used to assign higher or lower *rating* scores to the cereals. Therefore, we will select the variables to include in the PCA model and apply the **Preparing()** function.
+
+
+```{r}
+cerePCA = subset(cereals, select = -c(mfr, type, shelf, weight, cups))
+cerePCA = Preparing(cerePCA, 
+                    includeFactors = TRUE, CVfilter = 0.01, excludeNA = 0.2)
+cerePCA$removed
+cerePCA = cerePCA$x
+summary(cerePCA)
+```
+
+One observation (*Quaker_Oatmeal*) has been removed for having 20% missing values. We save the resulting dataset to continue the analysis. From the descriptive summary above, we can see that missing values remain in the *potass* variable, and that the magnitudes of the variables differ considerably from one another.
+
+
+
+# Initial PCA model and selection of the number of PCs
+
+To apply PCA, we always centre the variables. Regarding scaling, since the nutritional variables are measured in different units and with different magnitudes as observed earlier, scaling is necessary. The choice of centring and scaling can be made within the **pca()** function itself. We can either specify the number of principal components (PCs) to extract, or indicate NULL so that the maximum possible number of PCs is estimated, allowing us to determine how many to retain based on our chosen criterion.
+
+```{r}
+mipca = pca(cerePCA, ncomp = NULL,
+            algo = "nipals", scaling = "standard")
+```
+
+
+From this PCA model, we plot the *scree plot* to decide the number of PCs to retain, and also display the table with the variance explained by each PC and the cumulative variance:
+
+```{r, fig.width=4, fig.height=4}
+pcaPlot(mipca, type = 'scree')
+K = 4
+kable(mipca$explVar[1:K,])
+```
+
+If we apply the criterion of retaining PCs that explain more variance than the "average" (red line in the plot, indicating the variance explained by each PC if all explained the same amount), we would choose 3 PCs, although PC 4 would be narrowly excluded. Since the elbow criterion may suggest `r K` PCs, we will initially retain this number of PCs, which explain `r round(mipca$explVar[K,"cumPercVar"],1)`% of the total variance in the data.
+
+We will now perform a quick exploration of the selected PCs to confirm that everything has worked correctly, and to investigate whether we should discard any PCs that do not provide relevant information for our objective in this study: understanding the relationship between *rating* and the nutritional variables of the cereals.
+
+```{r, fig.height=8, fig.width=9}
+p1 = pcaPlot(mipca, type = 'scores', comp = 1:2, colBy = NULL, labels = TRUE,
+             labelTop = 0.1, repel = TRUE)
+p2 = pcaPlot(mipca, type = 'scores', comp = 3:4, colBy = NULL, labels = TRUE,
+             labelTop = 0.1, repel = TRUE)
+p3 = pcaPlot(mipca, type = 'corr', comp = 1:2, colBy = "contrib", 
+             labels = TRUE, repel = TRUE, col = "hot")
+p4 = pcaPlot(mipca, type = 'corr', comp = 3:4, colBy = "contrib", 
+             labels = TRUE, repel = TRUE, col = "hot")
+grid.arrange(p1,p2,p3,p4, nrow = 2)
+```
+
+In the first 2 PCs we can already observe 3 cereals that are slightly further from the rest. We will examine later whether they can be considered outliers and what to do with them.
+
+On the other hand, if our goal is to study the relationship between cereal *rating* and the remaining variables, we can discard PC3 and PC4, since *rating* is poorly represented in those PCs. Therefore, we generate a new PCA model with 2 PCs.
+
+```{r}
+K = 2
+mipca = pca(cerePCA, ncomp = K,
+            algo = "nipals", scaling = "standard")
+```
+
+
+
+
+# PCA model validation
+
+
+## Detection of moderate outliers using the distance to the model (RSS)
+
+We will study the distance to the PCA model using the Residual Sum of Squares (RSS), which will help us detect moderate outliers, i.e. observations (cereals) that are not well explained by the PCA model.
+
+```{r, fig.width=8, fig.height=4}
+par(mfrow = c(1,2))
+anomSCR95 = pcaOutliers(mipca, method = "RSS", conf = 95)
+anomSCR99 = pcaOutliers(mipca, method = "RSS", conf = 99)
+```
+
+At a 95% confidence level, the following cereals are moderate outliers:
+```{r}
+moderados = sort(anomSCR95$RSS[anomSCR95$ModerateOutliers], decreasing = TRUE)
+moderados
+```
+
+
+
+In this case, there are `r length(anomSCR95$ModerateOutliers)` cereals that exceed the 95% confidence limit, and `r length(anomSCR99$ModerateOutliers)` that exceed the 99% limit. Since, at the 95% level, the expected number of false alarms is `r 0.05*nrow(cerePCA)`, let us examine which variables contribute most to the anomalies of the cereals with the highest RSS: `r names(moderados[1:3])`.
+
+```{r, fig.width=9, fig.height=4}
+par(mfrow = c(1,3))
+outlierContrib(mipca, outliers = anomSCR95, specificObs = names(moderados[1:3]))
+```
+
+To verify what is happening with the variables causing the anomalies of these cereals, we will plot a box-and-whisker diagram of the scaled variables and see where our outlier cereals fall:
+
+```{r, fig.height=4, fig.width=4}
+boxplot(mipca$X, las = 2, main = "Scaled data")
+kable(round(mipca$X[names(moderados[1:3]),],2))
+```
+
+For example, we saw in the contribution plots that the cereal "Product_19" has an abnormally high value for the *vitamins* variable, specifically `r round(mipca$X["Product_19","vitamins"], 2)`. This particular case is not a concern because *vitamins* only takes 3 values in our dataset and this cereal takes the highest value; it will not be treated as an outlier nor considered an error.
+
+```{r}
+table(cerePCA$vitamins)
+```
+
+Looking at the cereal "100%_Natural_Bran", the RSS contribution plot indicates that it has an abnormally high value for *fat* and a somewhat low value for *sodium*. The latter is not a concern, but the high *fat* value stands out — again, this variable only takes a few discrete values, as shown in the table below. One possible solution for this variable, since it does not appear to be an error, would be to apply a logarithmic transformation to smooth out the influence of the outlying value.
+
+```{r}
+table(cerePCA$fat)
+```
+
+Finally, the cereal "Cheerios" has a very high value for the *protein* variable, again due to the discrete nature of this variable, which could also benefit from a logarithmic transformation.
+
+```{r}
+table(cerePCA$protein)
+```
+
+
+**Conclusion:**
+
+We will not exclude these moderate outliers for now. In addition to having few observations in our dataset, they do not fall far beyond the confidence limit. It would, however, be worth considering a logarithmic transformation of the *protein* and *fat* variables to smooth out the influence of their most extreme values.
+
+
+
+
+## Detection of severe outliers with Hotelling's T²
+
+Hotelling's $T^2$ statistic allows us to identify severe outliers that could be driving the model, i.e. influencing the construction of the PCs. Recall that severe outliers are those detected by the Hotelling $T^2$ plot that also show a low RSS.
+
+
+```{r T2, fig.width=8, fig.height=4}
+par(mfrow = c(1,2))
+anomSev95 = pcaOutliers(mipca, method = "T2", conf = 95)
+anomSev99 = pcaOutliers(mipca, method = "T2", conf = 99)
+anomSev95$T2[anomSev95$SevereOutliers]
+```
+
+We are particularly concerned about the cereal `r anomSev99$SevereOutliers`, due to its very high Hotelling $T^2$ value, which is well beyond the confidence limit and was not flagged as a moderate outlier by the RSS. Let us examine its contribution plot:
+
+```{r, fig.width=4, fig.height=4}
+outlierContrib(mipca, outliers = anomSev99)
+mipca$X[anomSev99$SevereOutliers,]
+```
+
+This cereal has extreme values for *fiber* and *rating*. Since both variables show abnormally high values, they could benefit from a logarithmic transformation to reduce their influence in future analyses.
+
+
+
+## PCA model after adjustments from outlier detection
+
+In this study we will not remove outliers, but we will apply logarithmic transformations to the variables identified as influential during outlier detection: *fiber*, *rating*, *protein*, and *fat*, and we will refit the PCA model.
+
+```{r}
+var2transf = c("fiber", "rating", "protein", "fat")
+for (v in var2transf) {
+  if (min(cerePCA[,v], na.rm = TRUE) == 0) {
+    cerePCA[,v] = log(cerePCA[,v]+1)
+  }
+  if (min(cerePCA[,v], na.rm = TRUE) > 0) {
+    cerePCA[,v] = log(cerePCA[,v])
+  }
+  if (min(cerePCA[,v], na.rm = TRUE) < 0) {
+    cerePCA[,v] = log(cerePCA[,v]-min(cerePCA[,v], na.rm = TRUE)+1)
+  }
+}
+```
+
+
+
+```{r}
+K = 2
+mipca = pca(cerePCA, ncomp = K,
+            algo = "nipals", scaling = "standard")
+kable(mipca$explVar[1:K,])
+```
+
+
+
+
+# Interpretation of the PCA model
+
+We will now interpret the new PCA model obtained.
+
+We colour the scores plot by manufacturer to see whether cereals from the same manufacturer tend to have similar nutritional content. To do so, we need to retrieve this information from the original dataset. We will also group minority manufacturers into an "O" (other) category, and use point shapes to represent the shelf position of the cereals in the supermarket.
+
+```{r}
+manufacturer = cereals[rownames(cerePCA), "mfr"]
+table(manufacturer)
+manufacturer = factor(manufacturer, labels = c("O", "G", "K", "O", "P", "O", "R"))
+table(manufacturer)
+```
+
+
+## Score plot and variable plots
+
+```{r, fig.height=4, fig.width=9}
+p1 = pcaPlot(mipca, type = 'scores', comp = 1:2, 
+             colBy = data.frame("mfr" = manufacturer), 
+             labels = TRUE, ellipses = FALSE, repel = TRUE, labelTop = 0.1)
+p2 = pcaPlot(mipca, type = 'corr', comp = 1:2, colBy = "contrib", 
+             labels = TRUE, repel = TRUE, col = "hot")
+grid.arrange(p1,p2, nrow = 1)
+```
+
+
+In the scores plot, we can see that the main grouping of cereals is not by manufacturer, as cereals from different manufacturers are mixed together.
+
+Regarding the variables, there appears to be a positive correlation between *protein*, *fiber*, and *potass*, as well as between *calories* and *sugars*, while *rating* is negatively correlated with the latter two. Since *rating* contributes mainly to PC1, we can see that other variables with large loadings on this component and with the same sign are *fiber* and *protein*, which will therefore also be somewhat related to *rating*.
+
+Combining both plots and focusing on *rating*, it seems that the cereal "All-Bran-with-Extra-Fiber" will have the highest rating, while "Cap'n'Crunch" will have the lowest. Let us confirm this:
+
+```{r}
+ratingOrder = cerePCA[order(cerePCA$rating, decreasing = TRUE), "rating", drop = FALSE]
+ratingOrder[1:3,,drop = FALSE]
+ratingOrder[nrow(cerePCA),,drop = FALSE]
+```
+
+We can also observe that the cereals with the highest fibre and potassium content will be "All-bran" and "100%_Bran", or that "Puffed_Rice" will have a high carbohydrate content.
+
+Next, we generate scatter plots to confirm the hypotheses about the relationships between variables suggested by the PCA:
+
+```{r disper, fig.width=10, fig.height=10}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y, use = "pairwise.complete.obs")
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * abs(r))
+}
+pairs(cerePCA[,c("rating", "potass", "fiber", "protein", "sugars", "calories")],
+      lower.panel = panel.cor, pch = 20, col = "red3")
+```
+
+
+
+**NOTE:** It is not always necessary to perform the checks above. We have done so here to aid our understanding of the PCA interpretation. That said, it is always worthwhile to generate any plots deemed necessary to illustrate and corroborate the conclusions drawn from the PCA about relationships between variables, or between variables and observations.
+
+
+
+
+## $R^2$ plot
+
+The following plot shows the percentage of variability of each variable ($k$) explained by the PCA model ($R^2_k(cum)$). It allows us to identify which variables are best explained by the model.
+
+```{r, fig.height=4, fig.width=4}
+pcaPlot(mipca, type = "R2")
+```
+
+
+
+## Biplot
+
+It is sometimes useful to represent variables and observations in the same plot to improve interpretation. However, care must be taken in how these plots are constructed, because if there are many observations and/or variables, it may not be the best option as the information can become difficult to read.
+
+In this case, we will not display the names of the cereals, only those of the variables, excluding the two that are most poorly represented in the first two PCs, and we will colour the cereals according to the shelf on which they are placed in the supermarket.
+
+```{r biplot, fig.width=8, fig.height=5}
+shelf = factor(cereals[rownames(cerePCA), "shelf"])
+pcaPlot(mipca, type = 'biplot', comp = 1:2, 
+        colBy = data.frame("shelf" = shelf), selVars = 0.8, repel = TRUE)
+```

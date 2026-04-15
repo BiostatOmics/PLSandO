@@ -34,3 +34,7 @@ devtools::install_github('etam4260/kneedle')
 
 You can find the User Guide for the package in the vignettes folder or access it directly [here](https://github.com/BiostatOmics/PLSandO/blob/master/vignettes/tutorial.html). 
 
+For more in-depth information, we provide extended tutorials for each specific model:
+
+* PCA: Detailed PCA model usage with PLSandO can be found [here](https://github.com/BiostatOmics/PLSandO/blob/master/vignettes/Tutorial_PCA_PLSandO.html).
+
