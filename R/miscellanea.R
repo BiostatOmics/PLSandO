@@ -1981,7 +1981,7 @@ scorePlot = function(x,
 
         if (length(col)>1){
           if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-          custom_colors = setNames(col, unique(scores_df$colBy))
+          custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
         } else{
           num_unique = length(unique(scores_df$colBy))
           if(num_unique== 2){
@@ -2215,7 +2215,7 @@ scorePlotmb = function(x,
 
           if (length(col)>1){
             if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-            custom_colors = setNames(col, unique(scores_df$colBy))
+            custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
           } else{
             num_unique = length(unique(scores_df$colBy))
             if(num_unique== 2){
@@ -2390,7 +2390,7 @@ scorePlotmb = function(x,
 
         if (length(col)>1){
           if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-          custom_colors = setNames(col, unique(scores_df$colBy))
+          custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
         } else{
           num_unique = length(unique(scores_df$colBy))
           if(num_unique== 2){
@@ -3798,7 +3798,7 @@ biPlot = function(x,
 
         if (length(col)>1){
           if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-          custom_colors = setNames(col, unique(scores_df$colBy))
+          custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
         } else{
           num_unique = length(unique(scores_df$colBy))
           if(num_unique== 2){
@@ -4045,7 +4045,7 @@ biPlotmb = function(x,
 
           if (length(col)>1){
             if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-            custom_colors = setNames(col, unique(scores_df$colBy))
+            custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
           } else{
             num_unique = length(unique(scores_df$colBy))
             if(num_unique== 2){
@@ -4240,7 +4240,7 @@ biPlotmb = function(x,
 
         if (length(col)>1){
           if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-          custom_colors = setNames(col, unique(scores_df$colBy))
+          custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
         } else{
           num_unique = length(unique(scores_df$colBy))
           if(num_unique== 2){
@@ -4503,7 +4503,7 @@ biPlotPLS = function(x,
 
         if (length(col)>1){
           if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-          custom_colors = setNames(col, unique(scores_df$colBy))
+          custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
         } else{
           num_unique = length(unique(scores_df$colBy))
           if(num_unique== 2){
@@ -4761,7 +4761,7 @@ biPlotPLSmb = function(x,
 
           if (length(col)>1){
             if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-            custom_colors = setNames(col, unique(scores_df$colBy))
+            custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
           } else{
             num_unique = length(unique(scores_df$colBy))
             if(num_unique== 2){
@@ -4957,7 +4957,7 @@ biPlotPLSmb = function(x,
 
         if (length(col)>1){
           if (length(col)!= length(unique(scores_df$colBy))) return(stop('Either provide colors for the number of categories in colBy or use the default color palette'))
-          custom_colors = setNames(col, unique(scores_df$colBy))
+          custom_colors = if (is.null(col)) setNames(col, unique(scores_df$colBy)) else col
         } else{
           num_unique = length(unique(scores_df$colBy))
           if(num_unique== 2){
