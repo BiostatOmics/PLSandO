@@ -587,7 +587,7 @@ outlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 #'
 #' @description Reconstructs missing values (NAs) in the original matrix using the underlying structure captured by the PCA/PLS model.
 #'
-#' @param x An object returned by the \code{pca()} function.
+#' @param x An object returned by the \code{pca()}, \code{pls()} or \code{plsda()} function.
 #' @param scaled Logical. If TRUE, returns data in the model's scale (centered/scaled).
 #' If FALSE, returns data in the original units. By default, FALSE.
 #'
@@ -599,7 +599,9 @@ imputeNipals = function(x, scaled = FALSE){
   if(x$input$model == 'pca'){
     Xest = tcrossprod(x$scores, x$loadings)
   } else{
-    Xest = tcrossprod(x$scoresX, x$loadingsX)
+    ncomp = min(nrow(x$X)-1, ncol(x$X))
+    mypls = nipals_pls(x$X,x$Y,ncomp = ncomp)
+    Xest = tcrossprod(mypls$scores, mypls$loadings)
   }
   X[is.na(X)] = Xest[is.na(X)]
 

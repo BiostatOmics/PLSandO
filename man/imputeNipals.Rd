@@ -7,7 +7,7 @@
 imputeNipals(x, scaled = FALSE)
 }
 \arguments{
-\item{x}{An object returned by the \code{pca()} function.}
+\item{x}{An object returned by the \code{pca()}, \code{pls()} or \code{plsda()} function.}
 
 \item{scaled}{Logical. If TRUE, returns data in the model's scale (centered/scaled).
 If FALSE, returns data in the original units. By default, FALSE.}
