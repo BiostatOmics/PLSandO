@@ -304,3 +304,19 @@ shelf = factor(cereals[rownames(cerePCA), "shelf"])
 pcaPlot(mipca, type = 'biplot', comp = 1:2, 
         colBy = data.frame("shelf" = shelf), selVars = 0.8, repel = TRUE)
 ```
+
+
+
+# Missing value imputation with PCA
+
+Recall that the dataset used has some missing values. That is why we apply the NIPALS algorithm to estimate the PCA model, which supports missing values.
+
+However, if we want to impute the missing values in order to fit other models that do not support them, the **imputePCA()** function from the *PLSandO* library allows us to do so.
+
+```{r}
+summary(cerePCA$potass)
+cerePCAimp = imputeNipals(mipca)
+summary(cerePCAimp)
+```
+
+As we can observe, the missing values in the *potass* variable have been imputed.
