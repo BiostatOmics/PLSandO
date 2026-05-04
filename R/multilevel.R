@@ -168,8 +168,8 @@ multilevelPlot = function(x,
     if(type%in% c("ncomp", "R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "coef")) return(stop('Plot not available for PCA models, please select one of scree, scores, loadings, R2, corr, biplot'))
 
     x$arguments$design$group = as.character(x$arguments$design$group)
-    colBy = if(is.null(colBy)) if(type=='scores' | type == 'biplot') x$arguments$design
-    ellipses = if(is.null(ellipses)) ellipses = FALSE
+    colBy = if(is.null(colBy)) if(type=='scores' | type == 'biplot') x$arguments$design else colBy else colBy
+    ellipses = if(is.null(ellipses)) ellipses = FALSE else ellipses
 
     ggp1 = pcaPlot(x$Between, type = type, comp = comp, col = col, colBy = colBy, shape = shape, shapeBy = shapeBy,
                    ellipses = ellipses, selVars = selVars, labels = labels, labelTop = labelTop, repel = repel, newObs = newObs)
