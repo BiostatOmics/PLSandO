@@ -37,7 +37,7 @@ multilevel = function(x, y = NULL, design =NULL,
                method = c('pca','pls','plsda')[1])
 {
   x = as.data.frame(x)
-  if(is.null(ncomp)) ncomp = max(length(table(design))-1, ceiling(nrow(x)/length(table(design))))
+  if(is.null(ncomp)) ncomp = min(min(nrow(x)-1, ncol(x)), max(length(table(design))-1, ceiling(nrow(x)/length(table(design)))))
 
   if(!all(sapply(x, is.numeric))) {
     warning('Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.')
@@ -60,6 +60,9 @@ multilevel = function(x, y = NULL, design =NULL,
 
   #Calculate the within subject variation (differences within groups of subjects) (el de interes) (total variation due to the treatment)
   design = as.data.frame(design)
+  if(all(!is.na(suppressWarnings(as.numeric(rownames(design)))))) {
+    rownames(design) = paste0('r', rownames(design))
+  }
   if(all(order(rownames(design))!= order(rownames(X)))) rownames(design) = rownames(X)
   design = design[rownames(x),,drop=FALSE]
   colnames(design) = c('group')
