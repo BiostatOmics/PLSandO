@@ -85,6 +85,21 @@ pls = function(x, y,
       y = Py$x
     }
 
+    rownames_consistency = all(sapply(x, function(b) identical(rownames(b), rownames(x[[1]]))))
+    if(!rownames_consistency){
+      for (i in 2:length(x)) {
+        if (!identical(rownames(x[[1]]), rownames(x[[i]]))) {
+          cat('Warning: Observations on x blocks contain different identifiers. We consider that they are ordered and we will consider the nomenclature of the first block to unify them\n')
+          rownames(x[[i]]) = rownames(x[[1]])
+        }
+      }
+    }
+
+    if(any(rownames(x[[1]])!=rownames(y))){
+      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      rownames(y) = rownames(x)
+    }
+
     ## Divide data into train and test
 
     if (train < 1) {
@@ -434,6 +449,11 @@ pls = function(x, y,
       y = Py$x
     }
 
+    if(any(rownames(x)!=rownames(y))){
+      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      rownames(y) = rownames(x)
+    }
+
     ## Divide data into train and test
 
     if (train < 1) {
@@ -674,82 +694,35 @@ pls = function(x, y,
 
 #' Prediction for PLS Models
 #'
-#' @description Uses previously fitted PLS or MB-PLS model to obtain the predictions of new observations.
+#' @description Uses previously fitted PLS (MB-PLS), PLS-DA (MB-PLSDA) or multilevel model to obtain the predictions of trained observations or new observations if provided.
 #'
-#' @param x A pls object returned by the \code{pls()} function.
+#' @param x A pls, plsda or multilevel object returned by the \code{pls(), plsda() or multilevel} functions.
 #' @param new A matrix, data.frame, or list of blocks (for MB-PLS or for PLS with block-scaling) containing
 #'   the new observations to be predicted.
+#' @param design In case of predicting new observations in multilevel scenarios, named vector identifying the groups/subjects for the new observations.
 #' @param plot Logical. If \code{TRUE}, the function generates a score plot
 #'   showing the projection of the new observations.
 #'
 #' @return A matrix containing the predicted values for the response variable(s) Y.
 #' @export
 
-plsPredict = function(x, new = NULL, plot = TRUE) {
-  ## proyectar nuevas observaciones antes de predecir
+predict = function(x, new = NULL, design = NULL, plot = TRUE){
 
-  if(x$input$algo=='nipals'){
-
-    x$explVar = data.frame("comp" = factor(1:x$ncomp),
-                           "percVar" = round(100*x$summary$R2X,4),
-                           "cumPercVar" = round(100*x$summary$cumR2X,4))
-    x$scores = x$scoresX
-
-    if(plot) print(scorePlot(x, newObs = new))
-
-    new = as.data.frame(new)
-    new = new[,colnames(x$X)]
-
-    new = sweep(new, 2, x$scaling$center, FUN = "-")
-    new = sweep(new, 2, x$scaling$scale, FUN = "/")
-
-    if(any(rowSums(is.na(new))>0)){
-      scores = project.obs.nipals.pls(x, new, 1:x$ncomp)
-      prediction = tcrossprod(scores, x$loadingsY)
-    } else{
-      prediction = as.matrix(new) %*% x$coefficients
-    }
-    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
-
-  } else{
-
-    if(!inherits(new, "list")) return(stop('Please provide the new data structured in blocks'))
-
-    x$explVar = data.frame("comp" = factor(1:x$ncomp),
-                           "percVar" = round(100*x$summary$R2X,4),
-                           "cumPercVar" = round(100*x$summary$cumR2X,4))
-    x$Bscores = x$BscoresX; x$Sscores = x$SscoresX
-
-    if(plot) scorePlotmb(x, newObs = new)
-
-    new = lapply(new, as.matrix)
-    b_names = names(x$X)
-    new = setNames(lapply(b_names, function(b) new[[b]][,colnames(x$X[[b]])]),b_names)
-
-    centrado = x$scaling$center
-    escalado = x$scaling$scale
-
-    new = setNames(lapply(seq_along(new), function(b) {
-      tmp = sweep(new[[b]], 2, centrado[[b]], "-")
-      return(sweep(tmp, 2, escalado[[b]], "/"))
-    }),b_names)
-
-    if(any(unlist(lapply(new, function(x) any(rowSums(is.na(x))>0))))){
-      return(stop('NAs are not allowed in new observations. Consider using PLS with block-scaling rather than MBPLS'))
-    } else{
-      block_coef = lapply(x$coefficients, function(b) apply(b[,,1:x$ncomp, drop = FALSE], c(1,2), sum))
-      prediction = do.call('+',lapply(b_names, function(b) as.matrix(new[[b]])%*%block_coef[[b]]))
-    }
-
-    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
-
+  if(x$input$model == 'pls'){
+    prediction = plsPredict(x, new = new, plot = plot)
+  }
+  if(x$input$model == 'plsda'){
+    prediction = plsdaPredict(x, new = new, plot = plot)
+  }
+  if(x$input$model == 'multi'){
+    prediction = multilevelPredict(x, new = new, design = design, plot = plot)
   }
 
   return(prediction)
 
 }
+
+
 
 ### PLS plots
 
@@ -761,7 +734,6 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
 #' @param type Character. The type of visualization to generate:
 #' \itemize{
 #'   \item \code{"R2vsQ2"}: Line plot of R2 and Q2 metrics per component.
-#'   \item \code{"loadings"}: Joint visualization of X and Y loadings (for standard PLS).
 #'   \item \code{"scoresX"}: Scatter plot of observation projections for X blocks.
 #'   \item \code{"loadingsX"}: Scatter plot of variable contributions for X blocks.
 #'   \item \code{"scoresY"}: Scatter plot of observation projections for Y block.
@@ -805,7 +777,7 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
 #' @export
 
 plsPlot = function(x,
-                   type = c("R2vsQ2", "loadings", "scoresX",  "loadingsX", "scoresY", "loadingsY",
+                   type = c("R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY",
                             "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"),
                    comp = NULL,
                    col = c('main', 'complete', 'cblindfriendly','sunshine','hot','warm','grass','oficial')[1],
@@ -820,7 +792,7 @@ plsPlot = function(x,
                    newObs = NULL #data.frame
                    ) {
 
-  if(!(type %in% c("R2vsQ2", "loadings", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, loadings, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, R2, correl, biplot.'))
+  if(!(type %in% c("R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, R2, correl, biplot.'))
 
   ## R2vsQ2
 
@@ -1048,21 +1020,6 @@ plsPlot = function(x,
 
     ### Loadings
 
-    if(type == 'loadings'){
-      if(is.null(shape)) shape = 'arrow'
-      if(is.null(labels)) labels = TRUE
-
-      ggp = loadingPlotPLS(x,
-                           comp = comp,
-                           col = col,
-                           colBy = colBy,
-                           shape = shape,
-                           selVars = selVars,
-                           labels = labels,
-                           labelTop = labelTop,
-                           repel = repel)
-    }
-
     if (type == "loadingsX") {
 
       if(is.null(shape)) shape = 'arrow'
@@ -1273,23 +1230,6 @@ plsPlot = function(x,
     }
 
     ## Loadings
-
-    if (type == "loadings") {
-
-      if(is.null(shape)) shape = 'arrow'
-      if(is.null(labels)) labels = TRUE
-
-      ggp = loadingPlotPLSmb(x,
-                           comp = comp,
-                           col = col,
-                           colBy = colBy,
-                           shape = shape,
-                           selVars = selVars,
-                           labels = labels,
-                           labelTop = labelTop,
-                           repel = repel)
-
-    }
 
     if (type == "loadingsX") {
 

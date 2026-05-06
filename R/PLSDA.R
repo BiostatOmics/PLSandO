@@ -73,6 +73,21 @@ plsda = function(x, y,
 
     x = setNames(lapply(b_names, function(y) P[[y]]$x), b_names)
 
+    rownames_consistency = all(lapply(b_names, function(b) identical(rownames(x[[b]]), rownames(x[[1]]))))
+    if(!rownames_consistency){
+      for (i in 2:length(x)) {
+        if (!identical(rownames(x[[1]]), rownames(x[[i]]))) {
+          cat('Warning: Observations on x blocks contain different identifiers. We consider that they are ordered and we will consider the nomenclature of the first block to unify them\n')
+          rownames(x[[i]]) = rownames(x[[1]])
+        }
+      }
+    }
+
+    if(any(rownames(x[[1]])!=rownames(y))){
+      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      rownames(y) = rownames(x)
+    }
+
     X = x
     Y = y
 
@@ -497,6 +512,11 @@ plsda = function(x, y,
       x = do.call(cbind, x)
     }
 
+    if(any(rownames(x)!=rownames(y))){
+      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      rownames(y) = rownames(x)
+    }
+
     X = x
     Y = y
 
@@ -812,93 +832,6 @@ plsda = function(x, y,
 }
 
 
-### PLSDA predictions
-
-### PLSDA predictions
-
-#' Prediction for PLS-DA Models
-#'
-#' @description Uses previously fitted PLSDA or MB-PLSDA model to obtain the predictions of new observations.
-#'
-#' @param x A plsda object returned by the \code{plsda()} function.
-#' @param new A matrix, data.frame, or list of blocks (for MB-PLSDA or for PLSDA with block-scaling) containing
-#'   the new observations to be predicted.
-#' @param plot Logical. If \code{TRUE}, the function generates a score plot
-#'   showing the projection of the new observations.
-#'
-#' @return A matrix containing the predicted values for the response variable(s) Y.
-#' @export
-
-plsdaPredict = function(x, new = NULL, plot = TRUE) {
-  ## proyectar nuevas observaciones antes de predecir
-
-  if(x$input$algo=='nipals'){
-
-    x$explVar = data.frame("comp" = factor(1:x$ncomp),
-                           "percVar" = round(100*x$summary$R2X,4),
-                           "cumPercVar" = round(100*x$summary$cumR2X,4))
-    x$scores = x$scoresX
-
-    if(plot) print(scorePlot(x, newObs = new))
-
-    new = as.data.frame(new)
-    new = new[,colnames(x$X)]
-
-    new = sweep(new, 2, x$scaling$center, FUN = "-")
-    new = sweep(new, 2, x$scaling$scale, FUN = "/")
-
-    if(any(rowSums(is.na(new))>0)){
-      scores = project.obs.nipals.pls(x, new, 1:x$ncomp)
-      prediction = tcrossprod(scores, x$loadingsY)
-    } else{
-      prediction = as.matrix(new) %*% x$coefficients
-    }
-    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    plsprediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
-    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-
-  } else{
-
-    if(!inherits(new, "list")) return(stop('Please provide the new data structured in blocks'))
-
-    x$explVar = data.frame("comp" = factor(1:x$ncomp),
-                           "percVar" = round(100*x$summary$R2X,4),
-                           "cumPercVar" = round(100*x$summary$cumR2X,4))
-    x$Bscores = x$BscoresX; x$Sscores = x$SscoresX
-
-    if(plot) scorePlotmb(x, newObs = new)
-
-    new = lapply(new, as.matrix)
-    b_names = names(x$X)
-    new = setNames(lapply(b_names, function(b) new[[b]][,colnames(x$X[[b]])]),b_names)
-
-    centrado = x$scaling$center
-    escalado = x$scaling$scale
-
-    new = setNames(lapply(seq_along(new), function(b) {
-      tmp = sweep(new[[b]], 2, centrado[[b]], "-")
-      return(sweep(tmp, 2, escalado[[b]], "/"))
-    }),b_names)
-
-    if(any(unlist(lapply(new, function(x) any(rowSums(is.na(x))>0))))){
-      return(stop('NAs are not allowed in new observations. Consider using PLS with block-scaling rather than MBPLS'))
-    } else{
-      block_coef = lapply(x$coefficients, function(b) apply(b[,,1:x$ncomp, drop = FALSE], c(1,2), sum))
-      prediction = do.call('+',lapply(b_names, function(b) as.matrix(new[[b]])%*%block_coef[[b]]))
-    }
-
-    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    plsprediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
-    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-
-  }
-
-  return(list('prediction' = prediction, 'plsprediction' = plsprediction))
-
-}
-
 ### PLSDA plots
 
 #' Visualize PLSDA Results
@@ -910,7 +843,6 @@ plsdaPredict = function(x, new = NULL, plot = TRUE) {
 #' \itemize{
 #'   \item \code{"ncomp"}: Line plots with the suggestion of the optimal number of components based on R2vsQ2 criterion, RMSE, F1-score, MCC, Etot and BER.
 #'   \item \code{"R2vsQ2"}: Line plot of R2 and Q2 metrics per component.
-#'   \item \code{"loadings"}: Joint visualization of X and Y loadings (for standard PLSDA).
 #'   \item \code{"scoresX"}: Scatter plot of observation projections for X blocks.
 #'   \item \code{"loadingsX"}: Scatter plot of variable contributions for X blocks.
 #'   \item \code{"scoresY"}: Scatter plot of observation projections for Y block.
@@ -954,7 +886,7 @@ plsdaPredict = function(x, new = NULL, plot = TRUE) {
 #' @export
 
 plsdaPlot = function(x,
-                   type = c("ncomp","R2vsQ2", "loadings", "scoresX",  "loadingsX", "scoresY", "loadingsY",
+                   type = c("ncomp","R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY",
                             "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"),
                    comp = NULL,
                    col = c('main', 'complete', 'cblindfriendly','sunshine','hot','warm','grass','oficial')[1],
@@ -969,7 +901,7 @@ plsdaPlot = function(x,
                    newObs = NULL #data.frame
 ) {
 
-  if(!(type %in% c("ncomp","R2vsQ2", "loadings", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, loadings, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overffiting, R2, correl, biplot.'))
+  if(!(type %in% c("ncomp","R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overffiting, R2, correl, biplot.'))
 
   ## ncomp
 
@@ -1173,21 +1105,6 @@ plsdaPlot = function(x,
     }
 
     ### Loadings
-
-    if(type == 'loadings'){
-      if(is.null(shape)) shape = 'arrow'
-      if(is.null(labels)) labels = TRUE
-
-      ggp = loadingPlotPLS(x,
-                           comp = comp,
-                           col = col,
-                           colBy = colBy,
-                           shape = shape,
-                           selVars = selVars,
-                           labels = labels,
-                           labelTop = labelTop,
-                           repel = repel)
-    }
 
     if (type == "loadingsX") {
 
@@ -1492,23 +1409,6 @@ plsdaPlot = function(x,
     }
 
     ## Loadings
-
-    if (type == "loadings") {
-
-      if(is.null(shape)) shape = 'arrow'
-      if(is.null(labels)) labels = TRUE
-
-      ggp = loadingPlotPLSmb(x,
-                             comp = comp,
-                             col = col,
-                             colBy = colBy,
-                             shape = shape,
-                             selVars = selVars,
-                             labels = labels,
-                             labelTop = labelTop,
-                             repel = repel)
-
-    }
 
     if (type == "loadingsX") {
 

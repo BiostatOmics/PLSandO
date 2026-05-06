@@ -6,8 +6,8 @@
 \usage{
 plsPlot(
   x,
-  type = c("R2vsQ2", "loadings", "scoresX", "loadingsX", "scoresY", "loadingsY",
-    "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"),
+  type = c("R2vsQ2", "scoresX", "loadingsX", "scoresY", "loadingsY", "weights",
+    "linearity", "overfitting", "R2", "corr", "biplot", "coef"),
   comp = NULL,
   col = c("main", "complete", "cblindfriendly", "sunshine", "hot", "warm", "grass",
     "oficial")[1],
@@ -28,7 +28,6 @@ plsPlot(
 \item{type}{Character. The type of visualization to generate:
 \itemize{
   \item \code{"R2vsQ2"}: Line plot of R2 and Q2 metrics per component.
-  \item \code{"loadings"}: Joint visualization of X and Y loadings (for standard PLS).
   \item \code{"scoresX"}: Scatter plot of observation projections for X blocks.
   \item \code{"loadingsX"}: Scatter plot of variable contributions for X blocks.
   \item \code{"scoresY"}: Scatter plot of observation projections for Y block.

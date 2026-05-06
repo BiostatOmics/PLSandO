@@ -81,7 +81,7 @@ multilevel = function(x, y = NULL, design =NULL,
     pca_xw = pca(Xw, ncomp = ncomp, algo ="nipals", scaling = scaling)
     pca_xb = pca(Xb, ncomp = ncomp, algo ="nipals", scaling = scaling)
 
-    return(list('Within' = pca_xw, 'Between' = pca_xb, 'Xm' = Xm,'Xw'= Xw,'Xb' = Xb, 'arguments' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'design' = design)))
+    return(list('Within' = pca_xw, 'Between' = pca_xb, 'Xm' = Xm,'Xw'= Xw,'Xb' = Xb, 'input' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'design' = design, 'model' = 'multi')))
   } else if (method=='pls'){
     Y = y
 
@@ -104,12 +104,12 @@ multilevel = function(x, y = NULL, design =NULL,
 
     mypls = pls(Xw, Yw, ncomp = ncomp, scaling = scaling, scalingY = scalingY, cvFolds = cvFolds, rep = rep, perm = perm, train = train, alpha = alpha, parallel = parallel)
 
-    return(list('model' = mypls, 'Xm' = Xm, 'Xw' = Xw, 'Xb' = Xb, 'Ym' = Ym, 'Yw' = Yw, 'Yb' = Yb, 'arguments' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'scalingY'= scalingY, 'design' = design)))
+    return(list('model' = mypls, 'Xm' = Xm, 'Xw' = Xw, 'Xb' = Xb, 'Ym' = Ym, 'Yw' = Yw, 'Yb' = Yb, 'input' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'scalingY'= scalingY, 'design' = design, 'model' = 'multi')))
   } else{
 
     mypls = plsda(Xw, Y, ncomp = ncomp, scaling = scaling, scalingY = scalingY, cvFolds = cvFolds, rep = rep, perm = perm, train = train, alpha = alpha, parallel = parallel)
 
-    return(list('model' = mypls, 'Xm' = Xm, 'Xw' = Xw, 'Xb' = Xb, 'arguments' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'scalingY'= scalingY, 'design' = design)))
+    return(list('model' = mypls, 'Xm' = Xm, 'Xw' = Xw, 'Xb' = Xb, 'input' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'scalingY'= scalingY, 'design' = design, 'model' = 'multi')))
   }
 }
 
@@ -160,15 +160,15 @@ multilevelPlot = function(x,
                      newdesign = NULL
 ) {
 
-  if(x$arguments$method == 'pca'){
+  if(x$input$method == 'pca'){
     x$Between$Xm = x$Within$Xm =x$Xm
     x$Between$multi = x$Within$multi =  'multi'
     x$Between$newdesign = x$Within$newdesign = newdesign
 
     if(type%in% c("ncomp", "R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "coef")) return(stop('Plot not available for PCA models, please select one of scree, scores, loadings, R2, corr, biplot'))
 
-    x$arguments$design$group = as.character(x$arguments$design$group)
-    colBy = if(is.null(colBy)) if(type=='scores' | type == 'biplot') x$arguments$design else colBy else colBy
+    x$input$design$group = as.character(x$input$design$group)
+    colBy = if(is.null(colBy)) if(type=='scores' | type == 'biplot') x$input$design else colBy else colBy
     ellipses = if(is.null(ellipses)) ellipses = FALSE else ellipses
 
     ggp1 = pcaPlot(x$Between, type = type, comp = comp, col = col, colBy = colBy, shape = shape, shapeBy = shapeBy,
@@ -189,14 +189,14 @@ multilevelPlot = function(x,
 
   }
 
-  if(x$arguments$method == 'pls'){
+  if(x$input$method == 'pls'){
     x$model$Xm = x$Xm
     x$model$multi = 'multi'
     x$model$newdesign = newdesign
 
     if(type%in% c("scree", "scores", "ncomp")) return(stop('Plot not available for PLS models, please select one of R2vsQ2, scoresX, loadings, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, coef, R2, corr, biplot'))
-    x$arguments$design$group = as.character(x$arguments$design$group)
-    colBy = if(is.null(colBy)) if(type=='scoresX' | type=='scoresY' | type == 'biplot') x$arguments$design
+    x$input$design$group = as.character(x$input$design$group)
+    colBy = if(is.null(colBy)) if(type=='scoresX' | type=='scoresY' | type == 'biplot') x$input$design
     ellipses = if(is.null(ellipses)) ellipses = FALSE
 
     ggp1 = plsPlot(x$model, type = type, comp = comp, col = col, colBy = colBy, shape = shape, shapeBy = shapeBy,
@@ -216,14 +216,14 @@ multilevelPlot = function(x,
       theme(legend.position = 'bottom')
   }
 
-  if(x$arguments$method == 'plsda'){
+  if(x$input$method == 'plsda'){
     x$model$Xm = x$Xm
     x$model$multi = 'multi'
     x$model$newdesign = newdesign
 
     if(type%in% c("scree", "scores")) return(stop('Plot not available for PLSDA models, please select one of ncomp, R2vsQ2, scoresX, loadings, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, coef, R2, corr, biplot'))
-    x$arguments$design$group = as.character(x$arguments$design$group)
-    shapeBy = if(is.null(colBy)) if(type=='scoresX' | type == 'scoresY' | type == 'biplot') x$arguments$design
+    x$input$design$group = as.character(x$input$design$group)
+    shapeBy = if(is.null(colBy)) if(type=='scoresX' | type == 'scoresY' | type == 'biplot') x$input$design
 
     ggp = plsdaPlot(x$model, type = type, comp = comp, col = col, colBy = colBy, shape = shape, shapeBy = shapeBy,
                    ellipses = ellipses, selVars = selVars, labels = labels, labelTop = labelTop, repel = repel, newObs = newObs)
@@ -239,72 +239,3 @@ multilevelPlot = function(x,
 
 }
 
-#' Predict Method for Multilevel PLS/PLS-DA Models
-#'
-#' @description Uses previously fitted PLS or PLS-DA multilevel model to obtain the predictions of new observations.
-#'
-#' @param x An object returned by \code{multilevel}.
-#' @param design A named vector identifying the groups/subjects for the new observations.
-#' @param new A matrix, or data.frame containing the new observations to be predicted.
-#' @param plot Logical. If \code{TRUE}, the function generates a score plot
-#'   showing the projection of the new observations.
-#'
-#' @return  A matrix containing the predicted values for the response variable(s) Y.
-#' @export
-
-multilevelPredict = function(x, design = NULL, new = NULL, plot = TRUE) {
-
-  x$model$Xm = x$Xm
-  x$model$multi = 'multi'
-  x$model$newdesign = design
-
-  x$model$explVar = data.frame("comp" = factor(1:x$model$ncomp),
-                         "percVar" = round(100*x$model$summary$R2X,4),
-                         "cumPercVar" = round(100*x$model$summary$cumR2X,4))
-  x$model$scores = x$model$scoresX
-
-  if(plot) print(scorePlot(x$model, newObs = new))
-
-  new = as.data.frame(new)
-  new = new[,colnames(x$model$X)]
-
-  new = sweep(new, 2, as.numeric(x$Xm[1,colnames(x$model$X)]), FUN = "-")
-
-  newW = new
-  #Calculate the within subject variation (differences within groups of subjects) (el de interes) (total variation due to the treatment)
-  design = as.data.frame(design)
-  if(all(order(rownames(design))!= order(rownames(new)))) rownames(design) = rownames(new)
-  design = design[rownames(new),,drop=FALSE]
-  colnames(design) = c('group')
-
-  for (g in unique(design$group)){
-    idx <- g == design$group
-    newW[idx,] = sweep(newW[idx,,drop=FALSE],2, colMeans(newW[idx,,drop=FALSE]))
-  }
-
-  newW = sweep(newW, 2, x$model$scaling$center, FUN = "-")
-  newW = sweep(newW, 2, x$model$scaling$scale, FUN = "/")
-
-  if(any(rowSums(is.na(newW))>0)){
-    scores = project.obs.nipals.pls(x$model, newW, 1:x$model$ncomp)
-    prediction = tcrossprod(scores, x$model$loadingsY)
-  }else{
-    prediction = as.matrix(newW) %*% x$model$coefficients
-  }
-
-  if(x$arguments$method == 'plsda'){
-    prediction = sweep(prediction, 2, x$model$scaling$scaleY, FUN = "*")
-    plsprediction = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
-    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    return(list('prediction' = prediction, 'plsprediction' = plsprediction))
-  }
-
-  if(x$arguments$method == 'pls'){
-    prediction = sweep(prediction, 2, x$model$scaling$scaleY, FUN = "*")
-    prediction = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
-    #TO DO: Cual es el Yb de los datos?
-    prediction = prediction + x$Ym
-    return(prediction)
-  }
-}

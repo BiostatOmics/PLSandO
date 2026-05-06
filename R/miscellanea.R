@@ -2791,16 +2791,36 @@ loadingPlotmb = function(x,
   }
 }
 
-loadingPlotPLS = function(x,
-                           comp = NULL,
-                           col = 'main',
-                           colBy = NULL,
-                           shape = c('arrow', 'point')[1],
-                           selVars = NULL,
-                           labels = TRUE,
-                           labelTop = NULL,
-                           repel = TRUE,
-                           newObs = NULL ) {
+loadingPlotPLSmb = function(x,
+                            comp = NULL,
+                            col = 'main',
+                            colBy = NULL,
+                            shape = c('arrow', 'point')[1],
+                            selVars = NULL,
+                            labels = TRUE,
+                            labelTop = NULL,
+                            repel = TRUE,
+                            newObs = NULL ) {
+
+
+  return(NULL)
+}
+
+# Weights plot ------------------------------------------------------------
+
+# x: Object returned by pls or plsda functions
+
+
+weightsPlot = function(x,
+                       comp = NULL,
+                       col = 'main',
+                       colBy = NULL,
+                       shape = c('arrow', 'point')[1],
+                       selVars = NULL,
+                       labels = TRUE,
+                       labelTop = NULL,
+                       repel = TRUE,
+                       newObs = NULL) {
 
   if(is.null(comp) & x$ncomp!=1) comp = 1:2
 
@@ -2808,10 +2828,10 @@ loadingPlotPLS = function(x,
 
     if (!is.null(selVars) | shape!=18  | !is.null(newObs)) cat('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
-    loadingsX = x$loadingsX[,comp,drop=FALSE]
+    loadingsX = x$weightStar[,comp,drop=FALSE]
     loadingsY = x$loadingsY[,comp,drop=FALSE]
     x$value = rbind(loadingsX, loadingsY)
-    title = paste0('Loading Plot Comp', comp)
+    title = paste0('Weights Plot w*c Comp', comp)
     colBy = c(rep('X',nrow(loadingsX)), rep('Y',nrow(loadingsY)))
     ggp = plotPLS1comp(x = x, col = col, colBy = colBy, labels = labels, labelTop = labelTop, title = title)
   } else {
@@ -2822,8 +2842,11 @@ loadingPlotPLS = function(x,
     load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
     colnames(load_dfY) = c("x", "y")
     load_dfY$type = 'Y'
+    #Normalizar
+    load_dfY[, c("x", "y")] = sweep(load_dfY[, c("x", "y")], 1, apply(load_dfY[, c("x", "y")], 1, function(row) sqrt(sum(row^2))), FUN = "/")
 
     load_df = rbind(load_dfX, load_dfY)
+
 
     if(!is.null(newObs)){
       if(!all(sapply(newObs, is.numeric))) return(stop('Categorical variables detected on newObs consider using Preparing function before including them'))
@@ -2897,7 +2920,7 @@ loadingPlotPLS = function(x,
       coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
       theme_minimal() +
       theme(legend.position = "bottom") +
-      labs(title = "Loading Plot w*c",
+      labs(title = "Weights Plot w*c",
            x = paste0('Comp', comp[1], ' (', round(x$explVar[comp[1],'percVar'],2), '%)'),
            y = paste0('Comp', comp[2], ' (', round(x$explVar[comp[2],'percVar'],2), '%)'))
 
@@ -2948,16 +2971,15 @@ loadingPlotPLS = function(x,
   return(ggp)
 }
 
-loadingPlotPLSmb = function(x,
-                            comp = NULL,
-                            col = 'main',
-                            colBy = NULL,
-                            shape = c('arrow', 'point')[1],
-                            selVars = NULL,
-                            labels = TRUE,
-                            labelTop = NULL,
-                            repel = TRUE,
-                            newObs = NULL ) {
+weightsPlotmb = function(x,
+                         comp = NULL,
+                         col = 'main',
+                         colBy = NULL,
+                         shape = c('arrow', 'point')[1],
+                         selVars = NULL,
+                         labels = TRUE,
+                         labelTop = NULL,
+                         repel = TRUE) {
 
   b_names = names(x$X)
   if(is.null(comp) & x$ncomp!=1) comp = 1:2
@@ -2968,21 +2990,28 @@ loadingPlotPLSmb = function(x,
     if(is.null(comp)) comp = 1
 
     for (i in 1:length(x$X)){
-      loadingsX = x$BloadingsX[[i]][,comp,drop=FALSE]
+      loadingsX = x$Bweights[[i]][,comp,drop=FALSE]
       loadingsY = x$loadingsY[,comp,drop=FALSE]
       x$value = rbind(loadingsX, loadingsY)
-      title = paste0("Loading Plot for ", b_names[i], " block Comp", comp)
+      title = paste0("Weights Plot w*c for ", b_names[i], " block Comp", comp)
       colBy = c(rep('X',nrow(loadingsX)), rep('Y',nrow(loadingsY)))
       ggp = plotPLS1comp(x = x, col = col, colBy = colBy, labels = labels, labelTop = labelTop, title = title)
       print(ggp)
     }
+
+    loadingsX = x$Sweights[,comp,drop=FALSE]
+    loadingsY = x$loadingsY[,comp,drop=FALSE]
+    x$value = rbind(loadingsX, loadingsY)
+    title = paste0('Weights Plot w*c of block weights Comp',comp)
+    ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = labelTop, title = title)
+    print(ggp)
 
   } else {
     colByc = colBy
 
     for (i in 1:length(x$X)) {
 
-      load_dfX = as.data.frame(x$BloadingsX[[i]][,comp])
+      load_dfX = as.data.frame(x$Bweights[[i]][,comp])
       colnames(load_dfX) = c("x", "y")
       load_dfX$type = 'X'
 
@@ -3057,7 +3086,7 @@ loadingPlotPLSmb = function(x,
         colByname = ''
       }
 
-      paste0("Loading Plot for ", b_names[i], " block")
+      paste0("Weights Plot w*c for ", b_names[i], " block")
 
       # Create the plot
       ggp = ggplot(load_df, aes(x = x, y = y)) +
@@ -3118,38 +3147,16 @@ loadingPlotPLSmb = function(x,
       colBy = colByc
 
     }
-  }
-  return(NULL)
-}
 
-# Weights plot ------------------------------------------------------------
+    load_dfX = as.data.frame(x$Sweights[,comp])
+    colnames(load_dfX) = c("x", "y")
+    load_dfX$type = 'X'
 
-# x: Object returned by pls or plsda functions
+    load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
+    colnames(load_dfY) = c("x", "y")
+    load_dfY$type = 'Y'
 
-
-weightsPlot = function(x,
-                       comp = NULL,
-                       col = 'main',
-                       colBy = NULL,
-                       shape = c('arrow', 'point')[1],
-                       selVars = NULL,
-                       labels = TRUE,
-                       labelTop = NULL,
-                       repel = TRUE,
-                       newObs = NULL) {
-
-  if(is.null(comp) & x$ncomp!=1) comp = 1:2
-
-  if(is.null(comp) | length(comp) == 1) {
-
-    if (shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
-    if(is.null(comp)) comp = 1
-    x$value = x$weightStar[,comp,drop=FALSE]
-    title = paste0('Weigths Star Plot Comp',comp)
-    ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = labelTop, title = title)
-  } else {
-    weight_df = as.data.frame(x$weightStar[,comp])
-    colnames(weight_df) = c("x", "y")
+    load_df = rbind(load_dfX, load_dfY)
 
     if(!is.null(newObs)){
       if(!all(sapply(newObs, is.numeric))) return(stop('Categorical variables detected on newObs consider using Preparing function before including them'))
@@ -3172,35 +3179,36 @@ weightsPlot = function(x,
       if(x$input$scalingType == 'softBlock') newObs = newObs/ (ncol(newObs)^0.25)
       if(x$input$scalingType == 'hardBlock') newObs = newObs/ sqrt(ncol(newObs))
 
-      weight_new = t(apply(newObs,2, function(y) cor(y, x$scores)))[,comp,drop=F]
+      load_new = t(apply(newObs,2, function(y) cor(y, x$scoresX)))[,comp,drop=F]
       eig = x$explVar[,'eigenVal'][comp]
-      colnames(weight_new) = c("x", "y")
-      weight_new = sweep(weight_new[, c("x", "y"),drop=F], 2, sqrt(eig), FUN = "/")
-      colBy = factor(c(rep('modelVars',nrow(weight_df)),rep('newVars', nrow(weight_new))))
-      weight_df = rbind(weight_df, weight_new)
-      weight_df$colBy = colBy
+      colnames(load_new) = c("x", "y")
+      load_new = sweep(load_new[, c("x", "y"),drop=F], 2, sqrt(eig), FUN = "/")
+      colBy = factor(c(rep('modelVars',nrow(load_df)),rep('newVars', nrow(load_new))))
+      load_df = rbind(load_df, load_new)
+      load_df$colBy = colBy
       num = F
       colByname = ''
     }
 
-    if(labels) labels = rownames(weight_df) else labels = ''
+    if(labels) labels = rownames(load_df) else labels = ''
+    if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
 
     if(!is.null(colBy)){
       if(is.character(colBy)){
         num = T
         if(colBy == 'contrib'){
-          weight_df$colBy = rowSums(weight_df^2)
-          colBy = weight_df$colBy
+          load_df$colBy = rowSums(load_df^2)
+          colBy = load_df$colBy
           colByname = 'contrib'
         } else if(colBy == 'cos2'){
           eig = x$explVar[,'eigenVal'][comp]
-          weight_df$colBy = rowSums(sweep(weight_df[, c("x", "y")], 2, sqrt(eig), FUN = "*")^2)
-          colBy = weight_df$colBy
+          load_df$colBy = rowSums(sweep(load_df[, c("x", "y")], 2, sqrt(eig), FUN = "*")^2)
+          colBy = load_df$colBy
           colByname = 'cos2'
         }
         if(!is.null(selVars)){
           top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
-          weight_df = weight_df[top_vars,,drop=FALSE]
+          load_df = load_df[top_vars,,drop=FALSE]
           labels = labels[top_vars]
         }
         if (!is.null(labelTop)) {
@@ -3208,34 +3216,41 @@ weightsPlot = function(x,
           labels[-top_vars] = ''
         }
       }
+    } else{
+      colBy = load_df$type
+      load_df$colBy = colBy
+      num = F
+      colByname = ''
     }
 
+    paste0("Weights Plot of block weights")
+
     # Create the plot
-    ggp = ggplot(weight_df, aes(x = x, y = y)) +
+    ggp = ggplot(load_df, aes(x = x, y = y)) +
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
       coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
       theme_minimal() +
       theme(legend.position = "bottom") +
-      labs(title = "Weights Star Plot",
-           x = paste0('Comp', comp[1], ' (', round(x$explVar[comp[1],'percVar'],2), '%)'),
-           y = paste0('Comp', comp[2], ' (', round(x$explVar[comp[2],'percVar'],2), '%)'))
+      labs(title = paste0("Weights Plot w*c for ", b_names[i], " block"),
+           x = paste0('Comp', comp[1], ' (', round(x$BexplVar[[i]][comp[1],'percVar'],2), '%)'),
+           y = paste0('Comp', comp[2], ' (', round(x$BexplVar[[i]][comp[2],'percVar'],2), '%)'))
 
     if(shape == 'arrow'){
-      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y),
+      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = type),
                                arrow = arrow(length = unit(0.2, "cm")))
     } else{
-      ggp = ggp + geom_point(shape = 18, size = 3)
+      ggp = ggp + geom_point(aes(color = type),shape = 18, size = 3)
     }
 
     if (repel) {
-      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels),
+      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = type),
                                            max.overlaps = 100,
                                            box.padding = 0.25,
                                            point.padding = 0.25,
                                            segment.color = "black", show.legend = F)
     } else {
-      ggp = ggp + geom_text(aes(label = labels),
+      ggp = ggp + geom_text(aes(label = labels, color = type),
                             vjust = -0.5, hjust = 0.5, show.legend = F)
     }
 
@@ -3253,213 +3268,23 @@ weightsPlot = function(x,
       } else{
         if (length(col)>1){
           if (length(col)!= 2) return(stop('Either provide two colors or use the default color palette'))
-          custom_colors = setNames(col, unique(weight_df$colBy))
+          custom_colors = setNames(col, unique(load_df$colBy))
         } else{
           color_palette = colorbiostat(3, palette = col)
-          custom_colors = setNames(color_palette[-2], unique(weight_df$colBy))
+          custom_colors = setNames(color_palette[-2], unique(load_df$colBy))
         }
         ggp = ggp +
           aes(color = colBy, fill = colBy) +
           scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)
       }
     }
+
+    print(ggp)
+    labels= if(all(labels==''))  F else T
+    colBy = colByc
+
   }
 
-  return(ggp)
-}
-
-weightsPlotmb = function(x,
-                         comp = NULL,
-                         col = 'main',
-                         colBy = NULL,
-                         shape = c('arrow', 'point')[1],
-                         selVars = NULL,
-                         labels = TRUE,
-                         labelTop = NULL,
-                         repel = TRUE) {
-
-  b_names = names(x$X)
-
-  if(is.null(comp) & x$ncomp!=1) comp = 1:2
-
-  if(is.null(comp) | length(comp) == 1) {
-
-    if (shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
-    if(is.null(comp)) comp = 1
-
-    for (i in 1:length(x$X)){
-      x$value = x$Bweights[[i]][,comp,drop=FALSE]
-      title = paste0('Weights Plot for ',b_names[i], ' block Comp',comp)
-      ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = labelTop, title = title)
-      print(ggp)
-    }
-    x$value = x$Sweights[,comp,drop=FALSE]
-    title = paste0('Weights Plot of block weights Comp',comp)
-    ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = labelTop, title = title)
-    print(ggp)
-
-  } else {
-    for (i in 1:length(x$X)) {
-
-      weight_df = as.data.frame(x$Bweights[[i]][,comp])
-      colnames(weight_df) = c("x", "y")
-
-      if(labels) labels = rownames(weight_df) else labels = ''
-
-      if(!is.null(colBy)){
-        if(is.character(colBy)){
-          num = T
-          if(colBy == 'contrib'){
-            weight_df$colBy = rowSums(weight_df^2)
-            colBy = weight_df$colBy
-            colByname = 'contrib'
-          } else if(colBy == 'cos2'){
-            return(stop('cos2 is not available for MBPLS. Please consider using contrib instead to color variables by importance.'))
-          }
-          if(!is.null(selVars)){
-            top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * selVars)]
-            weight_df = weight_df[top_vars,,drop=FALSE]
-            labels = labels[top_vars]
-          }
-          if (!is.null(labelTop)) {
-            top_vars = order(colBy, decreasing = T)[1:ceiling(length(colBy) * labelTop)]
-            labels[-top_vars] = ''
-          }
-        }
-      }
-
-      # Create the plot
-      ggp = ggplot(weight_df, aes(x = x, y = y)) +
-        geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
-        geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-        coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
-        theme_minimal() +
-        theme(legend.position = "bottom") +
-        labs(title = paste0("Weights Plot for ", b_names[i], " block"),
-             x = paste0('Comp', comp[1], ' (', round(x$BexplVar[[i]][comp[1],'percVar'],2), '%)'),
-             y = paste0('Comp', comp[2], ' (', round(x$BexplVar[[i]][comp[2],'percVar'],2), '%)'))
-
-      if(shape == 'arrow'){
-        ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y),
-                                 arrow = arrow(length = unit(0.2, "cm")))
-      } else{
-        ggp = ggp + geom_point(shape = 18, size = 3)
-      }
-
-      if (repel) {
-        ggp = ggp + ggrepel::geom_text_repel(aes(label = labels),
-                                             max.overlaps = 100,
-                                             box.padding = 0.25,
-                                             point.padding = 0.25,
-                                             segment.color = "black", show.legend = F)
-      } else {
-        ggp = ggp + geom_text(aes(label = labels),
-                              vjust = -0.5, hjust = 0.5, show.legend = F)
-      }
-
-      if(!is.null(colBy)){
-        if(num){
-          color_palette = if(length(col)>1) if(length(col)==2) c(col[2], 'white', col[1]) else c(col[3], col[2], col[1]) else colorbiostat(3, palette = col)
-          ggp = ggp +
-            aes(color = colBy) +
-            scale_color_gradient2(low = color_palette[3] ,mid = color_palette[2], high = color_palette[1],
-                                  midpoint = mean(range(colBy,na.rm = TRUE)),
-                                  name = colByname,
-                                  limits = c(min(colBy,na.rm = TRUE), max(colBy,na.rm = TRUE)),
-                                  breaks = pretty(range(colBy,na.rm = TRUE), n = 5))+
-            theme(legend.position = "right")
-        } else{
-          if (length(col)>1){
-            if (length(col)!= 2) return(stop('Either provide two colors or use the default color palette'))
-            custom_colors = setNames(col, unique(weight_df$colBy))
-          } else{
-            color_palette = colorbiostat(3, palette = col)
-            custom_colors = setNames(color_palette[-2], unique(weight_df$colBy))
-          }
-          ggp = ggp +
-            aes(color = colBy, fill = colBy) +
-            scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)
-        }
-        colBy = colByname
-      }
-      print(ggp)
-      labels= if(all(labels==''))  F else T
-
-    }
-
-    weight_df = as.data.frame(x$Sweights[,comp])
-    colnames(weight_df) = c("x", "y")
-
-    if(labels) labels = b_names else labels = ''
-
-    if(!is.null(colBy)){
-      if(is.character(colBy)){
-        num = T
-        if(colBy == 'contrib'){
-          weight_df$colBy = rowSums(weight_df^2)
-          colBy = weight_df$colBy
-          colByname = 'contrib'
-        } else if(colBy == 'cos2'){
-          return(stop('cos2 is not available for MBPLS. Please consider using contrib instead to color variables by importance.'))
-        }
-      }
-    }
-
-    # Create the plot
-    ggp = ggplot(weight_df, aes(x = x, y = y)) +
-      geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
-      geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-      coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
-      theme_minimal() +
-      theme(legend.position = "bottom") +
-      labs(title = "Weights Plot of block weights",
-           x = paste0('Comp', comp[1], ' (', round(x$explVar[comp[1],'percVar'],2), '%)'),
-           y = paste0('Comp', comp[2], ' (', round(x$explVar[comp[2],'percVar'],2), '%)'))
-
-    if(shape == 'arrow'){
-      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y),
-                               arrow = arrow(length = unit(0.2, "cm")))
-    } else{
-      ggp = ggp + geom_point(shape = 18, size = 3)
-    }
-
-    if (repel) {
-      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels),
-                                           max.overlaps = 100,
-                                           box.padding = 0.25,
-                                           point.padding = 0.25,
-                                           segment.color = "black", show.legend = F)
-    } else {
-      ggp = ggp + geom_text(aes(label = labels),
-                            vjust = -0.5, hjust = 0.5, show.legend = F)
-    }
-
-    if(!is.null(colBy)){
-      if(num){
-        color_palette = if(length(col)>1) if(length(col)==2) c(col[2], 'white', col[1]) else c(col[3], col[2], col[1]) else colorbiostat(3, palette = col)
-        ggp = ggp +
-          aes(color = colBy) +
-          scale_color_gradient2(low = color_palette[3] ,mid = color_palette[2], high = color_palette[1],
-                                midpoint = mean(range(colBy,na.rm = TRUE)),
-                                name = colByname,
-                                limits = c(min(colBy,na.rm = TRUE), max(colBy,na.rm = TRUE)),
-                                breaks = pretty(range(colBy,na.rm = TRUE), n = 5))+
-          theme(legend.position = "right")
-      } else{
-        if (length(col)>1){
-          if (length(col)!= 2) return(stop('Either provide two colors or use the default color palette'))
-          custom_colors = setNames(col, unique(weight_df$colBy))
-        } else{
-          color_palette = colorbiostat(3, palette = col)
-          custom_colors = setNames(color_palette[-2], unique(weight_df$colBy))
-        }
-        ggp = ggp +
-          aes(color = colBy, fill = colBy) +
-          scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)
-      }
-    }
-    print(ggp)
-  }
   return(NULL)
 
 }
@@ -5060,14 +4885,29 @@ R2varcomp = function(x, col) {
   SCT = colSums(X**2, na.rm = T)
   mat = NULL
 
+  if(x$input$model=='pls'){
+    Y = x$Y
+    SCTY = colSums(Y**2, na.rm = T)
+    matY = NULL
+  }
+
   # Loop through components and calculate cumulative R2 for each
   for (i in 1:x$ncomp) {
     Loadings = x$loadings[,1:i, drop=FALSE]
     Scores = x$scores[,1:i, drop=FALSE]
-    Xest = Scores %*% t(Loadings)
+    Xest = tcrossprod(Scores, Loadings)
     SCE = colSums(Xest**2)
     R2 = SCE / SCT
     mat = rbind(mat, R2)
+
+    if(x$input$model == 'pls'){
+      LoadingsY = x$loadingsY[,1:i, drop=FALSE]
+      Yest = tcrossprod(Scores, LoadingsY)
+      SCEY = colSums(Yest**2)
+      R2Y = SCEY / SCTY
+      matY = rbind(matY, R2Y)
+    }
+
   }
 
   mat1 = mat
@@ -5079,8 +4919,9 @@ R2varcomp = function(x, col) {
     }
   }
 
-  components = rownames(mat1) = as.character(1:x$ncomp)
+  components = rownames(mat1) =  as.character(1:x$ncomp)
   variables = colnames(mat1)
+
 
   component_vec = rep(components, each = length(variables))
   variable_vec = rep(variables, times = length(components))
@@ -5111,10 +4952,61 @@ R2varcomp = function(x, col) {
     theme_minimal() +
     labs(title = "Explained R² per Variable in Comp",
          x = "Variable",
-         y = "Explained R²",
+         y = "Explained R²X",
          fill = "Comp") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "right")
+
+  if(x$input$model=='pls'){
+    mat1Y = matY
+    if (nrow(mat1Y) > 1) {
+      for (i in 2:nrow(mat1Y)) {
+        mat1Y[i, ] = matY[i, ] - matY[i - 1, ]
+      }
+    }
+
+    variablesY = colnames(mat1Y)
+    rownames(mat1Y) = as.character(1:x$ncomp)
+
+    component_vecY = rep(components, each = length(variablesY))
+    variable_vecY = rep(variablesY, times = length(components))
+    R2_vecY = as.vector(t(mat1Y))
+
+    plot_df = data.frame(
+      Component = component_vecY,
+      Variable = variable_vecY,
+      R2 = R2_vecY)
+
+    if ((length(col) == 1 && !(col %in% c('main', 'complete', 'cblindfriendly', 'sunshine','hot','warm','grass','oficial'))) || length(col)>1){
+      if (length(col)!= length(components)) return(stop('Either provide colors for the number of components or use one of the default color palettes'))
+      custom_colors = setNames(col, unique(plot_df$Component))
+    } else{
+      num_unique = length(unique(plot_df$Component))
+      if(num_unique== 2){
+        color_palette = colorbiostat(num_unique+1, palette = col)
+        custom_colors = setNames(color_palette[-2], unique(plot_df$Component))
+      } else{
+        color_palette = colorbiostat(num_unique, palette = col)
+        custom_colors = setNames(color_palette, unique(plot_df$Component))
+      }
+    }
+
+    ggpY = ggplot(plot_df, aes(x = Variable, y = R2, fill = Component)) +
+      geom_col() +
+      scale_fill_manual(values = custom_colors) +
+      theme_minimal() +
+      labs(title = "",
+           x = "Variable",
+           y = "Explained R²Y",
+           fill = "Comp") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position = "right")
+
+    ggp = (ggp | ggpY) +
+      patchwork::plot_layout(widths = c(1, 1)) +
+      patchwork::plot_layout(guides = 'collect') &
+      theme(legend.position = 'bottom')
+  }
 
   return(ggp)
 }
@@ -5227,6 +5119,210 @@ validationPlot = function(x, col = col){
 
   return(ggp)
 
+}
+
+# Prediction -------------
+
+plsPredict = function(x, new = NULL, plot = TRUE) {
+  ## proyectar nuevas observaciones antes de predecir
+
+  if(x$input$algo=='nipals'){
+
+    x$explVar = data.frame("comp" = factor(1:x$ncomp),
+                           "percVar" = round(100*x$summary$R2X,4),
+                           "cumPercVar" = round(100*x$summary$cumR2X,4))
+    x$scores = x$scoresX
+
+    if(plot) print(scorePlot(x, newObs = new))
+
+    if (!is.null(new)){
+      new = as.data.frame(new)
+      new = new[,colnames(x$X)]
+
+      new = sweep(new, 2, x$scaling$center, FUN = "-")
+      new = sweep(new, 2, x$scaling$scale, FUN = "/")
+    } else new= x$X
+
+    if(any(rowSums(is.na(new))>0)){
+      scores = project.obs.nipals.pls(x, new, 1:x$ncomp)
+      prediction = tcrossprod(scores, x$loadingsY)
+    } else{
+      prediction = as.matrix(new) %*% x$coefficients
+    }
+    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
+    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+
+  } else{
+
+    if(!inherits(new, "list")) return(stop('Please provide the new data structured in blocks'))
+
+    x$explVar = data.frame("comp" = factor(1:x$ncomp),
+                           "percVar" = round(100*x$summary$R2X,4),
+                           "cumPercVar" = round(100*x$summary$cumR2X,4))
+    x$Bscores = x$BscoresX; x$Sscores = x$SscoresX
+
+    if(plot) scorePlotmb(x, newObs = new)
+
+    if(!is.null(new)){
+      new = lapply(new, as.matrix)
+      b_names = names(x$X)
+      new = setNames(lapply(b_names, function(b) new[[b]][,colnames(x$X[[b]])]),b_names)
+
+      centrado = x$scaling$center
+      escalado = x$scaling$scale
+
+      new = setNames(lapply(seq_along(new), function(b) {
+        tmp = sweep(new[[b]], 2, centrado[[b]], "-")
+        return(sweep(tmp, 2, escalado[[b]], "/"))
+      }),b_names)
+    } else new= x$X
+
+    if(any(unlist(lapply(new, function(x) any(rowSums(is.na(x))>0))))){
+      return(stop('NAs are not allowed in new observations. Consider using PLS with block-scaling rather than MBPLS'))
+    } else{
+      block_coef = lapply(x$coefficients, function(b) apply(b[,,1:x$ncomp, drop = FALSE], c(1,2), sum))
+      prediction = do.call('+',lapply(b_names, function(b) as.matrix(new[[b]])%*%block_coef[[b]]))
+    }
+
+    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
+    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+
+  }
+
+  return(prediction)
+
+}
+
+plsdaPredict = function(x, new = NULL, plot = TRUE) {
+  ## proyectar nuevas observaciones antes de predecir
+
+  if(x$input$algo=='nipals'){
+
+    x$explVar = data.frame("comp" = factor(1:x$ncomp),
+                           "percVar" = round(100*x$summary$R2X,4),
+                           "cumPercVar" = round(100*x$summary$cumR2X,4))
+    x$scores = x$scoresX
+
+    if(plot) print(scorePlot(x, newObs = new))
+
+    if(!is.null(new)){
+      new = as.data.frame(new)
+      new = new[,colnames(x$X)]
+
+      new = sweep(new, 2, x$scaling$center, FUN = "-")
+      new = sweep(new, 2, x$scaling$scale, FUN = "/")
+    } else new = x$X
+
+    if(any(rowSums(is.na(new))>0)){
+      scores = project.obs.nipals.pls(x, new, 1:x$ncomp)
+      prediction = tcrossprod(scores, x$loadingsY)
+    } else{
+      prediction = as.matrix(new) %*% x$coefficients
+    }
+    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
+    plsprediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+
+  } else{
+
+    if(!inherits(new, "list")) return(stop('Please provide the new data structured in blocks'))
+
+    x$explVar = data.frame("comp" = factor(1:x$ncomp),
+                           "percVar" = round(100*x$summary$R2X,4),
+                           "cumPercVar" = round(100*x$summary$cumR2X,4))
+    x$Bscores = x$BscoresX; x$Sscores = x$SscoresX
+
+    if(plot) scorePlotmb(x, newObs = new)
+
+    if(!is.null(new)){
+      new = lapply(new, as.matrix)
+      b_names = names(x$X)
+      new = setNames(lapply(b_names, function(b) new[[b]][,colnames(x$X[[b]])]),b_names)
+
+      centrado = x$scaling$center
+      escalado = x$scaling$scale
+
+      new = setNames(lapply(seq_along(new), function(b) {
+        tmp = sweep(new[[b]], 2, centrado[[b]], "-")
+        return(sweep(tmp, 2, escalado[[b]], "/"))
+      }),b_names)
+    } else new = x$X
+
+    if(any(unlist(lapply(new, function(x) any(rowSums(is.na(x))>0))))){
+      return(stop('NAs are not allowed in new observations. Consider using PLS with block-scaling rather than MBPLS'))
+    } else{
+      block_coef = lapply(x$coefficients, function(b) apply(b[,,1:x$ncomp, drop = FALSE], c(1,2), sum))
+      prediction = do.call('+',lapply(b_names, function(b) as.matrix(new[[b]])%*%block_coef[[b]]))
+    }
+
+    prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
+    plsprediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+
+  }
+
+  return(list('prediction' = prediction, 'plsprediction' = plsprediction))
+
+}
+
+multilevelPredict = function(x, design = NULL, new = NULL, plot = TRUE) {
+
+  x$model$Xm = x$Xm
+  x$model$newdesign = design
+
+  x$model$explVar = data.frame("comp" = factor(1:x$model$ncomp),
+                               "percVar" = round(100*x$model$summary$R2X,4),
+                               "cumPercVar" = round(100*x$model$summary$cumR2X,4))
+  x$model$scores = x$model$scoresX
+
+  if(plot) print(scorePlot(x$model, newObs = new))
+
+  if(!is.null(new)){
+    new = as.data.frame(new)
+    new = new[,colnames(x$model$X)]
+
+    new = sweep(new, 2, as.numeric(x$Xm[1,colnames(x$model$X)]), FUN = "-")
+
+    newW = new
+    #Calculate the within subject variation (differences within groups of subjects) (el de interes) (total variation due to the treatment)
+    design = as.data.frame(design)
+    if(all(order(rownames(design))!= order(rownames(new)))) rownames(design) = rownames(new)
+    design = design[rownames(new),,drop=FALSE]
+    colnames(design) = c('group')
+
+    for (g in unique(design$group)){
+      idx <- g == design$group
+      newW[idx,] = sweep(newW[idx,,drop=FALSE],2, colMeans(newW[idx,,drop=FALSE]))
+    }
+
+    newW = sweep(newW, 2, x$model$scaling$center, FUN = "-")
+    newW = sweep(newW, 2, x$model$scaling$scale, FUN = "/")
+  } else newW = x$model$X
+
+  if(any(rowSums(is.na(newW))>0)){
+    scores = project.obs.nipals.pls(x$model, newW, 1:x$model$ncomp)
+    prediction = tcrossprod(scores, x$model$loadingsY)
+  }else{
+    prediction = as.matrix(newW) %*% x$model$coefficients
+  }
+
+  if(x$input$method == 'plsda'){
+    prediction = sweep(prediction, 2, x$model$scaling$scaleY, FUN = "*")
+    plsprediction = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
+    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+    return(list('prediction' = prediction, 'plsprediction' = plsprediction))
+  }
+
+  if(x$input$method == 'pls'){
+    prediction = sweep(prediction, 2, x$model$scaling$scaleY, FUN = "*")
+    prediction = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
+    #TO DO: Cual es el Yb de los datos?
+    prediction = prediction + x$Ym
+    return(prediction)
+  }
 }
 
 # Variable selection ---------
