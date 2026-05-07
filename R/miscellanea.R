@@ -4957,6 +4957,12 @@ R2varcompmb = function(x, col) {
 
   b_names = names(x$X)
 
+  if(x$input$model=='pls'){
+    Y = x$Y
+    SCTY = colSums(Y**2, na.rm = T)
+    matY = NULL
+  }
+
   for( i in 1:length(x$X)){
     X = x$X[[i]]
     SCT = colSums(X**2, na.rm = T)
@@ -5011,7 +5017,7 @@ R2varcompmb = function(x, col) {
       geom_col() +
       scale_fill_manual(values = custom_colors) +
       theme_minimal() +
-      labs(title = paste0("Explained R² per Variable in Comp for ",b_names[i], " block" ),
+      labs(title = paste0("Explained R²X per Variable in Comp for ",b_names[i], " block" ),
            x = "Variable",
            y = "Explained R²",
            fill = "Comp") +
@@ -5019,6 +5025,63 @@ R2varcompmb = function(x, col) {
             legend.position = "right")
 
     print(ggp)
+  }
+
+  if(x$input$model == 'pls'){
+    for (i in 1:x$ncomp) {
+      LoadingsY = x$loadingsY[,1:i, drop=FALSE]
+      Yest = tcrossprod(x$SscoresX, LoadingsY)
+      SCEY = colSums(Yest**2)
+      R2Y = SCEY / SCTY
+      matY = rbind(matY, R2Y)
+    }
+
+    mat1Y = matY
+    if (nrow(mat1Y) > 1) {
+      for (i in 2:nrow(mat1Y)) {
+        mat1Y[i, ] = matY[i, ] - matY[i - 1, ]
+      }
+    }
+
+    variablesY = colnames(mat1Y)
+    rownames(mat1Y) = as.character(1:x$ncomp)
+
+    component_vecY = rep(components, each = length(variablesY))
+    variable_vecY = rep(variablesY, times = length(components))
+    R2_vecY = as.vector(t(mat1Y))
+
+    plot_df = data.frame(
+      Component = component_vecY,
+      Variable = variable_vecY,
+      R2 = R2_vecY)
+
+    if ((length(col) == 1 && !(col %in% c('main', 'complete', 'cblindfriendly', 'sunshine','hot','warm','grass','oficial'))) || length(col)>1){
+      if (length(col)!= length(components)) return(stop('Either provide colors for the number of components or use one of the default color palettes'))
+      custom_colors = setNames(col, unique(plot_df$Component))
+    } else{
+      num_unique = length(unique(plot_df$Component))
+      if(num_unique== 2){
+        color_palette = colorbiostat(num_unique+1, palette = col)
+        custom_colors = setNames(color_palette[-2], unique(plot_df$Component))
+      } else{
+        color_palette = colorbiostat(num_unique, palette = col)
+        custom_colors = setNames(color_palette, unique(plot_df$Component))
+      }
+    }
+
+    ggpY = ggplot(plot_df, aes(x = Variable, y = R2, fill = Component)) +
+      geom_col() +
+      scale_fill_manual(values = custom_colors) +
+      theme_minimal() +
+      labs(title = "Explained R²Y per Variable in Comp",
+           x = "Variable",
+           y = "Explained R²Y",
+           fill = "Comp") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position = "right")
+
+    print(ggpY)
+
   }
 
   return(NULL)
@@ -5312,25 +5375,129 @@ p.jack = function(coef, coef_cv, A, alpha) {
   ))
 }
 
-JK = function(x, cvFolds = 5, rep = 10, threshold = 0.05, parallel = FALSE){
+JK = function(m, alpha = 0.05){
 
-  if(x$input$model=='pls'){
-    res_cross = pls_cross(X = x$input$X,Y = x$input$Y,scaling = x$input$scalingType, blocks = x$input$blocks, scalingY = x$input$scalingTypeY, ncomp = x$ncomp, folds = cvFolds, rep = rep, algo = x$input$algo, parallel = parallel)
+  ## Jack-Knife by loo procedure
+
+  if(m$input$algo=='nipals'){
+
+    a = NULL; coef = m$coefficients
+    X = m$input$X ; Y = m$input$Y
+
+    for (i in 1: nrow(X)) {
+
+      ## Scaling X
+      x = X[-i,,drop=FALSE]
+      y = Y[-i,,drop=FALSE]
+
+      if (m$input$scalingType != 'none') {
+        escalado = Scaling(x, scaling= m$input$scalingType, blocks = m$input$blocks)
+        x = escalado$x
+        centrado = escalado$centering
+        escalado = escalado$scaling
+      } else{
+        escalado = rep(1, times = ncol(x))
+        centrado = rep(0, times = ncol(x))
+      }
+
+      ## Scaling Y
+
+      if (m$input$scalingTypeY != 'none') {
+        escaladoY = Scaling(y, scaling= m$input$scalingTypeY, blocks = m$input$blocks)
+        y = escaladoY$x
+        centradoY = escaladoY$centering
+        escaladoY = escaladoY$scaling
+      } else{
+        escaladoY = rep(1, times = ncol(y))
+        centradoY = rep(0, times = ncol(y))
+      }
+
+      ## Modelo PLS
+      mypls = nipals_pls(x,y,ncomp = m$ncomp)
+
+      if(nrow(mypls$coefficients)<nrow(coef)){
+        exclvar=setdiff(rownames(coef),rownames(mypls$coefficients))
+        b<-matrix(0,ncol=1,nrow = length(exclvar))
+        rownames(b)<-exclvar
+        mypls$coefficients=rbind(mypls$coefficients,b)
+
+      }
+      order = match(rownames(coef), rownames(mypls$coefficients))
+      a=cbind(a,mypls$coefficients[order, ])
+    }
+
+    est = (a-matrix(rep(coef, nrow(X)),nrow = nrow(coef)))^2
+    estjack = sqrt(((nrow(X)-1)/nrow(X)) * rowSums(est))
+
+    pval = 2*pt(abs(coef/estjack), df = nrow(X)-1, lower.tail = FALSE)
+    UCI_coef = coef+ qt(1 - (alpha)/ 2, df = nrow(X)-1)* estjack
+    LCI_coef = coef- qt(1 - (alpha)/ 2, df = nrow(X)-1)* estjack
+
+    Jack = list(UCI_coef = UCI_coef, LCI_coef = LCI_coef, pval = pval)
+
   } else{
-    Py = suppressWarnings(Preparing(x$input$Y))
-    y = Py$x
-    res_cross = plsda_cross(X = x$input$X, Y = y, Y2=x$input$Y, scaling = x$input$scalingType, blocks = x$input$blocks, scalingY = x$input$scalingTypeY, ncomp = x$ncomp, folds = cvFolds, rep = rep, parallel = parallel, algo = x$input$algo)
-  }
 
-  if(x$input$algo=='nipals'){
-    coef_cv = array(unlist(lapply(res_cross, `[[`, "coef_cv")),  dim = c(dim(res_cross[[1]]$coef_cv)[1:3], rep * dim(res_cross[[1]]$coef_cv)[4]))
-    Jack = p.jack(x$coefficients, coef_cv, x$ncomp, threshold)
+    a = lapply(m$X, function(block) NULL); coef = m$coefficients
+    X = m$input$X ; Y = m$input$Y
 
-  } else{
-    b_names = names(x$X)
-    block_coef = lapply(x$coefficients, function(b) apply(b[,,1:x$ncomp, drop = FALSE], c(1,2), sum))
-    block_coef_cv = setNames(lapply(seq_along(b_names), function(b) array(unlist(lapply(res_cross, function(r) r$block_coef_cv[[b]])), dim = c(dim(res_cross[[1]]$block_coef_cv[[1]])[1:3], dim(res_cross[[1]]$block_coef_cv[[1]])[4] * rep)) ), b_names)
-    Jack = setNames(lapply(seq_along(b_names), function(b) p.jack(block_coef[[b]], block_coef_cv[[b]], x$ncomp, threshold) ), b_names)
+    for (i in 1: nrow(X[[1]])) {
+
+      ## Scaling X
+      x = lapply(X, function(x) x[-i,,drop=FALSE])
+      y = Y[-i,,drop=FALSE]
+
+      if (m$input$scalingType != 'none') {
+        escalado = lapply(x, function(y) Scaling(y, scaling = m$input$scalingType, blocks = NULL))
+        x = lapply(escalado, `[[`, "x")
+        centrado = lapply(escalado, `[[`, "centering")
+        escalado = lapply(escalado, `[[`, "scaling")
+      }
+
+      ## Scaling Y
+      if (m$input$scalingTypeY != 'none') {
+        escaladoY = Scaling(y, scaling= m$input$scalingTypeY, blocks = m$input$blocks)
+        y = escaladoY$x
+      }
+
+      ## Modelo PLS
+      mypls = nipals_mbpls(x,y,ncomp = m$ncomp)
+      block_coef = lapply(mypls$block_coefficients, function(b) apply(b[,,1:m$ncomp, drop = FALSE], c(1,2), sum))
+
+      for (b in seq_along(x)) {
+        a[[b]] = cbind(a[[b]], as.vector(block_coef[[b]]))
+      }
+    }
+
+    Jack = list(UCI_coef = list(), LCI_coef = list(), pval = list())
+
+    for (b in seq_along(a)) {
+
+      coef_block = as.vector(coef[[b]])
+
+      est = (a[[b]] - matrix(rep(coef_block, nrow(Y)), nrow = length(coef_block)))^2
+      estjack = sqrt(((nrow(Y) - 1) / nrow(Y)) * rowSums(est))
+
+      pval = 2 * pt(abs(coef_block / estjack), df = nrow(Y) - 1, lower.tail = FALSE)
+
+      UCI_coef = coef_block + qt(1 - (alpha / 2), df = nrow(Y) - 1) * estjack
+      LCI_coef = coef_block - qt(1 - (alpha / 2), df = nrow(Y) - 1) * estjack
+
+      Jack$pval[[b]] = matrix(pval, nrow = ncol(m$X[[b]]), ncol = ncol(Y))
+      Jack$UCI_coef[[b]] = matrix(UCI_coef, nrow = ncol(m$X[[b]]), ncol = ncol(Y))
+      Jack$LCI_coef[[b]] = matrix(LCI_coef, nrow = ncol(m$X[[b]]), ncol = ncol(Y))
+
+    }
+
+    b_names = names(m$X)
+
+    Jack = lapply(seq_along(b_names), function(b) {
+      list(
+        pval     = Jack$pval[[b]],
+        LCI_coef = Jack$LCI_coef[[b]],
+        UCI_coef = Jack$UCI_coef[[b]])
+    })
+    names(Jack) = b_names
+
   }
   return(Jack)
 }

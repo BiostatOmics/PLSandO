@@ -1602,11 +1602,8 @@ plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 #'
 #' @param x A pls object returned by the \code{pls()} function.
 #' @param type Selection method: "Jack" (default), "Perm", "VIP", or "sMC".
-#' @param cvFolds Number of folds for cross-validation (used in Jack-knife). Default is 5.
-#' @param rep Number of repetitions or permutations. Default is 10.
 #' @param threshold Numerical value for selection (e.g., p-value < 0.05 or VIP > 1).
 #'   If \code{NULL}, default statistical thresholds are applied (p-value = 0.05 and VIP = 1).
-#' @param parallel Logical. If \code{TRUE}, computations are performed in parallel.
 #'
 #' @return Data frame or list containing the selected variables and their respective scores/p-values. Results are plotted
 #' for Jack and Perm variable selection.
@@ -1615,7 +1612,7 @@ plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 
 plsVarSel = function(x,
                      type = c('Jack','Perm','VIP','sMC')[1],
-                     cvFolds = 5, rep = 10, threshold = NULL, parallel = FALSE){
+                     threshold = NULL){
 
   if (!(type%in%c('Jack','Perm','VIP','sMC'))) return(stop('Please use one of: Jack, Perm, VIP, sMC.'))
 
@@ -1623,7 +1620,7 @@ plsVarSel = function(x,
     #Mirar para los casos multibloque
     if (is.null(threshold)) threshold = 0.05
 
-    rJK = JK(x, cvFolds = cvFolds, rep = rep, threshold = threshold, parallel = parallel)
+    rJK = JK(x, alpha = threshold)
 
     if(ncol(x$Y)==1){
 
@@ -1632,27 +1629,26 @@ plsVarSel = function(x,
                                           "pValJK" = rJK$pval,
                                           "LCI_JK" = rJK$LCI_coef,
                                           "UCI_JK" = rJK$UCI_coef)
+        names(coefficients_summary) = c("Coefficient", "pValJK","LCI_JK","UCI_JK")
         vars = rJK$pval
         rownames(vars) = rownames(x$coefficients)
         vars = vars[vars<threshold,,drop=FALSE]
       } else{
-        b_names = names(x$X)
-        block_coef_cv = setNames(lapply(seq_along(b_names), function(b) array(unlist(lapply(x$cv_results, function(r) r$block_coef_cv[[b]])), dim = c(dim(x$cv_results[[1]]$block_coef_cv[[1]])[1:3], dim(x$cv_results[[1]]$block_coef_cv[[1]])[4] * rep)) ), b_names)
-        blockJack = setNames(lapply(seq_along(b_names), function(b) p.jack(block_coef[[b]], block_coef_cv[[b]], x$ncomp, threshold) ), b_names)
+
         block_tables = lapply(b_names, function(b) {
-          coef_mat = data.frame( "coefficient" = block_coef[[b]],
-                                 "pValJK" = blockJack[[b]]$pval,
-                                 "LCI_JK" = blockJack[[b]]$LCI_coef,
-                                 "UCI_JK" = blockJack[[b]]$UCI_coef,
+          coef_mat = data.frame( "Coefficient" = x$coefficients[[b]],
+                                 "pValJK" = rJK[[b]]$pval,
+                                 "LCI_JK" = rJK[[b]]$LCI_coef,
+                                 "UCI_JK" = rJK[[b]]$UCI_coef,
                                  "Block" = b)
         })
         coefficients_summary = do.call(rbind, block_tables)
+        names(coefficients_summary) = c("Coefficient", "pValJK","LCI_JK","UCI_JK","Block")
 
         vars = coefficients_summary[,'pValJK',drop=FALSE]
         vars = vars[vars<threshold,,drop=FALSE]
       }
 
-      names(coefficients_summary)[1] = "Coefficient"
       coefficients_summary$Variable = rownames(coefficients_summary)
       coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
       coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
