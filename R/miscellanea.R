@@ -651,11 +651,9 @@ crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed){
 
   folds = createFold(X, k, seed)
 
-  preds = array(0, dim=c(nrow(X), ncol(Y), ncomp))
+  preds = array(0, dim=c(nrow(X), ncol(Y)))
 
-  R2 = PRESS = RMSE = Q2 = numeric(ncomp)
-
-  coef_cv = array(0, dim=c(ncomp, ncol(X),ncol(Y),length(folds)))
+  coef_cv = array(0, dim=c(ncol(X),ncol(Y),length(folds)))
 
   for (i in 1:length(folds)){
 
@@ -687,16 +685,11 @@ crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed){
     }else{
       Yval = Y[folds[[i]],,drop=FALSE]
     }
-    mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
 
-    for (j in 1:ncomp){
-      weightsStar =  try(suppressWarnings(mypls$weights[,1:j,drop=FALSE]%*%solve(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))),silent = TRUE)
-      if(inherits(weightsStar,'try-error')) weightsStar = mypls$weights[,1:j,drop=FALSE]%*%corpcor::pseudoinverse(crossprod(mypls$loadings[,1:j,drop=FALSE], mypls$weights[,1:j,drop=FALSE]))
-      coefficients = tcrossprod(weightsStar, mypls$loadingsY[,1:j,drop=FALSE])
-      if(any(is.na(Xval))) Xval = impute_nipals(Xval, Yval, inObs = FALSE, ncomp = j)
-      preds[folds[[i]], , j] = as.matrix(Xval) %*% coefficients
-      coef_cv[j,,,i] = coefficients
-    }
+    mypls = nipals_pls(X = Xfold, Y = Yfold, ncomp = ncomp)
+    if(any(is.na(Xval))) Xval = impute_nipals(Xval, Yval, inObs = FALSE, ncomp = ncomp)
+    preds[folds[[i]], ] = as.matrix(Xval) %*% mypls$coefficients
+    coef_cv[,,i] = mypls$coefficients
   }
 
   #Calculate metrics
@@ -712,26 +705,21 @@ crossVal = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed){
 
   plsr2 = nipals_pls(X = X, Y = Y, ncomp = ncomp)
 
-  for (j in 1:ncomp) {
+  #RMSE
+  RMSE = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-preds)^2))
 
-    Ypred = as.matrix(preds[,,j])
+  #R2
+  yhat = tcrossprod(plsr2$scores,plsr2$loadingsY)
+  SCR = sum((Y-yhat)^2)
+  SCT = sum(Y^2)
+  R2 = 1- (SCR/SCT)
 
-    #RMSE
-    RMSE[j] = sqrt((1/(nrow(X)*ncol(Y)))*sum((Y-Ypred)^2))
+  #PRESS
+  PRESS = sum((Y - preds)^2)
 
-    #R2
-    yhat = tcrossprod(plsr2$scores[,1:j,drop=FALSE],plsr2$loadingsY[,1:j,drop=FALSE])
-    SCR = sum((Y-yhat)^2)
-    SCT = sum(Y^2)
-    R2[j] = 1- (SCR/SCT)
+  #Q2
+  Q2 = 1- (PRESS/SCT)
 
-    #PRESS
-    PRESS[j] = sum((Y - Ypred)^2)
-
-    #Q2
-    Q2[j] = 1- (PRESS[j]/SCT)
-
-  }
 
   return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, coef_cv = coef_cv))
 
@@ -1090,25 +1078,18 @@ crossVal_plsda_mb = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scal
 
 pls_cross = function(X, Y, scaling, blocks, scalingY, ncomp = NULL, folds = 5, rep = 10, algo = 'nipals', parallel = T){
 
-  if (algo == 'nipals'){
-    if(is.null(ncomp)){
-      ncomp = min(nrow(X)-1, ncol(X))
-    }
-    if(nrow(X)<=5){
-      warning("Low number of replicates. Leave-one-out cv will be performed.")
-      folds = nrow(X)
-      rep = 1
-    }
-  } else{
-    if(is.null(ncomp)){
-      ncomp = min(nrow(X[[1]])-1, min(unlist(lapply(X, ncol))))
-    }
-    if(nrow(X[[1]])<=5){
-      warning("Low number of replicates. Leave-one-out cv will be performed.")
-      folds = nrow(X[[1]])
-      rep = 1
-    }
-  }
+  # TO DO: Poner esto en el multibloque
+
+  #  else{
+  #   if(is.null(ncomp)){
+  #     ncomp = min(nrow(X[[1]])-1, min(unlist(lapply(X, ncol))))
+  #   }
+  #   if(nrow(X[[1]])<=5){
+  #     warning("Low number of replicates. Leave-one-out cv will be performed.")
+  #     folds = nrow(X[[1]])
+  #     rep = 1
+  #   }
+  # }
 
 
   message("\n Running optimization:")
@@ -2789,21 +2770,6 @@ loadingPlotmb = function(x,
       return(NULL)
     }
   }
-}
-
-loadingPlotPLSmb = function(x,
-                            comp = NULL,
-                            col = 'main',
-                            colBy = NULL,
-                            shape = c('arrow', 'point')[1],
-                            selVars = NULL,
-                            labels = TRUE,
-                            labelTop = NULL,
-                            repel = TRUE,
-                            newObs = NULL ) {
-
-
-  return(NULL)
 }
 
 # Weights plot ------------------------------------------------------------

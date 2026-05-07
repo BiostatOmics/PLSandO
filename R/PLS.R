@@ -476,35 +476,79 @@ pls = function(x, y,
 
     if(is.null(ncomp)){
 
-      res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = ncomp, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
+      Imp = TRUE
 
-      r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
-      mean_r2_per_component = apply(r2_array, 1, mean)
+      if (algo == 'nipals'){
+        if(is.null(ncomp)){
+          ncomp = min(nrow(x)-1, ncol(x))
+        }
+        if(nrow(x)<=5){
+          warning("Low number of replicates. Leave-one-out cv will be performed.")
+          folds = nrow(x)
+          rep = 1
+        }
+      }
 
-      q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
-      mean_q2_per_component = apply(q2_array, 1, mean)
+      iter = 1
 
-      rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
-      mean_rmse_per_component = apply(rmse_array, 1, mean)
+      r2 = q2 = array(0, ncomp)
+      rmse = array(Inf, ncomp)
+      coef_cv = list()
 
-      # Improvement of 0.01 in R2 and Q2 positive increment
-      r2_diff = diff(mean_r2_per_component)
-      q2_diff = diff(mean_q2_per_component)
+      while(Imp && iter<ncomp+1){
 
-      ncomp = {
-        idx = which(!(diff(mean_r2_per_component) >= 0.01 & diff(mean_q2_per_component) > 0))
-        if (length(idx) == 0) length(mean_r2_per_component) else idx[1]}
+        res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = iter, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
+
+        coef_cv_comp = array(unlist(lapply(res_cross, `[[`, "coef_cv")),  dim = c(ncol(x), ncol(y), rep * cvFolds))
+        coef_cv[[iter]] = coef_cv_comp
+
+        r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
+        r2[iter] = mean(r2_array)
+
+        q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+        q2[iter] = mean(q2_array)
+
+        rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+        rmse[iter] = mean(rmse_array)
+
+        if (iter!=1){
+          Imp = { diff(r2[(iter - 1):iter]) >=0.01 & diff(q2[(iter - 1):iter]) >=0}
+          if(!Imp) {
+            ncomp = iter -1
+            coef_cv[[iter]] = NULL
+          }
+        }
+        iter = iter + 1
+      }
+
+      r2_diff = diff(r2)
+      q2_diff = diff(q2)
 
     } else{
-      res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = ncomp, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
+      iter = 1
 
-      q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
-      mean_q2_per_component = if(inherits(q2_array,'numeric')) mean(q2_array) else apply(q2_array, 1, mean)
+      r2 = q2 = array(0, ncomp)
+      rmse = array(Inf, ncomp)
+      coef_cv = list()
+      while(iter<ncomp+1){
 
-      rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
-      mean_rmse_per_component = if(inherits(rmse_array,'numeric')) mean(rmse_array) else apply(rmse_array, 1, mean)
+        res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = iter, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
+        coef_cv_comp = array(unlist(lapply(res_cross, `[[`, "coef_cv")),  dim = c(ncol(x), ncol(y), rep * cvFolds))
+        coef_cv[[iter]] = coef_cv_comp
 
+        r2_array = simplify2array(lapply(res_cross, function(res) res$R2))
+        r2[iter] = mean(r2_array)
+
+        q2_array = simplify2array(lapply(res_cross, function(res) res$Q2))
+        q2[iter] = mean(q2_array)
+
+        rmse_array = simplify2array(lapply(res_cross, function(res) res$RMSE))
+        rmse[iter] = mean(rmse_array)
+
+        iter = iter + 1
+      }
     }
+    coef_cv = aperm(array(unlist(coef_cv), dim = c(ncol(x), ncol(y), rep * cvFolds, ncomp)), c(4,1,2,3))
 
     ## Scaling X
 
@@ -534,7 +578,6 @@ pls = function(x, y,
 
     mypls = nipals_pls(x,y,ncomp = ncomp)
 
-    coef_cv = array(unlist(lapply(res_cross, `[[`, "coef_cv")),  dim = c(dim(res_cross[[1]]$coef_cv)[1:3], rep * dim(res_cross[[1]]$coef_cv)[4]))
     Jack = p.jack(mypls$coefficients, coef_cv, ncomp, alpha)
 
     if(ncol(y)==1){
@@ -542,7 +585,7 @@ pls = function(x, y,
                        "pValJK" = Jack$pval,
                        "LCI_JK" = Jack$LCI_coef,
                        "UCI_JK" = Jack$UCI_coef)
-      names(resum_coef)[1] = "coefficient"
+      names(resum_coef) = c("coefficient","pValJK","LCI_JK","UCI_JK")
     } else{
       resum_tab = data.frame(
         variable   = rownames(mypls$coefficients),
@@ -588,16 +631,16 @@ pls = function(x, y,
       r2_diff = diff(R2)
       r2y_diff = diff(R2Y)
 
-      q2_diff = diff(mean_q2_per_component[1:ncomp])
+      q2_diff = diff(q2[1:ncomp])
 
       resum = data.frame("comp" = factor(1:ncomp),
                          "R2X" = c(R2[1], r2_diff),
                          "cumR2X" = R2,
                          "R2Y" = c(R2Y[1], r2y_diff),
                          "cumR2Y" = R2Y,
-                         "Q2" = c(mean_q2_per_component[1], q2_diff),
-                         "cumQ2" = mean_q2_per_component[1:ncomp],
-                         "RMSE" = mean_rmse_per_component[1:ncomp])
+                         "Q2" = c(q2[1], q2_diff),
+                         "cumQ2" = q2[1:ncomp],
+                         "RMSE" = rmse[1:ncomp])
 
     } else{
 
@@ -646,7 +689,7 @@ pls = function(x, y,
       r2_diff = diff(R2)
       r2y_diff = diff(R2Y)
 
-      q2_diff = diff(mean_q2_per_component[1:ncomp])
+      q2_diff = diff(q2[1:ncomp])
 
       resum = data.frame("comp" = factor(1:ncomp),
                          "R2X" = c(R2[1], r2_diff),
@@ -657,9 +700,9 @@ pls = function(x, y,
                          "cumR2Xtest" = R2test,
                          "R2Ytest" = c(R2Ytest[1], r2ytest_diff),
                          "cumR2Ytest" = R2Ytest,
-                         "Q2" = c(mean_q2_per_component[1], q2_diff),
-                         "cumQ2" = mean_q2_per_component[1:ncomp],
-                         "RMSE" = mean_rmse_per_component[1:ncomp])
+                         "Q2" = c(q2[1], q2_diff),
+                         "cumQ2" = q2[1:ncomp],
+                         "RMSE" = rmse[1:ncomp])
 
     }
 
