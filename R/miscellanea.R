@@ -731,11 +731,9 @@ crossVal_mb = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed
 
   folds = createFold(X[[1]], k, seed)
 
-  preds = array(0, dim=c(nrow(Y), ncol(Y), ncomp))
+  preds = array(0, dim=c(nrow(Y), ncol(Y)))
 
-  R2 = PRESS = RMSE = Q2 = numeric(ncomp)
-
-  block_coef_cv = lapply(seq_along(X), function(b) array(0, dim = c(ncomp, ncol(X[[b]]), ncol(Y), length(folds))))
+  block_coef_cv = lapply(seq_along(X), function(b) array(0, dim = c( ncol(X[[b]]), ncol(Y), length(folds))))
 
   for (i in 1:length(folds)){
 
@@ -769,12 +767,10 @@ crossVal_mb = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed
 
     mypls = nipals_mbpls(X = Xfold, Y = Yfold, ncomp = ncomp)
 
-    for (j in 1:ncomp){
+    block_coef = lapply(mypls$block_coefficients, function(b) apply(b, c(1,2), sum))
+    preds[folds[[i]], ] = do.call('+',lapply(b_names, function(x) as.matrix(Xval[[x]])%*%block_coef[[x]]))
+    for (b in seq_along(block_coef_cv)) block_coef_cv[[b]][,,i] = block_coef[[b]]
 
-      block_coef = lapply(mypls$block_coefficients, function(b) apply(b[,,1:j, drop = FALSE], c(1,2), sum))
-      preds[folds[[i]], , j] = do.call('+',lapply(b_names, function(x) as.matrix(Xval[[x]])%*%block_coef[[x]]))
-      for (b in seq_along(block_coef_cv)) block_coef_cv[[b]][j,,,i] = block_coef[[b]]
-    }
   }
 
   #Calculate metrics
@@ -791,28 +787,22 @@ crossVal_mb = function(iter, X, Y, ncomp, k = 5, scaling, blocks, scalingY, seed
 
   plsr2 = nipals_mbpls(X = X, Y = Y, ncomp = ncomp)
 
-  for (j in 1:ncomp) {
+  #RMSE
+  RMSE = sqrt((1/(nrow(X[[1]])*ncol(Y)))*sum((Y-preds)^2))
 
-    Ypred = as.matrix(preds[,,j])
+  #R2
+  block_coef = lapply(plsr2$block_coefficients, function(b) apply(b, c(1,2), sum))
+  yhat = do.call('+',lapply(b_names, function(x) as.matrix(X[[x]])%*%block_coef[[x]]))
 
-    #RMSE
-    RMSE[j] = sqrt((1/(nrow(X[[1]])*ncol(Y)))*sum((Y-Ypred)^2))
+  SCR = sum((Y-yhat)^2)
+  SCT = sum(Y^2)
+  R2 = 1- (SCR/SCT)
 
-    #R2
-    block_coef = lapply(plsr2$block_coefficients, function(b) apply(b[,,1:j, drop = FALSE], c(1,2), sum))
-    yhat = do.call('+',lapply(b_names, function(x) as.matrix(X[[x]])%*%block_coef[[x]]))
+  #PRESS
+  PRESS = sum((Y - preds)^2)
 
-    SCR = sum((Y-yhat)^2)
-    SCT = sum(Y^2)
-    R2[j] = 1- (SCR/SCT)
-
-    #PRESS
-    PRESS[j] = sum((Y - Ypred)^2)
-
-    #Q2
-    Q2[j] = 1- (PRESS[j]/SCT)
-
-  }
+  #Q2
+  Q2 = 1- (PRESS/SCT)
 
   return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, block_coef_cv = block_coef_cv))
 
@@ -1077,20 +1067,6 @@ crossVal_plsda_mb = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scal
 }
 
 pls_cross = function(X, Y, scaling, blocks, scalingY, ncomp = NULL, folds = 5, rep = 10, algo = 'nipals', parallel = T){
-
-  # TO DO: Poner esto en el multibloque
-
-  #  else{
-  #   if(is.null(ncomp)){
-  #     ncomp = min(nrow(X[[1]])-1, min(unlist(lapply(X, ncol))))
-  #   }
-  #   if(nrow(X[[1]])<=5){
-  #     warning("Low number of replicates. Leave-one-out cv will be performed.")
-  #     folds = nrow(X[[1]])
-  #     rep = 1
-  #   }
-  # }
-
 
   message("\n Running optimization:")
 
