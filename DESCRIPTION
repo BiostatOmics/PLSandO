@@ -1,7 +1,7 @@
 Package: PLSandO
 Type: Package
 Title: Partial Least Squares and Other (PLSandO)
-Version: 0.1.1
+Version: 0.1.2
 Author: Maider Aguerralde Martin
 Maintainer: Maider Aguerralde Martin <magumar2@posgrado.upv.es>
 Description: PLSandO (PLS and Others) is a comprehensive R package developed for advanced multivariate modeling. PLSandO implements a wide range of methods including Principal Component Analysis (PCA), Partial Least Squares (PLS), and PLS Discriminant Analysis (PLS-DA), with extensive support for Multi-block (MB-PCA, MB-PLS, MB-PLSDA) and multilevel data structures. It is specifically designed to facilitate the exploration and interpretation of high-dimensional data, enabling researchers to move from raw data to interpretable models within a single framework.

@@ -82,10 +82,13 @@ pca = function(x,
 
     totalVar = sum(sapply(x, function(y) sum(apply(y, 2, function(z) var(z,na.rm = TRUE)))))
 
+    total_inertia = sum(sapply(x, function(y) sum(y^2, na.rm = TRUE))) / (nrow(x[[1]]) - 1)
+    percVar = (mypca$eigen / total_inertia) * 100
+
     explVar = data.frame("comp" = factor(1:ncomp),
                          "eigenVal" = mypca$eigen,
-                         "percVar" = round(100*mypca$eigen/totalVar,4),
-                         "cumPercVar" = round(100*cumsum(mypca$eigen/totalVar),4))
+                         "percVar" = round(percVar,4),
+                         "cumPercVar" = round(cumsum(percVar),4))
     explVarBlock = setNames(lapply(b_names, function(y){
       expl = data.frame("comp" = factor(1:ncomp),
                         "percVar" = round(c(mypca$explvarB[[y]][1] ,diff(as.numeric(mypca$explvarB[[y]]))),4),
@@ -174,16 +177,17 @@ pca = function(x,
       centrado = rep(0, times = ncol(x))
     }
 
-    totalVar = sum(apply(x, 2, function(x) var(x,na.rm = TRUE)))
-
     if(any(is.na(x)) && algo == 'svd') return(stop('Missing values detected. Please remove or impute them, or use the nipals algorithm instead'))
 
     mypca = if(algo == 'svd') svd_pca(x, ncomp = ncomp) else nipals_pca(x, ncomp = ncomp)
 
+    total_inertia = sum(x^2, na.rm = TRUE) / (nrow(x) - 1)
+    percVar = (mypca$eigen / total_inertia) * 100
+
     explVar = data.frame("comp" = factor(1:length(mypca$eigen)),
                          "eigenVal" = mypca$eigen,
-                         "percVar" = round(100*mypca$eigen/totalVar,4),
-                         "cumPercVar" = round(100*cumsum(mypca$eigen/totalVar),4))
+                         "percVar" = round(percVar,4),
+                         "cumPercVar" = round(cumsum(percVar),4))
 
     return(list("scores" = mypca$scores,
                 "loadings" = mypca$loadings,
