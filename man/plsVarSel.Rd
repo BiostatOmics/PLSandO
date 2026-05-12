@@ -28,8 +28,7 @@ If \code{NULL}, default statistical thresholds are applied (p-value = 0.05 and V
 \item{col}{Character. A predefined color palette name (e.g., "main", "oficial", ...) or a vector of custom colors.}
 }
 \value{
-Data frame or list containing the selected variables and their respective scores/p-values. Results are plotted
-for Jack and Perm variable selection.
+Data frame or list containing the selected variables and their respective scores/p-values. Results are also plotted.
 }
 \description{
 Performs variable selection using different metrics such as Jack-knife resampling,

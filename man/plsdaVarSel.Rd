@@ -7,10 +7,10 @@
 plsdaVarSel(
   x,
   type = c("Jack", "Perm", "VIP", "sMC")[1],
-  cvFolds = 5,
-  rep = 10,
+  rep = 100,
   threshold = NULL,
-  parallel = FALSE
+  selVars = 1,
+  col = "main"
 )
 }
 \arguments{
@@ -18,20 +18,42 @@ plsdaVarSel(
 
 \item{type}{Selection method: "Jack" (default), "Perm", "VIP", or "sMC".}
 
-\item{cvFolds}{Number of folds for cross-validation (used in Jack-knife). Default is 5.}
-
-\item{rep}{Number of repetitions or permutations. Default is 10.}
+\item{rep}{Number of permutations in permutation testing. Default is 10.}
 
 \item{threshold}{Numerical value for selection (e.g., p-value < 0.05 or VIP > 1).
 If \code{NULL}, default statistical thresholds are applied (p-value = 0.05 and VIP = 1).}
 
-\item{parallel}{Logical. If \code{TRUE}, computations are performed in parallel.}
+\item{selVars}{Percentage of top variables to visualize. By default, 1 (visualize all).}
+
+\item{col}{Character. A predefined color palette name (e.g., "main", "oficial", ...) or a vector of custom colors.}
 }
 \value{
-Data frame or list containing the selected variables and their respective scores/p-values. Results are plotted
-for Jack and Perm variable selection.
+Data frame or list containing the selected variables and their respective scores/p-values. Results are also plotted.
 }
 \description{
 Performs variable selection using different metrics such as Jack-knife resampling,
 Permutation tests, Variable Importance in Projection (VIP), or Significance Multivariate Correlation (sMC).
+}
+\details{
+The \code{plsVarSel} function provides four distinct strategies for variable selection:
+
+\itemize{
+  \item \strong{Jack (Jack-knife):} A leave-one.out cross-validation-based approach. It estimates the
+  standard error of the regression coefficients by systematically leaving out observations.
+  Variables are selected if their coefficient is significantly different from zero based on a t-test.
+
+  \item \strong{Perm (Permutation Test):} A non-parametric method that builds a
+  "null distribution" of coefficients by repeatedly shuffling the Y-variable. A
+  variable is considered significant if its original coefficient lies in the
+  extreme tails of this distribution.
+
+  \item \strong{VIP (Variable Importance in Projection):} A classic PLS metric
+  that summarizes the contribution of a variable to the model. It accounts for
+  both the variance explained in X and the correlation with Y. The generally
+  accepted "rule of thumb" threshold is \code{VIP > 1}.
+
+  \item \strong{sMC (Significance Multivariate Correlation):} By calculating the ratio of explained
+  to residual variance for each variable, it provides a high-precision filter.
+  Supposed to filter out noise in X that is unrelated to Y. Significance is determined via an F-test.
+}
 }

@@ -1629,8 +1629,7 @@ plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 #' @param selVars Percentage of top variables to visualize. By default, 1 (visualize all).
 #' @param col Character. A predefined color palette name (e.g., "main", "oficial", ...) or a vector of custom colors.
 #'
-#' @return Data frame or list containing the selected variables and their respective scores/p-values. Results are plotted
-#' for Jack and Perm variable selection.
+#' @return Data frame or list containing the selected variables and their respective scores/p-values. Results are also plotted.
 #'
 #' @export
 
