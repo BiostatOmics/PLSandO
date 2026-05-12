@@ -1599,11 +1599,35 @@ plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 #'
 #' @description Performs variable selection using different metrics such as Jack-knife resampling,
 #' Permutation tests, Variable Importance in Projection (VIP), or Significance Multivariate Correlation (sMC).
+#' @details
+#' The \code{plsVarSel} function provides four distinct strategies for variable selection:
 #'
+#' \itemize{
+#'   \item \strong{Jack (Jack-knife):} A leave-one.out cross-validation-based approach. It estimates the
+#'   standard error of the regression coefficients by systematically leaving out observations.
+#'   Variables are selected if their coefficient is significantly different from zero based on a t-test.
+#'
+#'   \item \strong{Perm (Permutation Test):} A non-parametric method that builds a
+#'   "null distribution" of coefficients by repeatedly shuffling the Y-variable. A
+#'   variable is considered significant if its original coefficient lies in the
+#'   extreme tails of this distribution.
+#'
+#'   \item \strong{VIP (Variable Importance in Projection):} A classic PLS metric
+#'   that summarizes the contribution of a variable to the model. It accounts for
+#'   both the variance explained in X and the correlation with Y. The generally
+#'   accepted "rule of thumb" threshold is \code{VIP > 1}.
+#'
+#'   \item \strong{sMC (Significance Multivariate Correlation):} By calculating the ratio of explained
+#'   to residual variance for each variable, it provides a high-precision filter.
+#'   Supposed to filter out noise in X that is unrelated to Y. Significance is determined via an F-test.
+#' }
 #' @param x A pls object returned by the \code{pls()} function.
 #' @param type Selection method: "Jack" (default), "Perm", "VIP", or "sMC".
+#' @param rep Number of permutations in permutation testing. Default is 10.
 #' @param threshold Numerical value for selection (e.g., p-value < 0.05 or VIP > 1).
 #'   If \code{NULL}, default statistical thresholds are applied (p-value = 0.05 and VIP = 1).
+#' @param selVars Percentage of top variables to visualize. By default, 1 (visualize all).
+#' @param col Character. A predefined color palette name (e.g., "main", "oficial", ...) or a vector of custom colors.
 #'
 #' @return Data frame or list containing the selected variables and their respective scores/p-values. Results are plotted
 #' for Jack and Perm variable selection.
@@ -1612,7 +1636,7 @@ plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
 
 plsVarSel = function(x,
                      type = c('Jack','Perm','VIP','sMC')[1],
-                     threshold = NULL){
+                     rep = 100, threshold = NULL, selVars = 1, col='main'){
 
   if (!(type%in%c('Jack','Perm','VIP','sMC'))) return(stop('Please use one of: Jack, Perm, VIP, sMC.'))
 
@@ -1632,7 +1656,11 @@ plsVarSel = function(x,
         names(coefficients_summary) = c("Coefficient", "pValJK","LCI_JK","UCI_JK")
         vars = rJK$pval
         rownames(vars) = rownames(x$coefficients)
+        vars = vars[order(vars), ,drop=FALSE]
+        coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
         vars = vars[vars<threshold,,drop=FALSE]
+        coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+
       } else{
 
         block_tables = lapply(b_names, function(b) {
@@ -1646,12 +1674,13 @@ plsVarSel = function(x,
         names(coefficients_summary) = c("Coefficient", "pValJK","LCI_JK","UCI_JK","Block")
 
         vars = coefficients_summary[,'pValJK',drop=FALSE]
-        vars = vars[vars<threshold,,drop=FALSE]
+        vars = vars[order(vars$pValJK), ,drop=FALSE]
+        coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+        vars = vars[vars$pValJK<threshold,,drop=FALSE]
+        coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
       }
 
-      coefficients_summary$Variable = rownames(coefficients_summary)
-      coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
-      coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
 
       blocks = "Block" %in% colnames(x$coefficients_summary)
 
@@ -1666,12 +1695,14 @@ plsVarSel = function(x,
           aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
           size = 6, color = "black"
         ) +
-        labs(
-          x = "Variable",
+        labs( x=NULL,
           y = "Coefficients",
           title = "Coefficients with Jack-Knifed Confidence Intervals"
         ) +
-        theme_minimal(base_size = 12)
+        theme_minimal(base_size = 12)+
+        theme(
+          axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+        )
       if(blocks){
         if (length(col)>1){
           if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
@@ -1705,14 +1736,20 @@ plsVarSel = function(x,
       vars = lapply(resum_tab, function(df) {
         out = df[, c("variable", "pValJK")]
         rownames(out) = out$variable
+        out = out[order(out$pValJK), ,drop=FALSE]
         out$variable = NULL
         return(out) })
 
-      resum_coef = lapply(resum_tab, function(df) {
-        out = df[, c("variable", "coefficient", "pValJK", "LCI_JK", "UCI_JK")]
+      resum_coef = setNames(lapply(seq_along(resum_tab), function(df) {
+        out = resum_tab[[df]][, c("variable", "coefficient", "pValJK", "LCI_JK", "UCI_JK")]
         rownames(out) = out$variable
+        out = out[rownames(vars[[df]]),,drop=FALSE]
         out$variable = NULL
-        return(out) })
+        return(out) }),names(resum_tab))
+
+      vars =  lapply(vars, function(df)  df[df$pValJK<threshold,,drop=FALSE] )
+
+      resum_coef = lapply(resum_coef, function(df)  df[1:ceiling(nrow(df) * selVars),,drop=FALSE] )
 
       plots = list()
 
@@ -1720,7 +1757,7 @@ plsVarSel = function(x,
 
         coefficients_summary = resum_coef[[i]]
         coefficients_summary$Variable = rownames(coefficients_summary)
-        coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
+        coefficients_summary$Significant = coefficients_summary$pValJK < threshold
         coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
         blocks = "Block" %in% colnames(x$coefficients_summary)
@@ -1736,12 +1773,14 @@ plsVarSel = function(x,
             aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
             size = 6, color = "black"
           ) +
-          labs(
-            x = "Variable",
+          labs(x=NULL,
             y = "Coefficients",
             subtitle = paste("Response variable: ", names(x$coefficients_summary)[i])
           ) +
-          theme_minimal(base_size = 12)
+          theme_minimal(base_size = 12)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+          )
 
         if(blocks){
           if (length(col)>1){
@@ -1764,10 +1803,10 @@ plsVarSel = function(x,
 
       }
 
-      patchwork::wrap_plots(plots, ncol = 2) +
+      print(patchwork::wrap_plots(plots, ncol = 2) +
         patchwork::plot_annotation(
           title = "Coefficients with Jack-Knifed Confidence Intervals",
-          theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0)))
+          theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0))))
 
     }
 
@@ -1796,8 +1835,16 @@ plsVarSel = function(x,
       }
 
       names(coefficients_summary)[1] = "Coefficient"
+
+      vars = coefficients_summary[,'pValPerm',drop=FALSE]
+      rownames(vars) = rownames(coefficients_summary)
+      vars = vars[order(vars$pValPerm), ,drop=FALSE]
+      coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+      vars = vars[vars<threshold,,drop=FALSE]
+      coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+
       coefficients_summary$Variable = rownames(coefficients_summary)
-      coefficients_summary$Significant = coefficients_summary$pValPerm < 0.05
+      coefficients_summary$Significant = coefficients_summary$pValPerm < threshold
       coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
       blocks = "Block" %in% colnames(x$coefficients_summary)
@@ -1814,12 +1861,14 @@ plsVarSel = function(x,
           size = 6, color = "black"
         ) +
         labs(
-          x = "Variable",
+          x = NULL,
           y = "Coefficients",
-          title = "Coefficients with Confidence Intervals obtained from permutation testing",
-          subtitle = 'IC defines the range of non-significance'
+          title = "Coefficients with Confidence Intervals obtained from permutation testing"
         ) +
-        theme_minimal(base_size = 12)
+        theme_minimal(base_size = 12)+
+        theme(
+          axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+        )
       if(blocks){
         if (length(col)>1){
           if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
@@ -1839,8 +1888,6 @@ plsVarSel = function(x,
 
       print(ggp)
 
-      vars = coefficients_summary[,'pValPerm',drop=FALSE]
-      vars = vars[vars<threshold,,drop=FALSE]
     } else{
 
       resum_tab = data.frame(
@@ -1855,14 +1902,20 @@ plsVarSel = function(x,
       vars = lapply(resum_tab, function(df) {
         out = df[, c("variable", "pValPerm")]
         rownames(out) = out$variable
+        out = out[order(out$pValJK), ,drop=FALSE]
         out$variable = NULL
         return(out) })
 
-      resum_coef = lapply(resum_tab, function(df) {
-        out = df[, c("variable", "coefficient", "pValPerm", "LCI_Perm", "UCI_Perm")]
+      resum_coef = setNames(lapply(seq_along(resum_tab), function(df) {
+        out = resum_tab[[df]][, c("variable", "coefficient", "pValPerm", "LCI_Perm", "UCI_Perm")]
         rownames(out) = out$variable
+        out = out[rownames(vars[[df]]),,drop=FALSE]
         out$variable = NULL
-        return(out) })
+        return(out) }),names(resum_tab))
+
+      vars =  lapply(vars, function(df)  df[df$pValPerm<threshold,,drop=FALSE] )
+
+      resum_coef = lapply(resum_coef, function(df)  df[1:ceiling(nrow(df) * selVars),,drop=FALSE] )
 
       plots = list()
 
@@ -1870,7 +1923,7 @@ plsVarSel = function(x,
 
         coefficients_summary = resum_coef[[i]]
         coefficients_summary$Variable = rownames(coefficients_summary)
-        coefficients_summary$Significant = coefficients_summary$pValPerm < 0.05
+        coefficients_summary$Significant = coefficients_summary$pValPerm < threshold
         coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
         blocks = "Block" %in% colnames(x$coefficients_summary)
@@ -1886,11 +1939,14 @@ plsVarSel = function(x,
             size = 6, color = "black"
           ) +
           labs(
-            x = "Variable",
+            x = NULL,
             y = "Coefficients",
             subtitle = paste("Response variable: ", names(x$coefficients_summary)[i])
           ) +
-          theme_minimal(base_size = 12)
+          theme_minimal(base_size = 12)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+          )
 
         if(blocks){
           if (length(col)>1){
@@ -1913,11 +1969,11 @@ plsVarSel = function(x,
 
       }
 
-      patchwork::wrap_plots(plots, ncol = 2) +
+      print(patchwork::wrap_plots(plots, ncol = 2) +
         patchwork::plot_annotation(
           title = "Coefficients with Confidence Intervals obtained from permutation testing",
           subtitle = 'IC defines the range of non-significance',
-          theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0)))
+          theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0))))
 
 
     }
@@ -1925,8 +1981,66 @@ plsVarSel = function(x,
 
   if(type == 'VIP'){
     if (is.null(threshold)) threshold = 1
-    vars = as.data.frame(x$vip[x$vip>threshold])
+
+    coefficients_summary = data.frame("VIP" = x$vip)
+    names(coefficients_summary) = c("VIP")
+
+    vars = as.data.frame(x$vip)
     colnames(vars) = 'VIP'
+
+    if (x$input$algo=='nipals'){
+      rownames(vars) = rownames(x$coefficients)
+      vars = vars[order(vars$VIP, decreasing = TRUE), ,drop=FALSE]
+    } else{
+      rownames(vars) = sub("^[^_]*_", "", rownames(coefficients_summary))
+      vars = vars[order(vars$VIP, decreasing = TRUE), ,drop=FALSE]
+      coefficients_summary$Block = sub("_.*", "", rownames(coefficients_summary))
+      rownames(coefficients_summary) = sub("^[^_]*_", "", rownames(coefficients_summary))
+    }
+
+    coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+    vars = vars[vars$VIP>threshold,,drop=FALSE]
+    coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+    coefficients_summary$Variable = rownames(coefficients_summary)
+    coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
+    blocks = "Block" %in% colnames(x$coefficients_summary)
+
+    # Create plot
+    ggp = ggplot(coefficients_summary, aes(x = Variable, y = VIP)) +
+      {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+        else geom_col(fill = "skyblue", width = 0.6)} +
+      geom_hline(yintercept = 0, linetype = "solid", color = "gray40") +
+      geom_hline(yintercept = threshold, linetype = "dashed", color = "red") +
+      labs(
+        x = NULL,
+        y = "VIP",
+        title = "VIP values"
+      ) +
+      theme_minimal(base_size = 12)+
+      theme(
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+      )
+    if(blocks){
+      if (length(col)>1){
+        if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+        custom_colors = setNames(col, names(x$X))
+      } else{
+        num_unique = length(x$X)
+        if(num_unique== 2){
+          color_palette = colorbiostat(num_unique+1, palette = col)
+          custom_colors = setNames(color_palette[-2], names(x$X))
+        } else{
+          color_palette = colorbiostat(num_unique, palette = col)
+          custom_colors = setNames(color_palette, names(x$X))
+        }
+      }
+      ggp = ggp + scale_fill_manual(values = custom_colors)
+    }
+
+    print(ggp)
+
+
   }
 
   if(type == 'sMC'){
@@ -1934,23 +2048,41 @@ plsVarSel = function(x,
     if(x$input$algo == 'mbpls') return(stop('Not available for multiblock models'))
     if (is.null(threshold)) threshold = 0.05
 
-    if(ncol(x$Y)==1){
-      rsMC = SMC(x$X, x$coefficients)
-      fcrit = qf(1-threshold,1,nrow(x$X)-2)
-      vars = as.data.frame(rsMC[rsMC>fcrit])
-      colnames(vars) = 'sMC'
-    } else{
+    rsMC = SMC(x$X, x$coefficients[,1,drop=FALSE])
+    fcrit = qf(1-threshold,1,nrow(x$X)-2)
 
-      vars = list()
-      for (i in 1:ncol(x$Y)) {
-        rsMC = SMC(x$X, x$coefficients[,i,drop=FALSE])
-        fcrit = qf(1-threshold,1,nrow(x$X)-2)
-        bvars = as.data.frame(rsMC[rsMC>fcrit])
-        colnames(bvars) = 'sMC'
-        vars[[i]] = bvars
-      }
-      names(vars) = colnames(x$Y)
-    }
+    coefficients_summary = data.frame("sMC" = rsMC)
+    names(coefficients_summary) = c("sMC")
+
+    vars = as.data.frame(rsMC)
+    colnames(vars) = 'sMC'
+
+    rownames(vars) = rownames(x$coefficients)
+    vars = vars[order(vars$sMC, decreasing = TRUE), ,drop=FALSE]
+    coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+    vars = vars[vars$sMC>fcrit,,drop=FALSE]
+    coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+    coefficients_summary$Variable = rownames(coefficients_summary)
+    coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
+    blocks = "Block" %in% colnames(x$coefficients_summary)
+
+    # Create plot
+    ggp = ggplot(coefficients_summary, aes(x = Variable, y = sMC)) +
+         geom_col(fill = "skyblue", width = 0.6) +
+      geom_hline(yintercept = 0, linetype = "solid", color = "gray40") +
+      geom_hline(yintercept = fcrit, linetype = "dashed", color = "red") +
+      labs(
+        x = NULL,
+        y = "sMC",
+        title = "Significance Multivariate Correlation"
+      ) +
+      theme_minimal(base_size = 12)+
+      theme(
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+      )
+
+    print(ggp)
 
   }
 

@@ -5523,8 +5523,8 @@ perm = function(x, R, threshold){
       for (j in 1:dim(a)[3]) {
         coefs = a[i,,j]
         p.coefs[i,j] = ifelse(coefmod[i,j] > 0, (sum(coefs > coefmod[i,j]) + sum(coefs < -coefmod[i,j]) )/ R, (sum(coefs < coefmod[i,j]) + sum(coefs > -coefmod[i,j])) / R)
-        LCI_coef[i,j] = quantile(coefs, prob=threshold/2)
-        UCI_coef[i,j] = quantile(coefs, prob=1-(threshold/2))
+        LCI_coef[i,j] = coefmod[i,j] + quantile(coefs-mean(coefs), prob=threshold/2)
+        UCI_coef[i,j] = coefmod[i,j] + quantile(coefs-mean(coefs), prob=1-(threshold/2))
       }
     }
     rownames(p.coefs) = rownames(coefmod)
@@ -5552,8 +5552,8 @@ perm = function(x, R, threshold){
       for (j in 1:dim(a)[3]) {
         coefs = a[i,,j]
         p.coefs[i,j] = ifelse(coefmod[i,j] > 0, (sum(coefs > coefmod[i,j]) + sum(coefs < -coefmod[i,j]) )/ R, (sum(coefs < coefmod[i,j]) + sum(coefs > -coefmod[i,j])) / R)
-        LCI_coef[i,j] = quantile(coefs, prob=threshold/2)
-        UCI_coef[i,j] = quantile(coefs, prob=1-(threshold/2))
+        LCI_coef[i,j] = coefmod[i,j] + quantile(coefs-mean(coefs), prob=threshold/2)
+        UCI_coef[i,j] = coefmod[i,j] + quantile(coefs - mean(coefs), prob=1-(threshold/2))
       }
     }
     rownames(p.coefs) = rownames(coefmod)
