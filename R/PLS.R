@@ -1071,6 +1071,8 @@ plsPlot = function(x,
                       repel = repel,
                       newObs = newObs)
 
+      ggp = ggp + labs(title = "Score Plot X space")
+
     }
 
     if (type == "scoresY") {
@@ -1099,6 +1101,8 @@ plsPlot = function(x,
                       repel = repel,
                       newObs = newObs)
 
+      ggp = ggp + labs(title = "Score Plot Y space")
+
     }
 
     ### Loadings
@@ -1119,6 +1123,8 @@ plsPlot = function(x,
                         labels = labels,
                         labelTop = labelTop,
                         repel = repel)
+
+      ggp = ggp + labs(title = "Loading Plot X space")
 
     }
 
@@ -1142,6 +1148,8 @@ plsPlot = function(x,
                         labels = labels,
                         labelTop = labelTop,
                         repel = repel)
+
+      ggp = ggp + labs(title = "Loading Plot Y space")
 
     }
 
@@ -1281,6 +1289,8 @@ plsPlot = function(x,
                     repel = repel,
                     newObs = newObs)
 
+    ggp = ggp + labs(title = "Score Plot X space")
+
     }
 
     if (type == "scoresY") {
@@ -1310,6 +1320,8 @@ plsPlot = function(x,
                       repel = repel,
                       newObs = newObs)
 
+      ggp = ggp + labs(title = "Score Plot Y space")
+
     }
 
     ## Loadings
@@ -1328,6 +1340,8 @@ plsPlot = function(x,
                         labels = labels,
                         labelTop = labelTop,
                         repel = repel)
+
+      ggp = ggp + labs(title = "Loading Plot X space")
 
     }
 
@@ -1351,6 +1365,8 @@ plsPlot = function(x,
                         labels = labels,
                         labelTop = labelTop,
                         repel = repel)
+
+      ggp = ggp + labs(title = "Loading Plot Y space")
 
     }
 
