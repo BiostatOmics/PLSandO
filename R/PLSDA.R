@@ -1602,7 +1602,7 @@ plsdaVarSel = function(x,
 #' @param x An object returned by the \code{plsda()} function.
 #' @param ncomp Integer. Number of components to use for outlier calculation. If NULL, all components in the plsda object will be used. By default, NULL.
 #' @param method Character. Detection method: "T2" (Hotellings-T2), "RSS" (Residuals Sum of Squares), or "both".
-#' @param conf Numeric. Confidence level for the critical limit (e.g., 95, 99).
+#' @param conf Numeric. Confidence level for the critical limit (e.g., 0.95, 0.99).
 #'
 #' @return A list of identified moderate and severe outliers.
 #' @export
