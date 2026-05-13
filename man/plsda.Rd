@@ -64,7 +64,7 @@ A list containing:
   \item \code{summary}: Data frame with R2X, R2Y, Q2, RMSE, F1score, Mathews Correlation Coefficient (MCC), Balanced Error Rate (BER) and Total Error (Etot) metrics per component, including test set results if applicable.
   \item \code{BexplVar}: List of explained variance per block (only for MB-PLS).
   \item \code{validation}: Data frame with R2, Q2, PRESS, RMSE and Similarity obtained in permutation testing.
-  \item \code{cv_results}: Detailed results from the cross-validation procedure.
+  \item \code{cv_results}: Detailed results from the cross-validation procedure. Including the results obtained for each repetition for the R2, Q2, PRESS, RMSE, F1score, MCC, Etot (Total error), coef_cv (Coefficients obtained in the cross-validation), BER, Specificity and Sensitivity.
   \item \code{PreproSummary}: Summary of data dimensions, missing values, and excluded low-variance variables.
   \item \code{ncomp}: The final number of components used in the model (optimized via cross-validation).
   \item \code{test}: List containing the processed \code{xTest} and \code{yTest} data if a training percentage was specified.

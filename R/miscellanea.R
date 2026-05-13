@@ -854,7 +854,7 @@ crossVal_plsda = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scaling
 
   preds = array(0, dim=c(nrow(X), ncol(Y), ncomp))
 
-  R2 = PRESS = RMSE = Q2 = f1score = MCC = Etot = BER = numeric(ncomp)
+  R2 = PRESS = RMSE = Q2 = f1score = MCC = Etot = BER = Spec = Sens = numeric(ncomp)
 
   coef_cv = array(0, dim=c(ncomp, ncol(X), ncol(Y), length(folds)))
 
@@ -951,9 +951,15 @@ crossVal_plsda = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scaling
     Etot[j] = mean(real_class != pred_class)
     BER[j] = BER(TP, FP, FN, TN, epsilon = 0.00001)
 
+    #Specificity
+    Spec[j] = mean(TN / (TN + FP + 0.000001))
+
+    #Sensitivity
+    Sens[j] = mean(TP / (TP + FN + 0.000001))
+
   }
 
-  return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, F1score = f1score, MCC=MCC, Etot = Etot, coef_cv = coef_cv, BER = BER))
+  return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, F1score = f1score, MCC=MCC, Etot = Etot, coef_cv = coef_cv, BER = BER, Specificity = Spec, Sensitivity = Sens))
 
 }
 
@@ -966,7 +972,7 @@ crossVal_plsda_mb = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scal
 
   preds = array(0, dim=c(nrow(Y), ncol(Y), ncomp))
 
-  R2 = PRESS = RMSE = Q2 = f1score = MCC = Etot = BER = numeric(ncomp)
+  R2 = PRESS = RMSE = Q2 = f1score = MCC = Etot = BER = Sens = Spec = numeric(ncomp)
 
   block_coef_cv = lapply(seq_along(X), function(b) array(0, dim = c(ncomp, ncol(X[[b]]), ncol(Y), length(folds))))
 
@@ -1060,9 +1066,15 @@ crossVal_plsda_mb = function(iter, X, Y, Y2, ncomp, k = 5, scaling, blocks, scal
     Etot[j] = mean(real_class != pred_class)
     BER[j] = BER(TP, FP, FN, TN, epsilon = 0.00001)
 
+    #Specificity
+    Spec[j] = mean(TN / (TN + FP + 0.00001))
+
+    #Sensitivity
+    Sens[j] = mean(TP / (TP + FN + 0.00001))
+
   }
 
-  return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, block_coef_cv = block_coef_cv, F1score = f1score, MCC=MCC, Etot = Etot, BER = BER))
+  return(list(R2=R2, Q2=Q2, PRESS=PRESS,RMSE = RMSE, block_coef_cv = block_coef_cv, F1score = f1score, MCC=MCC, Etot = Etot, BER = BER, Sensitivity = Sens, Specificity = Spec))
 
 }
 
