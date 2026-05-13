@@ -4820,18 +4820,12 @@ biPlotPLSmb = function(x,
 
 # x: Object returned by pca, pls or plsda functions
 
-R2varcomp = function(x, col) {
+R2varcomp = function(x, col, selVars = NULL) {
 
   X = x$X
   if(any(is.na(x$X))) X = imputeNipals(x, scaled = T)
   SCT = colSums(X**2, na.rm = T)
   mat = NULL
-
-  if(x$input$model=='pls'){
-    Y = x$Y
-    SCTY = colSums(Y**2, na.rm = T)
-    matY = NULL
-  }
 
   # Loop through components and calculate cumulative R2 for each
   for (i in 1:x$ncomp) {
@@ -4842,15 +4836,9 @@ R2varcomp = function(x, col) {
     R2 = SCE / SCT
     mat = rbind(mat, R2)
 
-    if(x$input$model == 'pls'){
-      LoadingsY = x$loadingsY[,1:i, drop=FALSE]
-      Yest = tcrossprod(Scores, LoadingsY)
-      SCEY = colSums(Yest**2)
-      R2Y = SCEY / SCTY
-      matY = rbind(matY, R2Y)
-    }
-
   }
+
+  if(!is.null(selVars)) mat = mat[,order(mat[x$ncomp,],decreasing = T)[1:ceiling(ncol(mat) * selVars)],drop=FALSE]
 
   mat1 = mat
 
@@ -4863,7 +4851,6 @@ R2varcomp = function(x, col) {
 
   components = rownames(mat1) =  as.character(1:x$ncomp)
   variables = colnames(mat1)
-
 
   component_vec = rep(components, each = length(variables))
   variable_vec = rep(variables, times = length(components))
@@ -4899,69 +4886,77 @@ R2varcomp = function(x, col) {
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "right")
 
-  if(x$input$model=='pls'){
-    mat1Y = matY
-    if (nrow(mat1Y) > 1) {
-      for (i in 2:nrow(mat1Y)) {
-        mat1Y[i, ] = matY[i, ] - matY[i - 1, ]
-      }
-    }
+  return(ggp)
+}
 
-    variablesY = colnames(mat1Y)
-    rownames(mat1Y) = as.character(1:x$ncomp)
+R2varcompY = function(x, col, selVars = NULL) {
 
-    component_vecY = rep(components, each = length(variablesY))
-    variable_vecY = rep(variablesY, times = length(components))
-    R2_vecY = as.vector(t(mat1Y))
+  Y = x$Y
+  SCTY = colSums(Y**2, na.rm = T)
+  matY = NULL
 
-    plot_df = data.frame(
-      Component = component_vecY,
-      Variable = variable_vecY,
-      R2 = R2_vecY)
-
-    if ((length(col) == 1 && !(col %in% c('main', 'complete', 'cblindfriendly', 'sunshine','hot','warm','grass','oficial'))) || length(col)>1){
-      if (length(col)!= length(components)) return(stop('Either provide colors for the number of components or use one of the default color palettes'))
-      custom_colors = setNames(col, unique(plot_df$Component))
-    } else{
-      num_unique = length(unique(plot_df$Component))
-      if(num_unique== 2){
-        color_palette = colorbiostat(num_unique+1, palette = col)
-        custom_colors = setNames(color_palette[-2], unique(plot_df$Component))
-      } else{
-        color_palette = colorbiostat(num_unique, palette = col)
-        custom_colors = setNames(color_palette, unique(plot_df$Component))
-      }
-    }
-
-    ggpY = ggplot(plot_df, aes(x = Variable, y = R2, fill = Component)) +
-      geom_col() +
-      scale_fill_manual(values = custom_colors) +
-      theme_minimal() +
-      labs(title = "",
-           x = "Variable",
-           y = "Explained R²Y",
-           fill = "Comp") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            legend.position = "right")
-
-    ggp = (ggp | ggpY) +
-      patchwork::plot_layout(widths = c(1, 1)) +
-      patchwork::plot_layout(guides = 'collect') &
-      theme(legend.position = 'bottom')
+  # Loop through components and calculate cumulative R2 for each
+  for (i in 1:x$ncomp) {
+    LoadingsY = x$loadingsY[,1:i, drop=FALSE]
+    Scores = x$scores[,1:i, drop=FALSE]
+    Yest = tcrossprod(Scores, LoadingsY)
+    SCEY = colSums(Yest**2)
+    R2Y = SCEY / SCTY
+    matY = rbind(matY, R2Y)
   }
+
+  if(!is.null(selVars)) matY = matY[,order(matY[x$ncomp,],decreasing = T)[1:ceiling(ncol(matY) * selVars)],drop=FALSE]
+
+  mat1Y = matY
+  if (nrow(mat1Y) > 1) {
+    for (i in 2:nrow(mat1Y)) {
+      mat1Y[i, ] = matY[i, ] - matY[i - 1, ]
+    }
+  }
+
+  variablesY = colnames(mat1Y)
+  rownames(mat1Y) = as.character(1:x$ncomp)
+
+  component_vecY = rep(components, each = length(variablesY))
+  variable_vecY = rep(variablesY, times = length(components))
+  R2_vecY = as.vector(t(mat1Y))
+
+  plot_df = data.frame(
+    Component = component_vecY,
+    Variable = variable_vecY,
+    R2 = R2_vecY)
+
+  if ((length(col) == 1 && !(col %in% c('main', 'complete', 'cblindfriendly', 'sunshine','hot','warm','grass','oficial'))) || length(col)>1){
+    if (length(col)!= length(components)) return(stop('Either provide colors for the number of components or use one of the default color palettes'))
+    custom_colors = setNames(col, unique(plot_df$Component))
+  } else{
+    num_unique = length(unique(plot_df$Component))
+    if(num_unique== 2){
+      color_palette = colorbiostat(num_unique+1, palette = col)
+      custom_colors = setNames(color_palette[-2], unique(plot_df$Component))
+    } else{
+      color_palette = colorbiostat(num_unique, palette = col)
+      custom_colors = setNames(color_palette, unique(plot_df$Component))
+    }
+  }
+
+  ggp = ggplot(plot_df, aes(x = Variable, y = R2, fill = Component)) +
+    geom_col() +
+    scale_fill_manual(values = custom_colors) +
+    theme_minimal() +
+    labs(title = "",
+         x = "Variable",
+         y = "Explained R²Y",
+         fill = "Comp") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "right")
 
   return(ggp)
 }
 
-R2varcompmb = function(x, col) {
+R2varcompmb = function(x, col, selVars = NULL) {
 
   b_names = names(x$X)
-
-  if(x$input$model=='pls'){
-    Y = x$Y
-    SCTY = colSums(Y**2, na.rm = T)
-    matY = NULL
-  }
 
   for( i in 1:length(x$X)){
     X = x$X[[i]]
@@ -4977,6 +4972,8 @@ R2varcompmb = function(x, col) {
       R2 = SCE / SCT
       mat = rbind(mat, R2)
     }
+
+    if(!is.null(selVars)) mat = mat[,order(mat[x$ncomp,],decreasing = T)[1:ceiling(ncol(mat) * selVars)],drop=FALSE]
 
     mat1 = mat
 
@@ -5025,63 +5022,6 @@ R2varcompmb = function(x, col) {
             legend.position = "right")
 
     print(ggp)
-  }
-
-  if(x$input$model == 'pls'){
-    for (i in 1:x$ncomp) {
-      LoadingsY = x$loadingsY[,1:i, drop=FALSE]
-      Yest = tcrossprod(x$SscoresX, LoadingsY)
-      SCEY = colSums(Yest**2)
-      R2Y = SCEY / SCTY
-      matY = rbind(matY, R2Y)
-    }
-
-    mat1Y = matY
-    if (nrow(mat1Y) > 1) {
-      for (i in 2:nrow(mat1Y)) {
-        mat1Y[i, ] = matY[i, ] - matY[i - 1, ]
-      }
-    }
-
-    variablesY = colnames(mat1Y)
-    rownames(mat1Y) = as.character(1:x$ncomp)
-
-    component_vecY = rep(components, each = length(variablesY))
-    variable_vecY = rep(variablesY, times = length(components))
-    R2_vecY = as.vector(t(mat1Y))
-
-    plot_df = data.frame(
-      Component = component_vecY,
-      Variable = variable_vecY,
-      R2 = R2_vecY)
-
-    if ((length(col) == 1 && !(col %in% c('main', 'complete', 'cblindfriendly', 'sunshine','hot','warm','grass','oficial'))) || length(col)>1){
-      if (length(col)!= length(components)) return(stop('Either provide colors for the number of components or use one of the default color palettes'))
-      custom_colors = setNames(col, unique(plot_df$Component))
-    } else{
-      num_unique = length(unique(plot_df$Component))
-      if(num_unique== 2){
-        color_palette = colorbiostat(num_unique+1, palette = col)
-        custom_colors = setNames(color_palette[-2], unique(plot_df$Component))
-      } else{
-        color_palette = colorbiostat(num_unique, palette = col)
-        custom_colors = setNames(color_palette, unique(plot_df$Component))
-      }
-    }
-
-    ggpY = ggplot(plot_df, aes(x = Variable, y = R2, fill = Component)) +
-      geom_col() +
-      scale_fill_manual(values = custom_colors) +
-      theme_minimal() +
-      labs(title = "Explained R²Y per Variable in Comp",
-           x = "Variable",
-           y = "Explained R²Y",
-           fill = "Comp") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            legend.position = "right")
-
-    print(ggpY)
-
   }
 
   return(NULL)

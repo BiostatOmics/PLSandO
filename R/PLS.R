@@ -824,7 +824,8 @@ predict = function(x, new = NULL, design = NULL, plot = TRUE){
 #'   \item \code{"weights"}: Scatter plot of PLS weights.
 #'   \item \code{"linearity"}: Scatter plot of X vs Y scores to check the inner relation.
 #'   \item \code{"overfitting"}: Permutation test results to check for model overfitting.
-#'   \item \code{"R2"}: Variance explained per variable/component.
+#'   \item \code{"R2X"}: Variance explained of X per variable/component.
+#'   \item \code{"R2Y"}: Variance explained of Y per variable/component.
 #'   \item \code{"corr"}: Correlation circle plot (variables vs components).
 #'   \item \code{"biplot"}: Simultaneous visualization of scores and loadings.
 #'   \item \code{"coef"}: Bar plot of regression coefficients with Jack-knife confidence intervals.
@@ -861,7 +862,7 @@ predict = function(x, new = NULL, design = NULL, plot = TRUE){
 
 plsPlot = function(x,
                    type = c("R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY",
-                            "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"),
+                            "weights", "linearity", "overfitting", "R2X", "R2Y", "corr", "biplot", "coef"),
                    comp = NULL,
                    col = c('main', 'complete', 'cblindfriendly','sunshine','hot','warm','grass','oficial')[1],
                    colBy = NULL,
@@ -875,7 +876,7 @@ plsPlot = function(x,
                    newObs = NULL #data.frame
                    ) {
 
-  if(!(type %in% c("R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, R2, correl, biplot.'))
+  if(!(type %in% c("R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2X", "R2Y", "corr", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, R2X, R2Y, correl, biplot.'))
 
   ## R2vsQ2
 
@@ -1218,12 +1219,17 @@ plsPlot = function(x,
 
     ### R2
 
-    if (type == 'R2'){
+    if (type == 'R2X'){
 
       x$loadings = x$loadingsX
       x$scores = x$scoresX
-      ggp = R2varcomp(x, col)
+      ggp = R2varcomp(x, col, selVars)
 
+    }
+
+    if (type == 'R2Y'){
+      x$scores = x$scoresX
+      ggp = R2varcompY(x, col, selVars)
     }
 
     ### Linearity
@@ -1421,9 +1427,15 @@ plsPlot = function(x,
 
     ### R2
 
-    if (type == 'R2'){
+    if (type == 'R2X'){
 
-      ggp = R2varcompmb(x, col)
+      ggp = R2varcompmb(x, col, selVars)
+
+    }
+
+    if (type == 'R2Y'){
+      x$scores = x$SscoresX
+      ggp = R2varcompY(x, col, selVars)
 
     }
 
