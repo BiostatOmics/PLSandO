@@ -7,7 +7,7 @@
 plsdaPlot(
   x,
   type = c("ncomp", "R2vsQ2", "scoresX", "loadingsX", "scoresY", "loadingsY", "weights",
-    "linearity", "overfitting", "R2X", "R2Y", "corr", "biplot", "coef"),
+    "linearity", "overfitting", "R2X", "R2Y", "corrX", "corrY", "biplot", "coef"),
   comp = NULL,
   col = c("main", "complete", "cblindfriendly", "sunshine", "hot", "warm", "grass",
     "oficial")[1],
@@ -38,7 +38,8 @@ plsdaPlot(
   \item \code{"overfitting"}: Permutation test results to check for model overfitting.
   \item \code{"R2X"}: Variance explained of X per variable/component.
   \item \code{"R2Y"}: Variance explained of Y per variable/component.
-  \item \code{"corr"}: Correlation circle plot (variables vs components).
+  \item \code{"corrX"}: Correlation circle plot (variables vs components) in X space.
+  \item \code{"corrY"}: Correlation circle plot (variables vs components) in Y space.
   \item \code{"biplot"}: Simultaneous visualization of scores and loadings.
   \item \code{"coef"}: Bar plot of regression coefficients with Jack-knife confidence intervals.
 }}

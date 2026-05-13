@@ -856,7 +856,8 @@ plsda = function(x, y,
 #'   \item \code{"overfitting"}: Permutation test results to check for model overfitting.
 #'   \item \code{"R2X"}: Variance explained of X per variable/component.
 #'   \item \code{"R2Y"}: Variance explained of Y per variable/component.
-#'   \item \code{"corr"}: Correlation circle plot (variables vs components).
+#'   \item \code{"corrX"}: Correlation circle plot (variables vs components) in X space.
+#'   \item \code{"corrY"}: Correlation circle plot (variables vs components) in Y space.
 #'   \item \code{"biplot"}: Simultaneous visualization of scores and loadings.
 #'   \item \code{"coef"}: Bar plot of regression coefficients with Jack-knife confidence intervals.
 #' }
@@ -892,7 +893,7 @@ plsda = function(x, y,
 
 plsdaPlot = function(x,
                    type = c("ncomp","R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY",
-                            "weights", "linearity", "overfitting", "R2X", "R2Y", "corr", "biplot", "coef"),
+                            "weights", "linearity", "overfitting", "R2X", "R2Y", "corrX", "corrY", "biplot", "coef"),
                    comp = NULL,
                    col = c('main', 'complete', 'cblindfriendly','sunshine','hot','warm','grass','oficial')[1],
                    colBy = NULL,
@@ -906,7 +907,7 @@ plsdaPlot = function(x,
                    newObs = NULL #data.frame
 ) {
 
-  if(!(type %in% c("ncomp","R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2X", "R2Y", "corr", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overffiting, R2X, R2Y, correl, biplot.'))
+  if(!(type %in% c("ncomp","R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "R2X", "R2Y", "corrX", "corrY", "biplot", "coef"))) return(stop('Please use one of: R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overffiting, R2X, R2Y, corrX, corrY, biplot.'))
 
   ## ncomp
 
@@ -1178,7 +1179,7 @@ plsdaPlot = function(x,
 
     ### Correlation
 
-    if (type == "corr") {
+    if (type == "corrX") {
 
       if(is.null(shape)) shape = 'arrow'
       if(is.null(labels)) labels = TRUE
@@ -1191,7 +1192,44 @@ plsdaPlot = function(x,
                      colBy = colBy,
                      shape = shape,
                      selVars = selVars,
-                     labels = labels)
+                     labels = labels,
+                     labelTop = labelTop,
+                     repel = repel,
+                     newObs = newObs)
+
+      ggp = ggp + labs(title = "Correlation Plot X space")
+
+    }
+
+    if (type == "corrY") {
+
+      if(is.null(shape)) shape = 'arrow'
+      if(is.null(labels)) labels = TRUE
+
+      x$loadings = x$loadingsY
+      x$X = x$Y
+      x$scores = x$scoresX
+      x$input$scalingType = x$input$scalingTypeY
+
+      eigenvalues = apply(x$scores, 2, function(t) crossprod(t)/(nrow(x$Y)-1) )
+
+      x$explVar = data.frame("comp" = factor(1:x$ncomp),
+                             "percVar" = round(100*x$summary$R2Y,4),
+                             "cumPercVar" = round(100*x$summary$cumR2Y,4),
+                             "eigenVal" = eigenvalues)
+
+      ggp = corrPlot(x,
+                     comp = comp,
+                     col = col,
+                     colBy = colBy,
+                     shape = shape,
+                     selVars = selVars,
+                     labels = labels,
+                     labelTop = labelTop,
+                     repel = repel,
+                     newObs = newObs)
+
+      ggp = ggp + labs(title = "Correlation Plot Y space")
 
     }
 
@@ -1495,7 +1533,7 @@ plsdaPlot = function(x,
 
     ### Correlation
 
-    if (type == 'corr'){
+    if (type == 'corrX' | type == 'corrY'){
       return(stop('In MBPLSDA corrPlot is not provided'))
     }
 

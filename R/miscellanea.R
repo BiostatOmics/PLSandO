@@ -3273,7 +3273,7 @@ corrPlot = function(x,
   if(is.null(comp) | length(comp) == 1) {
     return(stop('Warning: correlation plot not available for models with one component, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n'))
   }else{
-    corr_df = as.data.frame(x$loadings[,comp])
+    corr_df = as.data.frame(x$loadings[,comp,drop=FALSE])
     colnames(corr_df) = c("x", "y")
     eig = x$explVar[,'eigenVal'][comp]
     corr_df[,c('x','y')] = sweep(corr_df[, c("x", "y")], 2, sqrt(eig), FUN = "*")
