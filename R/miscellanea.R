@@ -1125,7 +1125,7 @@ plsda_cross = function(X, Y, Y2, scaling, blocks, scalingY, ncomp = NULL, folds 
 
   if (algo == 'nipals'){
     if(is.null(ncomp)){
-      ncomp = min(nrow(X)-1, ncol(X))
+      ncomp = min(min(nrow(X)-1, ncol(X)),10)
     }
     if(nrow(X)<=5){
       warning("Low number of replicates. Leave-one-out cv will be performed.")
@@ -1134,7 +1134,7 @@ plsda_cross = function(X, Y, Y2, scaling, blocks, scalingY, ncomp = NULL, folds 
     }
   } else{
     if(is.null(ncomp)){
-      ncomp = min(nrow(X[[1]])-1, min(unlist(lapply(X, ncol))))
+      ncomp = min(min(nrow(X[[1]])-1, min(unlist(lapply(X, ncol)))),10)
     }
     if(nrow(X[[1]])<=5){
       warning("Low number of replicates. Leave-one-out cv will be performed.")

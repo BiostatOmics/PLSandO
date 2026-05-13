@@ -841,7 +841,7 @@ plsda = function(x, y,
 #' @param x A plsda object returned by the \code{plsda()} function.
 #' @param type Character. The type of visualization to generate:
 #' \itemize{
-#'   \item \code{"ncomp"}: Line plots with the suggestion of the optimal number of components based on R2vsQ2 criterion, RMSE, F1-score, MCC, Etot and BER.
+#'   \item \code{"ncomp"}: Line plots with the suggestion of the optimal number of components based on BER criterion, F1-score, and R2vsQ2.
 #'   \item \code{"R2vsQ2"}: Line plot of R2 and Q2 metrics per component.
 #'   \item \code{"scoresX"}: Scatter plot of observation projections for X blocks.
 #'   \item \code{"loadingsX"}: Scatter plot of variable contributions for X blocks.
@@ -970,12 +970,9 @@ plsdaPlot = function(x,
     }
 
     ggp2 = plot_metric(mean_per_comp(x$cv_results, "F1score", comp),title = "F1-score",ylab = "F1-score",color = color_palette[2])
-    ggp3 = plot_metric(mean_per_comp(x$cv_results, "MCC", comp),title = "Matthews Correlation Coefficient",ylab = "MCC",color = color_palette[2] )
-    ggp4 = plot_metric(mean_per_comp(x$cv_results, "Etot", comp),title = "Total Error",ylab = "Etot", decreasing = T,color = color_palette[2] )
     ggp5 = plot_metric(mean_per_comp(x$cv_results, "BER", comp),title = "Balanced Error Rate",ylab = "BER", decreasing = T,color = color_palette[2] )
-    ggp6 = plot_metric(mean_per_comp(x$cv_results, "RMSE", comp),title = "Root Mean Squared Error",ylab = "RMSE", decreasing = T,color = color_palette[2] )
 
-    ggp = patchwork::wrap_plots(ggp1, ggp6, ggp2, ggp3, ggp4, ggp5, nrow = 2) +
+    ggp = patchwork::wrap_plots(ggp5, ggp2, ggp1, nrow = 1) +
       patchwork::plot_annotation(
         title = "Results per Component",
         theme = ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0.5))

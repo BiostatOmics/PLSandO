@@ -27,7 +27,7 @@ plsdaPlot(
 
 \item{type}{Character. The type of visualization to generate:
 \itemize{
-  \item \code{"ncomp"}: Line plots with the suggestion of the optimal number of components based on R2vsQ2 criterion, RMSE, F1-score, MCC, Etot and BER.
+  \item \code{"ncomp"}: Line plots with the suggestion of the optimal number of components based on BER criterion, F1-score, and R2vsQ2.
   \item \code{"R2vsQ2"}: Line plot of R2 and Q2 metrics per component.
   \item \code{"scoresX"}: Scatter plot of observation projections for X blocks.
   \item \code{"loadingsX"}: Scatter plot of variable contributions for X blocks.
