@@ -1911,6 +1911,7 @@ scorePlot = function(x,
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
       coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "Score Plot",
@@ -2145,6 +2146,7 @@ scorePlotmb = function(x,
         geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
         geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
         coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+        expand_limits(x=c(-1,1), y=c(-1,1)) +
         theme_minimal() +
         theme(legend.position = "bottom") +
         labs(title = paste0("Score Plot for ", b_names[i], " block"),
@@ -2320,6 +2322,7 @@ scorePlotmb = function(x,
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
       coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "Score Plot of super scores",
@@ -2489,7 +2492,8 @@ loadingPlot = function(x,
     ggp = ggplot(load_df, aes(x = x, y = y)) +
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-      coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+      coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "Loading Plot",
@@ -2605,7 +2609,8 @@ loadingPlotmb = function(x,
       ggp = ggplot(load_df, aes(x = x, y = y)) +
         geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
         geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-        coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+        coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+        expand_limits(x=c(-1,1), y=c(-1,1)) +
         theme_minimal() +
         theme(legend.position = "bottom") +
         labs(title = paste0("Loading Plot for ", b_names[i], " block"),
@@ -2693,7 +2698,8 @@ loadingPlotmb = function(x,
       ggp = ggplot(load_df, aes(x = x, y = y)) +
         geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
         geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-        coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+        coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+        expand_limits(x=c(-1,1), y=c(-1,1)) +
         theme_minimal() +
         theme(legend.position = "bottom") +
         labs(title = "Loading Plot of super loadings",
@@ -2859,7 +2865,8 @@ weightsPlot = function(x,
     ggp = ggplot(load_df, aes(x = x, y = y)) +
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-      coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+      coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "Weights Plot w*c",
@@ -3034,7 +3041,8 @@ weightsPlotmb = function(x,
       ggp = ggplot(load_df, aes(x = x, y = y)) +
         geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
         geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-        coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+        coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+        expand_limits(x=c(-1,1), y=c(-1,1)) +
         theme_minimal() +
         theme(legend.position = "bottom") +
         labs(title = paste0("Loading Plot wc for ", b_names[i], " block"),
@@ -3171,7 +3179,8 @@ weightsPlotmb = function(x,
     ggp = ggplot(load_df, aes(x = x, y = y)) +
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-      coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+      coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = paste0("Weights Plot w*c for ", b_names[i], " block"),
@@ -3322,7 +3331,8 @@ corrPlot = function(x,
     ggp = ggplot(corr_df, aes(x = x, y = y)) +
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
-      coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) +  # Maintain 1:1 aspect ratio and x-limits
+      coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "Correlation Plot",
@@ -3540,6 +3550,7 @@ biPlot = function(x,
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
       coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "biPlot",
@@ -3787,6 +3798,7 @@ biPlotmb = function(x,
         geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
         geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
         coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+        expand_limits(x=c(-1,1), y=c(-1,1)) +
         theme_minimal() +
         theme(legend.position = "bottom") +
         labs(title = paste0("biPlot for ", b_names[i], " block"),
@@ -3982,6 +3994,7 @@ biPlotmb = function(x,
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
       coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "super biPlot ",
@@ -4245,6 +4258,7 @@ biPlotPLS = function(x,
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
       coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "biPlot",
@@ -4503,6 +4517,7 @@ biPlotPLSmb = function(x,
         geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
         geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
         coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+        expand_limits(x=c(-1,1), y=c(-1,1)) +
         theme_minimal() +
         theme(legend.position = "bottom") +
         labs(title = paste0("biPlot for ", b_names[i], " block"),
@@ -4699,6 +4714,7 @@ biPlotPLSmb = function(x,
       geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
       geom_vline(xintercept = 0, linetype = "dashed") +  # Vertical dashed line
       coord_fixed(ratio = 1) +  # Maintain 1:1 aspect ratio and x-limits
+      expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
       labs(title = "super biPlot ",
