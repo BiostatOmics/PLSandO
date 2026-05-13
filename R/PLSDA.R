@@ -117,7 +117,7 @@ plsda = function(x, y,
       YTest = Y[-rowtrain,,drop=FALSE]
       Y = Y[rowtrain,,drop=FALSE]
     } else {
-      xTest = yTest = NULL
+      xTest = yTest = x2Test = NULL
       YTest = NULL
     }
     X2 = x
@@ -301,6 +301,8 @@ plsda = function(x, y,
 
     } else{
 
+      x2Test = xTest
+
       xTest = setNames(lapply(seq_along(x), function(b) {
         tmp = sweep(xTest[[b]], 2, centrado[[b]], "-")
         return(sweep(tmp, 2, escalado[[b]], "/"))
@@ -454,7 +456,7 @@ plsda = function(x, y,
                 "summary" = resum, ## completar si se desea dar + info de lo que se ha hecho
                 "coefficients_summary" = resum_coef,
                 "ncomp" = ncomp,
-                "test" = list("yTest" = yTest, "xTest" = xTest),
+                "test" = list("yTest" = yTest, "xTest" = xTest , "input" = list("xTest" = x2Test, "yTest" = YTest)),
                 "validation" = as.data.frame(res_val),
                 "cv_results" = res_cross,
                 "PreproSummary" = desSummary,
@@ -548,7 +550,7 @@ plsda = function(x, y,
       YTest = Y[-rowtrain,,drop=FALSE]
       Y = Y[rowtrain,,drop=FALSE]
     } else {
-      xTest = yTest = NULL
+      xTest = yTest = x2Test = NULL
       YTest = NULL
     }
     X2 = x
@@ -698,6 +700,8 @@ plsda = function(x, y,
 
     } else{
 
+      x2Test = xTest
+
       xTest = sweep(xTest, 2, centrado, FUN = "-")
       xTest = sweep(xTest, 2, escalado, FUN = "/")
 
@@ -821,7 +825,7 @@ plsda = function(x, y,
                 "summary" = resum, ## completar si se desea dar + info de lo que se ha hecho
                 "coefficients_summary" = resum_coef,
                 "ncomp" = ncomp,
-                "test" = list("yTest" = yTest, "xTest" = xTest),
+                "test" = list("yTest" = yTest, "xTest" = xTest, "input" = list("xTest" = x2Test, "yTest" = YTest)),
                 "validation" = as.data.frame(res_val),
                 "cv_results" = res_cross,
                 "PreproSummary" = desSummary,

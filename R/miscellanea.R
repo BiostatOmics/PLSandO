@@ -5094,7 +5094,10 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
                            "cumPercVar" = round(100*x$summary$cumR2X,4))
     x$scores = x$scoresX
 
-    if(plot) print(scorePlot(x, newObs = new))
+    if(plot){
+      ggp = scorePlot(x, newObs = new)
+      print(ggp + labs(title = "Score Plot X space"))
+    }
 
     if (!is.null(new)){
       new = as.data.frame(new)
@@ -5164,7 +5167,10 @@ plsdaPredict = function(x, new = NULL, plot = TRUE) {
                            "cumPercVar" = round(100*x$summary$cumR2X,4))
     x$scores = x$scoresX
 
-    if(plot) print(scorePlot(x, newObs = new))
+    if(plot){
+      ggp = scorePlot(x, newObs = new)
+      print(ggp + labs(title = "Score Plot X space"))
+    }
 
     if(!is.null(new)){
       new = as.data.frame(new)
@@ -5238,7 +5244,10 @@ multilevelPredict = function(x, design = NULL, new = NULL, plot = TRUE) {
                                "cumPercVar" = round(100*x$model$summary$cumR2X,4))
   x$model$scores = x$model$scoresX
 
-  if(plot) print(scorePlot(x$model, newObs = new))
+  if(plot){
+    ggp = scorePlot(x$model, newObs = new)
+    print(ggp + labs(title = "Score Plot X space"))
+  }
 
   if(!is.null(new)){
     new = as.data.frame(new)
