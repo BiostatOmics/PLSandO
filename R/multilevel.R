@@ -133,7 +133,7 @@ multilevel = function(x, y = NULL, design =NULL,
 #' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.
 #' @param shapeBy Variable used to change point shapes. Can be a column name from the original dataset or an external vector/factor. Must be categorical.
 #' @param ellipses Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.
-#' @param selVars Numeric. The number of top variables to display in loading, correlation, or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.
+#' @param selVars Numeric. The number of top variables to display in loading, correlation, weights or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.
 #' @param labels Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.
 #' @param labelTop Numeric (0 to 1). Percentage of variables to label based on their importance (contribution or cos2).
 #' @param repel Logical. If \code{TRUE}, uses \code{ggrepel} to prevent label overlap (recommended for loadings and biplots).
@@ -144,8 +144,8 @@ multilevel = function(x, y = NULL, design =NULL,
 #' @export
 
 multilevelPlot = function(x,
-                     type = c("scree", "scores","R2vsQ2", "loadings", "scoresX",  "loadingsX", "scoresY", "loadingsY",
-                              "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef", "ncomp"),
+                     type = c("scree", "scores", "loadings","R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY",
+                              "weights", "linearity", "overfitting", "R2", "R2X","R2Y", "corr", "corrX", "corrY", "biplot", "coef", "ncomp"),
                      comp = NULL,
                      col = c('main', 'complete', 'cblindfriendly','sunshine','hot','warm','grass','oficial')[1],
                      colBy = NULL,
@@ -165,7 +165,10 @@ multilevelPlot = function(x,
     x$Between$multi = x$Within$multi =  'multi'
     x$Between$newdesign = x$Within$newdesign = newdesign
 
-    if(type%in% c("ncomp", "R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "coef")) return(stop('Plot not available for PCA models, please select one of scree, scores, loadings, R2, corr, biplot'))
+    if(type%in% c("ncomp", "R2vsQ2", "scoresX",  "loadingsX", "scoresY", "loadingsY", "weights", "linearity", "overfitting", "coef","corrY","R2Y")) return(stop('Plot not available for PCA models, please select one of scree, scores, loadings, R2, corr, biplot'))
+
+    if(type=='R2X') type = "R2"
+    if(type=='corrX') type = 'corr'
 
     x$input$design$group = as.character(x$input$design$group)
     colBy = if(is.null(colBy)) if(type=='scores' | type == 'biplot') x$input$design else colBy else colBy
@@ -190,11 +193,15 @@ multilevelPlot = function(x,
   }
 
   if(x$input$method == 'pls'){
+
+    if(type=='R2') type = "R2X"
+    if(type=='corr') type = 'corrX'
+
     x$model$Xm = x$Xm
     x$model$multi = 'multi'
     x$model$newdesign = newdesign
 
-    if(type%in% c("scree", "scores", "ncomp")) return(stop('Plot not available for PLS models, please select one of R2vsQ2, scoresX, loadings, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, coef, R2, corr, biplot'))
+    if(type%in% c("scree", "scores","loadings", "ncomp")) return(stop('Plot not available for PLS models, please select one of R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, coef, R2X, R2Y, corrX, corrY, biplot'))
     x$input$design$group = as.character(x$input$design$group)
     colBy = if(is.null(colBy)) if(type=='scoresX' | type=='scoresY' | type == 'biplot') x$input$design
     ellipses = if(is.null(ellipses)) ellipses = FALSE
@@ -217,11 +224,15 @@ multilevelPlot = function(x,
   }
 
   if(x$input$method == 'plsda'){
+
+    if(type=='R2') type = "R2X"
+    if(type=='corr') type = 'corrX'
+
     x$model$Xm = x$Xm
     x$model$multi = 'multi'
     x$model$newdesign = newdesign
 
-    if(type%in% c("scree", "scores")) return(stop('Plot not available for PLSDA models, please select one of ncomp, R2vsQ2, scoresX, loadings, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, coef, R2, corr, biplot'))
+    if(type%in% c("scree", "scores","loadings")) return(stop('Plot not available for PLSDA models, please select one of ncomp, R2vsQ2, scoresX, loadingsX, scoresY, loadingsY, weights, linearity, overfitting, coef, R2X, R2Y, corrX, corrY, biplot'))
     x$input$design$group = as.character(x$input$design$group)
     shapeBy = if(is.null(colBy)) if(type=='scoresX' | type == 'scoresY' | type == 'biplot') x$input$design
 

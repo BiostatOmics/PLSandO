@@ -62,7 +62,7 @@ By default, no variable is used.}
 
 \item{ellipses}{Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.}
 
-\item{selVars}{Numeric. The number of top variables to display in loading, correlation, or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.}
+\item{selVars}{Numeric (0 to 1). Percentage of variables to display in loading, correlation, weights or biplots, selected by their importance ("contrib" or "cos2"). Also aplicable to R2X and R2Y. Useful for decluttering plots with many variables.}
 
 \item{labels}{Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.}
 

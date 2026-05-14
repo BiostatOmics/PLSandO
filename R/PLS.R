@@ -850,7 +850,7 @@ predict = function(x, new = NULL, design = NULL, plot = TRUE){
 #' @param shape Numeric or character. The shape of the points (numeric) in the Score plots or 'arrow', 'point' for loading plots.
 #' @param shapeBy Variable used to change point shapes. Can be a column name from the original dataset or an external vector/factor. Must be categorical.
 #' @param ellipses Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.
-#' @param selVars Numeric. The number of top variables to display in loading, correlation, or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.
+#' @param selVars Numeric (0 to 1). Percentage of variables to display in loading, correlation, weights or biplots, selected by their importance ("contrib" or "cos2"). Also aplicable to R2X and R2Y. Useful for decluttering plots with many variables.
 #' @param labels Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.
 #' @param labelTop Numeric (0 to 1). Percentage of variables to label based on their importance.
 #' @param repel Logical. If \code{TRUE}, uses \code{ggrepel} to prevent label overlap.

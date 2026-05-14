@@ -1677,7 +1677,7 @@ plotPLS1comp = function(x,
 
   value_df = data.frame(var = rownames(x$value),
                         val = as.numeric(x$value))
-  value_df = value_df[order(abs(value_df$val),decreasing = T),]
+  value_df = value_df[order(abs(value_df$val),decreasing = T),, drop=FALSE]
 
   if (!is.null(colBy)) {
     if (is.character(colBy) && all(colBy %in% colnames(x$X))) {
@@ -2474,6 +2474,7 @@ loadingPlot = function(x,
     if(labels) labels = rownames(load_df) else labels = ''
 
     if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+    if(!is.null(labelTop) & is.null(colBy)) colBy = 'contrib'
 
     if(!is.null(colBy)){
       if(is.character(colBy)){
@@ -2594,6 +2595,7 @@ loadingPlotmb = function(x,
       if(labels) labels = rownames(load_df) else labels = ''
 
       if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+      if(!is.null(labelTop) & is.null(colBy)) colBy = 'contrib'
 
       if(!is.null(colBy)){
         if(is.character(colBy)){
@@ -2683,6 +2685,7 @@ loadingPlotmb = function(x,
 
       if(labels) labels = rownames(load_df) else labels = ''
       if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+      if(!is.null(labelTop) & is.null(colBy)) colBy = 'contrib'
 
       if(!is.null(colBy)){
         if(is.character(colBy)){
@@ -2795,18 +2798,19 @@ weightsPlot = function(x,
     colBy = c(rep('X',nrow(loadingsX)), rep('Y',nrow(loadingsY)))
     ggp = plotPLS1comp(x = x, col = col, colBy = colBy, labels = labels, labelTop = labelTop, title = title)
   } else {
-    load_dfX = as.data.frame(x$weightStar[,comp])
-    colnames(load_dfX) = c("x", "y")
-    load_dfX$type = 'X'
+    load_df = as.data.frame(x$weightStar[,comp,drop=FALSE])
+    colnames(load_df) = c("x", "y")
 
-    load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
-    colnames(load_dfY) = c("x", "y")
-    load_dfY$type = 'Y'
-    #Normalizar
-    load_dfY[, c("x", "y")] = sweep(load_dfY[, c("x", "y")], 1, apply(load_dfY[, c("x", "y")], 1, function(row) sqrt(sum(row^2))), FUN = "/")
+    if(is.null(colBy)){
+      load_df$type = 'X'
+      load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
+      colnames(load_dfY) = c("x", "y")
+      load_dfY$type = 'Y'
+      #Normalizar
+      load_dfY[, c("x", "y")] = sweep(load_dfY[, c("x", "y")], 1, apply(load_dfY[, c("x", "y")], 1, function(row) sqrt(sum(row^2))), FUN = "/")
 
-    load_df = rbind(load_dfX, load_dfY)
-
+      load_df = rbind(load_df, load_dfY)
+    }
 
     if(!is.null(newObs)){
       if(!all(sapply(newObs, is.numeric))) return(stop('Categorical variables detected on newObs consider using Preparing function before including them'))
@@ -2842,12 +2846,13 @@ weightsPlot = function(x,
 
     if(labels) labels = rownames(load_df) else labels = ''
     if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+    if(!is.null(labelTop) & is.null(colBy)) colBy = 'contrib'
 
     if(!is.null(colBy)){
       if(is.character(colBy)){
         num = T
         if(colBy == 'contrib'){
-          load_df$colBy = rowSums(load_df^2)
+          load_df$colBy = rowSums(load_df[, c("x", "y")]^2)
           colBy = load_df$colBy
           colByname = 'contrib'
         } else if(colBy == 'cos2'){
@@ -2885,25 +2890,33 @@ weightsPlot = function(x,
            x = paste0('Comp', comp[1], ' (', round(x$explVar[comp[1],'percVar'],2), '%)'),
            y = paste0('Comp', comp[2], ' (', round(x$explVar[comp[2],'percVar'],2), '%)'))
 
+    if(!is.null(load_df$type)){
+      colBy = load_df$type
+      load_df$colBy = colBy
+      num = F
+      colByname = ''
+    }
+
     if(shape == 'arrow'){
-      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = type),
+      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                                arrow = arrow(length = unit(0.2, "cm")))
     } else{
-      ggp = ggp + geom_point(aes(color = type),shape = 18, size = 3)
+      ggp = ggp + geom_point(aes(color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),shape = 18, size = 3)
     }
 
     if (repel) {
-      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = type),
+      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                                            max.overlaps = 100,
                                            box.padding = 0.25,
                                            point.padding = 0.25,
                                            segment.color = "black", show.legend = F)
     } else {
-      ggp = ggp + geom_text(aes(label = labels, color = type),
+      ggp = ggp + geom_text(aes(label = labels, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                             vjust = -0.5, hjust = 0.5, show.legend = F)
     }
 
     if(!is.null(colBy)){
+
       if(num){
         color_palette = if(length(col)>1) if(length(col)==2) c(col[2], 'white', col[1]) else c(col[3], col[2], col[1]) else colorbiostat(3, palette = col)
         ggp = ggp +
@@ -2923,7 +2936,7 @@ weightsPlot = function(x,
           custom_colors = setNames(color_palette[-2], unique(load_df$colBy))
         }
         ggp = ggp +
-          aes(color = colBy, fill = colBy) +
+          aes(color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]], fill = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]) +
           scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)
       }
     }
@@ -2964,7 +2977,7 @@ weightsPlotmb = function(x,
     loadingsY = x$loadingsY[,comp,drop=FALSE]
     x$value = rbind(loadingsX, loadingsY)
     title = paste0('Weights Plot w*c of block weights Comp',comp)
-    ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = labelTop, title = title)
+    ggp = plotPLS1comp(x = x, col = col, colBy = colBy, labels = labels, labelTop = labelTop, title = title)
     print(ggp)
 
   } else {
@@ -2972,15 +2985,19 @@ weightsPlotmb = function(x,
 
     for (i in 1:length(x$X)) {
 
-      load_dfX = as.data.frame(x$Bweights[[i]][,comp])
-      colnames(load_dfX) = c("x", "y")
-      load_dfX$type = 'X'
+      load_df = as.data.frame(x$Bweights[[i]][,comp])
+      colnames(load_df) = c("x", "y")
 
-      load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
-      colnames(load_dfY) = c("x", "y")
-      load_dfY$type = 'Y'
+      if(is.null(colBy)){
+        load_df$type = 'X'
+        load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
+        colnames(load_dfY) = c("x", "y")
+        load_dfY$type = 'Y'
+        #Normalizar
+        load_dfY[, c("x", "y")] = sweep(load_dfY[, c("x", "y")], 1, apply(load_dfY[, c("x", "y")], 1, function(row) sqrt(sum(row^2))), FUN = "/")
 
-      load_df = rbind(load_dfX, load_dfY)
+        load_df = rbind(load_df, load_dfY)
+      }
 
       if(!is.null(newObs)){
         if(!all(sapply(newObs, is.numeric))) return(stop('Categorical variables detected on newObs consider using Preparing function before including them'))
@@ -3016,6 +3033,7 @@ weightsPlotmb = function(x,
 
       if(labels) labels = rownames(load_df) else labels = ''
       if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+      if(!is.null(labelTop) & is.null(colBy)) colBy = 'contrib'
 
       if(!is.null(colBy)){
         if(is.character(colBy)){
@@ -3047,8 +3065,6 @@ weightsPlotmb = function(x,
         colByname = ''
       }
 
-      paste0("Weights Plot w*c for ", b_names[i], " block")
-
       # Create the plot
       ggp = ggplot(load_df, aes(x = x, y = y)) +
         geom_hline(yintercept = 0, linetype = "dashed") +  # Horizontal dashed line
@@ -3057,25 +3073,32 @@ weightsPlotmb = function(x,
         expand_limits(x=c(-1,1), y=c(-1,1)) +
         theme_minimal() +
         theme(legend.position = "bottom") +
-        labs(title = paste0("Loading Plot wc for ", b_names[i], " block"),
+        labs(title = paste0("Weights Plot w*c for ", b_names[i], " block"),
              x = paste0('Comp', comp[1], ' (', round(x$BexplVar[[i]][comp[1],'percVar'],2), '%)'),
              y = paste0('Comp', comp[2], ' (', round(x$BexplVar[[i]][comp[2],'percVar'],2), '%)'))
 
+      if(!is.null(load_df$type)){
+        colBy = load_df$type
+        load_df$colBy = colBy
+        num = F
+        colByname = ''
+      }
+
       if(shape == 'arrow'){
-        ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = type),
+        ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                                  arrow = arrow(length = unit(0.2, "cm")))
       } else{
-        ggp = ggp + geom_point(aes(color = type),shape = 18, size = 3)
+        ggp = ggp + geom_point(aes(color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),shape = 18, size = 3)
       }
 
       if (repel) {
-        ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = type),
+        ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                                              max.overlaps = 100,
                                              box.padding = 0.25,
                                              point.padding = 0.25,
                                              segment.color = "black", show.legend = F)
       } else {
-        ggp = ggp + geom_text(aes(label = labels, color = type),
+        ggp = ggp + geom_text(aes(label = labels, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                               vjust = -0.5, hjust = 0.5, show.legend = F)
       }
 
@@ -3099,7 +3122,7 @@ weightsPlotmb = function(x,
             custom_colors = setNames(color_palette[-2], unique(load_df$colBy))
           }
           ggp = ggp +
-            aes(color = colBy, fill = colBy) +
+            aes(color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]], fill = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]) +
             scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)
         }
       }
@@ -3110,15 +3133,19 @@ weightsPlotmb = function(x,
 
     }
 
-    load_dfX = as.data.frame(x$Sweights[,comp])
-    colnames(load_dfX) = c("x", "y")
-    load_dfX$type = 'X'
+    load_df = as.data.frame(x$Sweights[,comp,drop=FALSE])
+    colnames(load_df) = c("x", "y")
 
-    load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
-    colnames(load_dfY) = c("x", "y")
-    load_dfY$type = 'Y'
+    if(is.null(colBy)){
+      load_df$type = 'X'
+      load_dfY = as.data.frame(x$loadingsY[,comp,drop=FALSE])
+      colnames(load_dfY) = c("x", "y")
+      load_dfY$type = 'Y'
+      #Normalizar
+      load_dfY[, c("x", "y")] = sweep(load_dfY[, c("x", "y")], 1, apply(load_dfY[, c("x", "y")], 1, function(row) sqrt(sum(row^2))), FUN = "/")
 
-    load_df = rbind(load_dfX, load_dfY)
+      load_df = rbind(load_df, load_dfY)
+    }
 
     if(!is.null(newObs)){
       if(!all(sapply(newObs, is.numeric))) return(stop('Categorical variables detected on newObs consider using Preparing function before including them'))
@@ -3154,6 +3181,7 @@ weightsPlotmb = function(x,
 
     if(labels) labels = rownames(load_df) else labels = ''
     if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+    if(!is.null(labelTop) & is.null(colBy)) colBy = 'contrib'
 
     if(!is.null(colBy)){
       if(is.character(colBy)){
@@ -3185,7 +3213,7 @@ weightsPlotmb = function(x,
       colByname = ''
     }
 
-    paste0("Weights Plot of block weights")
+
 
     # Create the plot
     ggp = ggplot(load_df, aes(x = x, y = y)) +
@@ -3195,25 +3223,32 @@ weightsPlotmb = function(x,
       expand_limits(x=c(-1,1), y=c(-1,1)) +
       theme_minimal() +
       theme(legend.position = "bottom") +
-      labs(title = paste0("Weights Plot w*c for ", b_names[i], " block"),
-           x = paste0('Comp', comp[1], ' (', round(x$BexplVar[[i]][comp[1],'percVar'],2), '%)'),
-           y = paste0('Comp', comp[2], ' (', round(x$BexplVar[[i]][comp[2],'percVar'],2), '%)'))
+      labs(title = paste0("Weights Plot of block weights"),
+           x = paste0('Comp', comp[1], ' (', round(x$explVar[comp[1],'percVar'],2), '%)'),
+           y = paste0('Comp', comp[2], ' (', round(x$explVar[comp[2],'percVar'],2), '%)'))
+
+    if(!is.null(load_df$type)){
+      colBy = load_df$type
+      load_df$colBy = colBy
+      num = F
+      colByname = ''
+    }
 
     if(shape == 'arrow'){
-      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = type),
+      ggp = ggp + geom_segment(aes(x = 0, y = 0, xend = x, yend = y, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                                arrow = arrow(length = unit(0.2, "cm")))
     } else{
-      ggp = ggp + geom_point(aes(color = type),shape = 18, size = 3)
+      ggp = ggp + geom_point(aes(color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),shape = 18, size = 3)
     }
 
     if (repel) {
-      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = type),
+      ggp = ggp + ggrepel::geom_text_repel(aes(label = labels, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                                            max.overlaps = 100,
                                            box.padding = 0.25,
                                            point.padding = 0.25,
                                            segment.color = "black", show.legend = F)
     } else {
-      ggp = ggp + geom_text(aes(label = labels, color = type),
+      ggp = ggp + geom_text(aes(label = labels, color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]),
                             vjust = -0.5, hjust = 0.5, show.legend = F)
     }
 
@@ -3237,7 +3272,7 @@ weightsPlotmb = function(x,
           custom_colors = setNames(color_palette[-2], unique(load_df$colBy))
         }
         ggp = ggp +
-          aes(color = colBy, fill = colBy) +
+          aes(color = .data[[if (!is.null(load_df$type)) "type" else "colBy"]], fill = .data[[if (!is.null(load_df$type)) "type" else "colBy"]]) +
           scale_fill_manual(values = custom_colors, name=colByname) + scale_color_manual(values = custom_colors, name=colByname)
       }
     }
@@ -3311,7 +3346,8 @@ corrPlot = function(x,
     }
 
     if(labels) labels = rownames(corr_df) else labels = ''
-    if(!is.null(selVars) & is.null(colBy)) colBy = 'cos2'
+    if(!is.null(selVars) & is.null(colBy)) colBy = 'contrib'
+    if(!is.null(labelTop) & is.null(colBy)) colBy = 'contrib'
 
     if(!is.null(colBy) && length(colBy)==1){ #Mirar esto tambien
 

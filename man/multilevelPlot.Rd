@@ -6,9 +6,9 @@
 \usage{
 multilevelPlot(
   x,
-  type = c("scree", "scores", "R2vsQ2", "loadings", "scoresX", "loadingsX", "scoresY",
-    "loadingsY", "weights", "linearity", "overfitting", "R2", "corr", "biplot", "coef",
-    "ncomp"),
+  type = c("scree", "scores", "loadings", "R2vsQ2", "scoresX", "loadingsX", "scoresY",
+    "loadingsY", "weights", "linearity", "overfitting", "R2", "R2X", "R2Y", "corr",
+    "corrX", "corrY", "biplot", "coef", "ncomp"),
   comp = NULL,
   col = c("main", "complete", "cblindfriendly", "sunshine", "hot", "warm", "grass",
     "oficial")[1],
@@ -48,7 +48,7 @@ By default, no variable is used.}
 
 \item{ellipses}{Logical. If \code{TRUE}, draws 95\% confidence ellipses for groups defined in \code{colBy}.}
 
-\item{selVars}{Numeric. The number of top variables to display in loading, correlation, or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.}
+\item{selVars}{Numeric. The number of top variables to display in loading, correlation, weights or biplots, selected by their importance ("contrib" or "cos2"). Useful for decluttering plots with many variables.}
 
 \item{labels}{Logical or Character vector. If \code{TRUE}, uses row names as labels. If Character, uses the provided vector as labels.}
 
