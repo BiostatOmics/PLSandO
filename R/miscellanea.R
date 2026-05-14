@@ -5162,7 +5162,7 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
       prediction = as.matrix(new) %*% x$coefficients
     }
     prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+    yPred = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
 
   } else{
 
@@ -5197,16 +5197,17 @@ plsPredict = function(x, new = NULL, plot = TRUE) {
     }
 
     prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    prediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+    yPred = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
 
   }
 
-  return(prediction)
+  return(yPred)
 
 }
 
 plsdaPredict = function(x, new = NULL, plot = TRUE) {
   ## proyectar nuevas observaciones antes de predecir
+  softmax = function (y) exp(y)/sum(exp(y))
 
   if(x$input$algo=='nipals'){
 
@@ -5235,9 +5236,10 @@ plsdaPredict = function(x, new = NULL, plot = TRUE) {
       prediction = as.matrix(new) %*% x$coefficients
     }
     prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    plsprediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
-    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+    ypred = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+    yprob = t(apply(ypred, 1, softmax))
+    Class = as.data.frame(sub(".*_","", colnames(ypred)[apply(ypred, 1, which.max)]))
+    colnames(Class) = unique(sub("_.*","", colnames(ypred)[apply(ypred, 1, which.max)]))
 
   } else{
 
@@ -5272,17 +5274,20 @@ plsdaPredict = function(x, new = NULL, plot = TRUE) {
     }
 
     prediction = sweep(prediction, 2, x$scaling$scaleY, FUN = "*")
-    plsprediction = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
-    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
+    ypred = sweep(prediction, 2, x$scaling$centerY, FUN = "+")
+    yprob = t(apply(ypred, 1, softmax))
+    Class = as.data.frame(sub(".*_","", colnames(ypred)[apply(ypred, 1, which.max)]))
+    colnames(Class) = unique(sub("_.*","", colnames(ypred)[apply(ypred, 1, which.max)]))
 
   }
 
-  return(list('prediction' = prediction, 'plsprediction' = plsprediction))
+  return(list('yPred' = ypred, 'yProb' = yprob, 'Class' = Class))
 
 }
 
 multilevelPredict = function(x, design = NULL, new = NULL, plot = TRUE) {
+
+  softmax = function (y) exp(y)/sum(exp(y))
 
   x$model$Xm = x$Xm
   x$model$newdesign = design
@@ -5328,18 +5333,19 @@ multilevelPredict = function(x, design = NULL, new = NULL, plot = TRUE) {
 
   if(x$input$method == 'plsda'){
     prediction = sweep(prediction, 2, x$model$scaling$scaleY, FUN = "*")
-    plsprediction = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
-    prediction = as.data.frame(sub(".*_","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    colnames(prediction) = unique(sub("_.*","", colnames(plsprediction)[apply(plsprediction, 1, which.max)]))
-    return(list('prediction' = prediction, 'plsprediction' = plsprediction))
+    ypred = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
+    yprob = t(apply(ypred, 1, softmax))
+    Class = as.data.frame(sub(".*_","", colnames(ypred)[apply(ypred, 1, which.max)]))
+    colnames(Class) = unique(sub("_.*","", colnames(ypred)[apply(ypred, 1, which.max)]))
+    return(list('yPred' = ypred, 'yProb' = yprob, 'Class' = Class))
   }
 
   if(x$input$method == 'pls'){
     prediction = sweep(prediction, 2, x$model$scaling$scaleY, FUN = "*")
     prediction = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
     #TO DO: Cual es el Yb de los datos?
-    prediction = prediction + x$Ym
-    return(prediction)
+    yPred = prediction + x$Ym
+    return(yPred)
   }
 }
 

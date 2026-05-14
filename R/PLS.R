@@ -819,7 +819,7 @@ pls = function(x, y,
 #' @param plot Logical. If \code{TRUE}, the function generates a score plot
 #'   showing the projection of the new observations.
 #'
-#' @return A matrix containing the predicted values for the response variable(s) Y.
+#' @return A matrix containing the predicted values for the response variable(s) Y. For PLS-DA models, a list is provided containing the predicted values for each class (yPred), the estimated probabilities of class membership (yProb), and the final classification for each observation (CLass.
 #' @export
 
 predict = function(x, new = NULL, design = NULL, plot = TRUE){

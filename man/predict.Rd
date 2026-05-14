@@ -18,7 +18,7 @@ the new observations to be predicted.}
 showing the projection of the new observations.}
 }
 \value{
-A matrix containing the predicted values for the response variable(s) Y.
+A matrix containing the predicted values for the response variable(s) Y. For PLS-DA models, a list is provided containing the predicted values for each class (yPred), the estimated probabilities of class membership (yProb), and the final classification for each observation (CLass.
 }
 \description{
 Uses previously fitted PLS (MB-PLS), PLS-DA (MB-PLSDA) or multilevel model to obtain the predictions of trained observations or new observations if provided.
