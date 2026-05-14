@@ -116,6 +116,7 @@ pls = function(x, y,
     Y2 = y
 
     #Calcular los parametros optimos
+    rcross = list()
 
     if(is.null(ncomp)){
 
@@ -139,6 +140,7 @@ pls = function(x, y,
 
         res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = NULL, scalingY = scalingY, ncomp = iter, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
 
+        rcross[[iter]] = res_cross
         coef_cv_comp_block = setNames(lapply(seq_along(b_names), function(b) array(unlist(lapply(res_cross, function(r) r$block_coef_cv[[b]])), dim = c(ncol(x[[b]]), ncol(y), cvFolds * rep))), b_names)
         block_coef_cv[[iter]] = coef_cv_comp_block
 
@@ -169,10 +171,11 @@ pls = function(x, y,
 
       r2 = q2 = array(0, ncomp)
       rmse = array(Inf, ncomp)
-      coef_cv = list()
+      block_coef_cv = list()
       while(iter<ncomp+1){
 
         res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = NULL, scalingY = scalingY, ncomp = iter, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
+        rcross[[iter]] = res_cross
         coef_cv_comp_block = setNames(lapply(seq_along(b_names), function(b) array(unlist(lapply(res_cross, function(r) r$block_coef_cv[[b]])), dim = c(ncol(x[[b]]), ncol(y), cvFolds * rep))), b_names)
         block_coef_cv[[iter]] = coef_cv_comp_block
 
@@ -191,6 +194,16 @@ pls = function(x, y,
     }
 
     block_coef_cv = setNames(lapply(seq_along(b_names), function(b) aperm(array(unlist(lapply(seq_len(ncomp), function(i) block_coef_cv[[i]][[b]])), dim = c(ncol(x[[b]]), ncol(y), rep * cvFolds, ncomp)), c(4,1,2,3))),b_names)
+
+    res_cross = lapply(1:length(rcross[[1]]), function(r) {
+      rep_metrics = lapply(metrics, function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
+      names(rep_metrics) = names(rcross[[1]][[1]])
+      return(rep_metrics)
+    })
+    res_cross = mapply(function(obj1, obj2) {
+      obj1$block_coef_cv <- block_coef_cv
+      return(obj1)
+    }, res_cross, res_coef, SIMPLIFY = FALSE)
 
     ## Scaling X
 
@@ -430,8 +443,8 @@ pls = function(x, y,
                 "validation" = as.data.frame(res_val),
                 "cv_results" = res_cross,
                 "PreproSummary" = desSummary,
-                "input" = list("scalingType" = scaling,"scalingTypeY" = scalingY, "X" = X2, "Y" = Y2 ,
-                               'algo' = algo, "alpha" = alpha, "perm" = perm, "blocks" = NULL, "model" = 'pls')))
+                "input" = list("scalingType" = scaling,"scalingTypeY" = scalingY, "X" = X2, "Y" = Y2 ,'algo' = algo, "alpha" = alpha,
+                               "cvFolds" = cvFolds, "rep" = rep, "perm" = perm, "blocks" = NULL, "parallel" = parallel, "model" = 'pls')))
 
     ## ACABA EL MBPLS
 
@@ -908,7 +921,10 @@ plsPlot = function(x,
     q2_array = do.call(rbind, lapply(x$cv_results, function(res) res$Q2))
     mean_q2_per_component = colMeans(q2_array)
 
-    if(is.null(comp)) comp = max(min(10, ncol(x$input$X)), length(mean_r2_per_component))
+    if(is.null(comp)){
+      if(x$input$algo=='nipals') comp = max(min(10, ncol(x$input$X)), length(mean_r2_per_component))
+      if(x$input$algo == 'mbpls') comp = max(min(10,  min(unlist(lapply(x$X, ncol)))), length(mean_r2_per_component))
+    }
 
     if(comp>length(mean_r2_per_component)){
       iter = length(mean_r2_per_component) + 1
