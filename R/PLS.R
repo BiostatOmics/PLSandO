@@ -519,6 +519,7 @@ pls = function(x, y,
     missNA = any(is.na(x))
 
     #Calcular los parametros optimos
+    rcross = list()
 
     if(is.null(ncomp)){
 
@@ -542,6 +543,7 @@ pls = function(x, y,
 
         res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = iter, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
 
+        rcross[[iter]] = res_cross
         coef_cv_comp = array(unlist(lapply(res_cross, `[[`, "coef_cv")),  dim = c(ncol(x), ncol(y), rep * cvFolds))
         coef_cv[[iter]] = coef_cv_comp
 
@@ -576,6 +578,7 @@ pls = function(x, y,
       while(iter<ncomp+1){
 
         res_cross = pls_cross(X = x,Y = y,scaling = scaling, blocks = blocks, scalingY = scalingY, ncomp = iter, folds = cvFolds, rep = rep, algo = algo, parallel = parallel)
+        rcross[[iter]] = res_cross
         coef_cv_comp = array(unlist(lapply(res_cross, `[[`, "coef_cv")),  dim = c(ncol(x), ncol(y), rep * cvFolds))
         coef_cv[[iter]] = coef_cv_comp
 
@@ -591,7 +594,18 @@ pls = function(x, y,
         iter = iter + 1
       }
     }
+    res_coef = lapply(1:rep, function(i) aperm(array(unlist(coef_cv), c(ncol(x), ncol(y), cvFolds, rep, ncomp)), c(1, 5, 2, 3, 4))[,,,,i])
     coef_cv = aperm(array(unlist(coef_cv), dim = c(ncol(x), ncol(y), rep * cvFolds, ncomp)), c(4,1,2,3))
+
+    res_cross = lapply(1:length(rcross[[1]]), function(r) {
+      rep_metrics = lapply(metrics, function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
+      names(rep_metrics) = names(rcross[[1]][[1]])
+      return(rep_metrics)
+    })
+    res_cross = mapply(function(obj1, obj2) {
+      obj1$coef_cv <- obj2
+      return(obj1)
+    }, res_cross, res_coef, SIMPLIFY = FALSE)
 
     ## Scaling X
 
@@ -773,8 +787,8 @@ pls = function(x, y,
                 "validation" = as.data.frame(res_val),
                 "cv_results" = res_cross,
                 "PreproSummary" = desSummary,
-                "input" = list("scalingType" = scaling,"scalingTypeY" = scalingY, "X" = X2, "Y" = Y2 ,
-                               'algo' = algo, "alpha" = alpha, "perm" = perm, "blocks" = blocks, "model" = 'pls')))
+                "input" = list("scalingType" = scaling,"scalingTypeY" = scalingY, "X" = X2, "Y" = Y2 , 'algo' = algo, "alpha" = alpha,
+                               "cvFolds" = cvFolds, "rep" = rep, "perm" = perm, "blocks" = blocks, "parallel" = parallel, "model" = 'pls')))
   }
 
 }
@@ -889,16 +903,36 @@ plsPlot = function(x,
 
   if (type == "R2vsQ2") {
 
-    r2_array = simplify2array(lapply(x$cv_results, function(res) res$R2))
-    mean_r2_per_component = apply(r2_array, 1, mean)
-    q2_array = simplify2array(lapply(x$cv_results, function(res) res$Q2))
-    mean_q2_per_component = apply(q2_array, 1, mean)
+    r2_array  =  do.call(rbind, lapply(x$cv_results, function(res) res$R2))
+    mean_r2_per_component = colMeans(r2_array)
+    q2_array = do.call(rbind, lapply(x$cv_results, function(res) res$Q2))
+    mean_q2_per_component = colMeans(q2_array)
 
-    if(!is.null(comp)){
-      mean_r2_per_component = mean_r2_per_component[1:comp]; mean_q2_per_component = mean_q2_per_component[1:comp]
-    }  else {
-      comp = length(mean_r2_per_component)
+    if(is.null(comp)) comp = max(min(10, ncol(x$input$X)), length(mean_r2_per_component))
+
+    if(comp>length(mean_r2_per_component)){
+      iter = length(mean_r2_per_component) + 1
+      rcross = list()
+      while(iter< comp + 1){
+        res_cross = pls_cross(X = x$input$X,Y = x$input$Y,scaling = x$input$scalingType, blocks = x$input$blocks, scalingY = x$input$scalingTypeY, ncomp = iter, folds = x$input$cvFolds, rep = x$input$rep, algo = x$input$algo, parallel = parallel)
+        rcross[[iter]] = res_cross
+        iter = iter + 1
+      }
+      rcross = rcross[!sapply(rcross, is.null)]
+      rcross = lapply(1:length(rcross[[1]]), function(r) {
+        rep_metrics = lapply(metrics, function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
+        names(rep_metrics) = names(rcross[[1]][[1]])
+        return(rep_metrics)
+      })
+      r2array = do.call(rbind, lapply(rcross, function(res) res$R2))
+      meanr2_per_component = colMeans(r2array)
+      mean_r2_per_component = c(mean_r2_per_component, meanr2_per_component)
+      q2array = do.call(rbind, lapply(rcross, function(res) res$Q2))
+      meanq2_per_component = colMeans(q2array)
+      mean_q2_per_component = c(mean_q2_per_component, meanq2_per_component)
     }
+
+    mean_r2_per_component = mean_r2_per_component[1:comp]; mean_q2_per_component = mean_q2_per_component[1:comp]
 
     df = data.frame(Component = rep(1:comp, 2),Metric = rep(c("R2", "Q2"), each = comp),Value = c(mean_r2_per_component, mean_q2_per_component))
 

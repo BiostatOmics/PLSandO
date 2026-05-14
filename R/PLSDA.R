@@ -990,10 +990,10 @@ plsdaPlot = function(x,
 
   if (type == "R2vsQ2") {
 
-    r2_array = simplify2array(lapply(x$cv_results, function(res) res$R2))
-    mean_r2_per_component = apply(r2_array, 1, mean)
-    q2_array = simplify2array(lapply(x$cv_results, function(res) res$Q2))
-    mean_q2_per_component = apply(q2_array, 1, mean)
+    r2_array  =  do.call(rbind, lapply(x$cv_results, function(res) res$R2))
+    mean_r2_per_component = colMeans(r2_array)
+    q2_array = do.call(rbind, lapply(x$cv_results, function(res) res$Q2))
+    mean_q2_per_component = colMeans(q2_array)
 
     if(!is.null(comp)){
       mean_r2_per_component = mean_r2_per_component[1:comp]; mean_q2_per_component = mean_q2_per_component[1:comp]
