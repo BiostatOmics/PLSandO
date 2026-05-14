@@ -611,7 +611,7 @@ pls = function(x, y,
     coef_cv = aperm(array(unlist(coef_cv), dim = c(ncol(x), ncol(y), rep * cvFolds, ncomp)), c(4,1,2,3))
 
     res_cross = lapply(1:length(rcross[[1]]), function(r) {
-      rep_metrics = lapply(metrics, function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
+      rep_metrics = lapply(names(rcross[[1]][[1]]), function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
       names(rep_metrics) = names(rcross[[1]][[1]])
       return(rep_metrics)
     })
@@ -1804,7 +1804,9 @@ plsVarSel = function(x,
         coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
       }
 
-
+      coefficients_summary$Variable = rownames(coefficients_summary)
+      coefficients_summary$Significant = coefficients_summary$pValJK < threshold
+      coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
       blocks = "Block" %in% colnames(x$coefficients_summary)
 
@@ -1844,7 +1846,6 @@ plsVarSel = function(x,
         ggp = ggp + scale_fill_manual(values = custom_colors)
       }
       print(ggp)
-
 
     } else{
 
@@ -2026,7 +2027,7 @@ plsVarSel = function(x,
       vars = lapply(resum_tab, function(df) {
         out = df[, c("variable", "pValPerm")]
         rownames(out) = out$variable
-        out = out[order(out$pValJK), ,drop=FALSE]
+        out = out[order(out$pValPerm), ,drop=FALSE]
         out$variable = NULL
         return(out) })
 

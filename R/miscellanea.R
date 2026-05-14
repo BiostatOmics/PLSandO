@@ -1777,7 +1777,7 @@ scorePlot = function(x,
     title = paste0('Score Plot Comp',comp)
     ggp = plotPLS1comp(x = x, col = col, colBy = colBy[,1], labels = labels, labelTop = 1, title = title) #To Do: Revisar para que esto se pueda hacer
   } else {
-    scores_df = as.data.frame(x$scores[,comp])
+    scores_df = as.data.frame(x$scores[,comp, drop=FALSE])
     colnames(scores_df) = c("x", "y")
 
     if(!is.null(newObs)){
@@ -4978,8 +4978,8 @@ R2varcompY = function(x, col, selVars = NULL) {
     }
   }
 
+  components = rownames(mat1Y) =as.character(1:x$ncomp)
   variablesY = colnames(mat1Y)
-  rownames(mat1Y) = as.character(1:x$ncomp)
 
   component_vecY = rep(components, each = length(variablesY))
   variable_vecY = rep(variablesY, times = length(components))
@@ -5008,7 +5008,7 @@ R2varcompY = function(x, col, selVars = NULL) {
     geom_col() +
     scale_fill_manual(values = custom_colors) +
     theme_minimal() +
-    labs(title = "",
+    labs(title = "Explained R² per Variable in Comp",
          x = "Variable",
          y = "Explained R²Y",
          fill = "Comp") +
