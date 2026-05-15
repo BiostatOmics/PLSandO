@@ -66,7 +66,7 @@ head(x_prepared$x)
 #Observe the function modifications
 x_prepared$removed
 ```
-The output of `x_prepared$x` could be used to its introduction into `pca()`function. However, this conservative thresholds are already taken into account into so they would be already considered when running the `pca()`main function.
+The output of `x_prepared$x` could be used to its introduction into `pca()`function. However, this conservative thresholds are already taken into account when running the `pca()`main function.
 
 ## Running PCA
 
@@ -271,7 +271,7 @@ Then, the codes for the Score, Loading and Weight plots are introduced. In the S
 plsPlot(mypls, type = 'scoresX', colBy = as.data.frame(iris[, 5, drop = FALSE]), ellipses = TRUE)
 
 # 3. Loading Plot
-plsPlot(mypls, type = 'loadings')
+plsPlot(mypls, type = 'loadingsX')
 
 # 4. Weight Plot
 plsPlot(mypls, type = 'weights')
@@ -292,7 +292,7 @@ We can also analyze the explained variance of each variable per component via:
 
 ```{r}
 #7. R2 per variable and component
-plsPlot(mypls, type = 'R2')
+plsPlot(mypls, type = 'R2X')
 ```
 
 ## Prediction
@@ -307,7 +307,7 @@ X_new = iris[126:150, 1:3, drop = FALSE]
 
 # Re-fitting and predicting
 mypls_train = pls(X_train, Y_train)
-pred = plsPredict(mypls_train, new = X_new)
+pred = predict(mypls_train, new = X_new)
 head(pred)
 ```
 
@@ -334,7 +334,7 @@ mypls_na = pls(X,Y)
 X_complete = imputeNipals(mypls_na, scaled = F)
 head(X_complete)
 #Predict values even there are missing values
-head(plsPredict(mypls_na,Xnew))
+head(predict(mypls_na,Xnew))
 ```
 
 ## Outlier detection
@@ -351,7 +351,7 @@ plsOutlierContrib(mypls, outliers = out)
 
 For variable selection, the `plsVarSel()` function identifies the most influential predictors in your model, allowing you to simplify your model and focus on the key variables that drive the model. It supports the variable selection according to different criteria: by Variable Importance in Projection (VIP), by the significant Multivariate Correlation (sMC), p-values obtained from Jack-Kniffing or by Permutation sampling. 
 
-```{r}
+```{r, fig.show='hold', out.width='50%'}
 # Summary of models variables and Jack-Knife resampling results
 mypls$coefficients_summary
 
@@ -444,13 +444,13 @@ plsdaPlot(myplsda, type = 'biplot')
 
 ```{r, fig.show='hold', out.width='50%'}
 # Variables contribution
-plsdaPlot(myplsda, type = 'loadings')
+plsdaPlot(myplsda, type = 'loadingsX')
 plsdaPlot(myplsda, type = 'weights')
 ```
 
 ## Prediction
 
-Prediction can easily be performed by `plsdaPredict()` function which outputs the categorical prediction of the model and the prediction of the pls model.
+Prediction can easily be performed by `plsdaPredict()` function which outputs the categorical prediction of the model, the prediction of the pls model and the .
 
 ```{r}
 X_train = iris[1:125, 1:4]
@@ -460,10 +460,11 @@ X_test = iris[126:150, 1:4]
 
 # Fit and Predict
 myplsda_subset = plsda(X_train, Y_train)
-predictions = plsdaPredict(myplsda_subset, new = X_test)
+predictions = predict(myplsda_subset, new = X_test)
 
-head(predictions$prediction)
-head(predictions$plsprediction)
+head(predictions$yPred)
+head(predictions$yProb)
+head(predictions$Class)
 ```
 
 ## Missing values

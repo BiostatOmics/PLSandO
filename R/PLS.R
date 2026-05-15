@@ -936,7 +936,7 @@ plsPlot = function(x,
       }
       rcross = rcross[!sapply(rcross, is.null)]
       rcross = lapply(1:length(rcross[[1]]), function(r) {
-        rep_metrics = lapply(metrics, function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
+        rep_metrics = lapply(names(rcross[[1]][[1]]), function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
         names(rep_metrics) = names(rcross[[1]][[1]])
         return(rep_metrics)
       })

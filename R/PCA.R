@@ -292,7 +292,7 @@ pcaPlot = function(x,
 
       ggp_blocks = ggplot(df_block, aes(ncomp,explvar))+
         geom_bar(stat = "identity", color= col, fill= col)+
-        geom_line(aes(group = b_names), color = "grey50", size = 0.5) +
+        geom_line(aes(group = b_names), color = "grey50", linewidth = 0.5) +
         geom_text(aes(label = etiq), vjust = -0.3, hjust = 0.4) +
         geom_hline(yintercept = media, linetype = 2, color = "red3") +
         facet_wrap(~b_names, ncol=length(comp), strip.position = 'top')+
