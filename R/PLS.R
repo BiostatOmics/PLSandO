@@ -196,7 +196,7 @@ pls = function(x, y,
     block_coef_cv = setNames(lapply(seq_along(b_names), function(b) aperm(array(unlist(lapply(seq_len(ncomp), function(i) block_coef_cv[[i]][[b]])), dim = c(ncol(x[[b]]), ncol(y), rep * cvFolds, ncomp)), c(4,1,2,3))),b_names)
 
     res_cross = lapply(1:length(rcross[[1]]), function(r) {
-      rep_metrics = lapply(metrics, function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
+      rep_metrics = lapply(names(rcross[[1]][[1]]), function(m) sapply(1:length(rcross), function(c) rcross[[c]][[r]][[m]]))
       names(rep_metrics) = names(rcross[[1]][[1]])
       return(rep_metrics)
     })
