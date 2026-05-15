@@ -4,7 +4,7 @@
 \alias{pcaOutliers}
 \title{PCA Outlier Detection}
 \usage{
-pcaOutliers(x, ncomp = NULL, method = c("T2", "RSS", "both")[3], conf = 99)
+pcaOutliers(x, ncomp = NULL, method = c("T2", "RSS", "both")[3], conf = 0.99)
 }
 \arguments{
 \item{x}{An object returned by the \code{pca()} function.}
@@ -13,7 +13,7 @@ pcaOutliers(x, ncomp = NULL, method = c("T2", "RSS", "both")[3], conf = 99)
 
 \item{method}{Character. Detection method: "T2" (Hotellings-T2), "RSS" (Residuals Sum of Squares), or "both".}
 
-\item{conf}{Numeric. Confidence level for the critical limit (e.g., 95, 99).}
+\item{conf}{Numeric. Confidence level for the critical limit (e.g., 0.95, 0.99).}
 }
 \value{
 A list of identified moderate and severe outliers.

@@ -31,12 +31,12 @@ devtools::install_github("BiostatOmics/PLSandO")
 
 # Load PLSandO
 
-```{r, echo=FALSE,include=FALSE, eval=FALSE}
+```{r, echo=FALSE,include=FALSE, eval=TRUE}
 devtools::load_all(".")
 ```
 
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, eval=FALSE}
 library(PLSandO)
 ```
 
@@ -450,7 +450,7 @@ plsdaPlot(myplsda, type = 'weights')
 
 ## Prediction
 
-Prediction can easily be performed by `plsdaPredict()` function which outputs the categorical prediction of the model, the prediction of the pls model and the .
+Prediction can easily be performed by `plsdaPredict()` function which outputs the categorical prediction of the model, the prediction of the pls model and the class membership probability.
 
 ```{r}
 X_train = iris[1:125, 1:4]
@@ -492,13 +492,13 @@ plsdaPlot(myplsda_subset, type = 'biplot', newObs = X_test)
 Variable selection is also available for the same methodologies introduced in `plsVarSel()`.
 
 ```{r}
-# Variable selection via Jackknife
+# Variable selection via Jackknife (leave-one-out approach)
 plsdaVarSel(myplsda, type = 'Jack')
 ```
 
 ## Outliers
 
-Finally, some additional analysis can be perfomed for outlier detection.
+Finally, some additional analysis can be performed for outlier detection.
 
 ```{r, fig.show='hold', out.width='50%'}
 # Outlier detection and their contribution to the model
@@ -541,7 +541,7 @@ Y_train = iris[1:125, 5, drop = FALSE]
 
 # Model and Predict
 mymbplsda2 = plsda(X_train, Y_train, algo = 'mbplsda', ncomp = 2)
-mb_preds = plsdaPredict(mymbplsda2, new = X_test)
+mb_preds = predict(mymbplsda2, new = X_test)
 ```
 
 # Multilevel Analysis
@@ -680,9 +680,10 @@ designTest = vac18$sample[c(4,17,26,37,7,28,39)]
 names(designTest) = rownames(Xtest)
 
 #Test data prediction
-myprediction = multilevelPredict(mymultiplsda, new = Xtest, design = designTest)
-head(myprediction$prediction)
-head(myprediction$plsprediction)
+myprediction = predict(mymultiplsda, new = Xtest, design = designTest)
+head(myprediction$yPred)
+head(myprediction$yProb)
+head(myprediction$Class)
 ```
 
 ## Running multilevel PLS

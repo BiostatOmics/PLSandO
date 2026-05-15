@@ -122,11 +122,11 @@ pls = function(x, y,
 
       Imp = TRUE
 
-      ncomp = min(nrow(X[[1]])-1, min(unlist(lapply(X, ncol))))
+      ncomp = min(nrow(x[[1]])-1, min(unlist(lapply(x, ncol))))
 
-      if(nrow(X[[1]])<=5){
+      if(nrow(x[[1]])<=5){
         warning("Low number of replicates. Leave-one-out cv will be performed.")
-        folds = nrow(X[[1]])
+        folds = nrow(x[[1]])
         rep = 1
       }
 
@@ -203,7 +203,7 @@ pls = function(x, y,
     res_cross = mapply(function(obj1, obj2) {
       obj1$block_coef_cv <- block_coef_cv
       return(obj1)
-    }, res_cross, res_coef, SIMPLIFY = FALSE)
+    }, res_cross, block_coef_cv, SIMPLIFY = FALSE)
 
     ## Scaling X
 

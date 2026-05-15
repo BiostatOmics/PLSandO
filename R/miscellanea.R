@@ -5403,6 +5403,8 @@ JK = function(m, alpha = 0.05){
     a = NULL; coef = m$coefficients
     X = m$input$X ; Y = m$input$Y
 
+    if(m$input$model == 'plsda') Y = Preparing(Y)$x
+
     for (i in 1: nrow(X)) {
 
       ## Scaling X
@@ -5458,6 +5460,8 @@ JK = function(m, alpha = 0.05){
 
     a = lapply(m$X, function(block) NULL); coef = m$coefficients
     X = m$input$X ; Y = m$input$Y
+
+    if(m$input$model == 'plsda') Y = Preparing(Y)$x
 
     for (i in 1: nrow(X[[1]])) {
 
