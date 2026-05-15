@@ -1026,6 +1026,137 @@ plsdaPlot = function(x,
       scale_x_continuous(breaks = df$Component)
   }
 
+  ### Coef
+
+  if (type == "coef"){
+
+    if(is.null(selVars)) selVars = 1
+
+    if(inherits(x$coefficients_summary, "list")){
+
+      plots = list()
+
+      for (i in 1:length(x$coefficients_summary)) {
+
+        coefficients_summary = x$coefficients_summary[[i]]
+
+        vars = coefficients_summary[,2,drop=FALSE]
+        rownames(vars) = rownames(coefficients_summary)
+        vars = vars[order(vars$pValJK), ,drop=FALSE]
+        coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+        coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+
+        coefficients_summary$Variable = rownames(coefficients_summary)
+        coefficients_summary$Coefficient = coefficients_summary[,1]
+        coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
+        coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
+        blocks = "Block" %in% colnames(x$coefficients_summary)
+
+        # Create plot
+        ggp = ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
+          {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+            else geom_col(fill = "skyblue", width = 0.6)} +
+          geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
+          geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+          geom_text(
+            data = coefficients_summary[coefficients_summary$Significant == TRUE, ],
+            aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
+            size = 6, color = "black"
+          ) +
+          labs(x = NULL,
+               y = "Coefficients",
+               subtitle = paste("Response variable: ", names(x$coefficients_summary)[i])
+          ) +
+          theme_minimal(base_size = 12)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+          )
+
+        if(blocks){
+          if (length(col)>1){
+            if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+            custom_colors = setNames(col, names(x$X))
+          } else{
+            num_unique = length(x$X)
+            if(num_unique== 2){
+              color_palette = colorbiostat(num_unique+1, palette = col)
+              custom_colors = setNames(color_palette[-2], names(x$X))
+            } else{
+              color_palette = colorbiostat(num_unique, palette = col)
+              custom_colors = setNames(color_palette, names(x$X))
+            }
+          }
+          ggp = ggp + scale_fill_manual(values = custom_colors)
+        }
+
+        plots[[i]] = ggp
+
+      }
+
+      ggp = patchwork::wrap_plots(plots, ncol = 2) +
+        patchwork::plot_annotation(
+          title = "Coefficients with Jack-Knifed Confidence Intervals",
+          theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5)))
+
+
+    } else {
+
+      coefficients_summary = x$coefficients_summary
+      vars = coefficients_summary[,2,drop=FALSE]
+      rownames(vars) = rownames(coefficients_summary)
+      vars = vars[order(vars$pValJK), ,drop=FALSE]
+      coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+      coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+
+      coefficients_summary$Variable = rownames(coefficients_summary)
+      coefficients_summary$Coefficient = coefficients_summary[,1]
+      coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
+      coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
+
+      blocks = "Block" %in% colnames(x$coefficients_summary)
+
+      # Create plot
+      ggp = ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
+        {if(blocks) geom_col(aes(fill = Block), width = 0.6)
+          else geom_col(fill = "skyblue", width = 0.6)} +
+        geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
+        geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+        geom_text(
+          data = coefficients_summary[coefficients_summary$Significant == TRUE, ],
+          aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
+          size = 6, color = "black"
+        ) +
+        labs(x = NULL,
+             y = "Coefficients",
+             title = "Coefficients with Jack-Knifed Confidence Intervals"
+        ) +
+        theme_minimal(base_size = 12)+
+        theme(
+          axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+        )
+
+      if(blocks){
+        if (length(col)>1){
+          if (length(col)!= length(x$X)) return(stop('Either provide colors for the number of blocks or use the default color palette'))
+          custom_colors = setNames(col, names(x$X))
+        } else{
+          num_unique = length(x$X)
+          if(num_unique== 2){
+            color_palette = colorbiostat(num_unique+1, palette = col)
+            custom_colors = setNames(color_palette[-2], names(x$X))
+          } else{
+            color_palette = colorbiostat(num_unique, palette = col)
+            custom_colors = setNames(color_palette, names(x$X))
+          }
+        }
+        ggp = ggp + scale_fill_manual(values = custom_colors)
+      }
+
+    }
+
+  }
+
   ### Validation
 
   if (type == 'overfitting'){
@@ -1263,79 +1394,6 @@ plsdaPlot = function(x,
                       ellipses = ellipses,
                       repel = repel,
                       newObs = newObs)
-
-    }
-
-    ### Coef
-
-    if (type == "coef"){
-
-      if(inherits(x$coefficients_summary, "list")){
-
-        plots = list()
-
-        for (i in 1:length(x$coefficients_summary)) {
-
-          coefficients_summary = x$coefficients_summary[[i]]
-          coefficients_summary$Variable = rownames(coefficients_summary)
-          coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
-
-          coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
-
-          # Create plot
-          ggp = ggplot(coefficients_summary, aes(x = Variable, y = coefficient)) +
-            geom_col(fill = "skyblue", width = 0.6) +  # Bars
-            geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
-            geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-            geom_text(
-              data = coefficients_summary[coefficients_summary$Significant == TRUE, ],
-              aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
-              size = 6, color = "black"
-            ) +
-            labs(
-              x = "Variable",
-              y = "Coefficients",
-              subtitle = paste("Class: ", names(x$coefficients_summary)[i])
-            ) +
-            theme_minimal(base_size = 12)
-
-          plots[[i]] = ggp
-
-        }
-
-        ggp = patchwork::wrap_plots(plots, ncol = 2) +
-          patchwork::plot_annotation(
-            title = "Coefficients with Jack-Knifed Confidence Intervals",
-            theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5)))
-
-
-      } else {
-
-        coefficients_summary = x$coefficients_summary
-        coefficients_summary$Variable = rownames(coefficients_summary)
-        coefficients_summary$Coefficient = coefficients_summary[,1]
-        coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
-
-        coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
-
-        # Create plot
-        ggp = ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
-          geom_col(fill = "skyblue", width = 0.6) +  # Bars
-          geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
-          geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
-          geom_text(
-            data = coefficients_summary[coefficients_summary$Significant == TRUE, ],
-            aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
-            size = 6, color = "black"
-          ) +
-          labs(
-            x = "Variable",
-            y = "Coefficients",
-            title = "Coefficients with Jack-Knifed Confidence Intervals"
-          ) +
-          theme_minimal(base_size = 12)
-
-      }
 
     }
 

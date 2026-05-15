@@ -988,6 +988,8 @@ plsPlot = function(x,
 
   if (type == "coef"){
 
+    if(is.null(selVars)) selVars = 1
+
     if(inherits(x$coefficients_summary, "list")){
 
       plots = list()
@@ -995,14 +997,22 @@ plsPlot = function(x,
       for (i in 1:length(x$coefficients_summary)) {
 
         coefficients_summary = x$coefficients_summary[[i]]
+
+        vars = coefficients_summary[,2,drop=FALSE]
+        rownames(vars) = rownames(coefficients_summary)
+        vars = vars[order(vars$pValJK), ,drop=FALSE]
+        coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+        coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+
         coefficients_summary$Variable = rownames(coefficients_summary)
+        coefficients_summary$Coefficient = coefficients_summary[,1]
         coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
         coefficients_summary$Variable = factor(coefficients_summary$Variable, levels = coefficients_summary$Variable)
 
         blocks = "Block" %in% colnames(x$coefficients_summary)
 
         # Create plot
-        ggp = ggplot(coefficients_summary, aes(x = Variable, y = coefficient)) +
+        ggp = ggplot(coefficients_summary, aes(x = Variable, y = Coefficient)) +
           {if(blocks) geom_col(aes(fill = Block), width = 0.6)
             else geom_col(fill = "skyblue", width = 0.6)} +
           geom_errorbar(aes(ymin = LCI_JK, ymax = UCI_JK), width = 0.2, color = "gray40") +  # Error bars
@@ -1012,12 +1022,14 @@ plsPlot = function(x,
             aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
             size = 6, color = "black"
           ) +
-          labs(
-            x = "Variable",
+          labs(x = NULL,
             y = "Coefficients",
             subtitle = paste("Response variable: ", names(x$coefficients_summary)[i])
           ) +
-          theme_minimal(base_size = 12)
+          theme_minimal(base_size = 12)+
+          theme(
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+          )
 
         if(blocks){
           if (length(col)>1){
@@ -1049,6 +1061,12 @@ plsPlot = function(x,
     } else {
 
       coefficients_summary = x$coefficients_summary
+      vars = coefficients_summary[,2,drop=FALSE]
+      rownames(vars) = rownames(coefficients_summary)
+      vars = vars[order(vars$pValJK), ,drop=FALSE]
+      coefficients_summary = coefficients_summary[rownames(vars),,drop=FALSE]
+      coefficients_summary = coefficients_summary[1:ceiling(nrow(coefficients_summary) * selVars),,drop=FALSE]
+
       coefficients_summary$Variable = rownames(coefficients_summary)
       coefficients_summary$Coefficient = coefficients_summary[,1]
       coefficients_summary$Significant = coefficients_summary$pValJK < 0.05
@@ -1067,12 +1085,14 @@ plsPlot = function(x,
           aes(x = Variable, y = UCI_JK + 0.05, label = "*"),  # Asterisk above bar
           size = 6, color = "black"
         ) +
-        labs(
-          x = "Variable",
+        labs(x = NULL,
           y = "Coefficients",
           title = "Coefficients with Jack-Knifed Confidence Intervals"
         ) +
-        theme_minimal(base_size = 12)
+        theme_minimal(base_size = 12)+
+        theme(
+          axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1) # Luego la personalización
+        )
 
       if(blocks){
         if (length(col)>1){
