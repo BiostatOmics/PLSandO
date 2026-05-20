@@ -1,0 +1,370 @@
+---
+title: "Partial Least Squares Regression (PLS)"
+author: "Sonia Tarazona & Maider Aguerralde"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+<style>
+  .header-section-number::after { content: "."; }
+</style>
+
+
+
+```{r setup, warning=FALSE, message=FALSE, cache=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+# install.packages("devtools")
+# pak::pak("BiostatOmics/PLSandO")
+library(PLSandO)
+library(gridExtra)
+```
+
+
+# Data Preparation for PLS Models
+
+As with PCA, the *PLSandO* library provides the **Preparing()** function to process our data before applying any model. This preprocessing includes converting factors into binary 0-1 variables that can be included as predictors in PLS or PLS-DA models, removing variables/observations with an excessive number of missing values, and filtering out variables with low or no variability.
+
+If the **Preparing()** function is not applied, the PCA, PLS, or PLS-DA model itself will automatically apply the preprocessing using the default parameters of that function.
+
+It is important to note that the PLS models in *PLSandO* are fitted using the NIPALS algorithm, which supports missing values.
+
+
+
+# PLS2 Example
+
+
+## Data Loading
+
+We load the olive oil example dataset. The matrix **X** contains chemical variables and the response matrix **Y** contains sensory variables. Additionally, the vector *proced* contains the origin of each oil (S=Spain, I=Italy, G=Greece).
+
+```{r datosAceite}
+load("OliveOils.RData")
+```
+
+For the PLS2 model, we will use matrix **X** as the predictor matrix and **Y** as the response matrix.
+
+
+
+
+## Model Estimation and Optimization of the Number of Components
+
+We scale both the **Y** and **X** matrices, since the variables are measured in different units. We will do this directly within the **pls()** function, noting that the options selected in the corresponding arguments center and scale each matrix.
+
+We will not split the data into training and test sets because we have very few observations ($n =$ `r nrow(X)`).
+
+We will estimate the optimal number of components using cross-validation. In this case, given the very small number of observations, we will use the leave-one-out (LOO) procedure.
+
+
+```{r selComps, message = FALSE, warning=FALSE, fig.width=3.5, fig.height=3}
+mypls = pls(X, Y, cvFolds = nrow(X), rep = 1, perm = 20,
+            scaling = "standard", scalingY = "standard",
+            algo = "nipals", train = 1, alpha = 0.05, parallel = FALSE)
+kable(mypls$summary, digits = 3)
+plsPlot(mypls, type = 'R2vsQ2')  
+```
+
+The criterion used by the **pls()** function to select the optimal number of components is based on the $R^2$ and $Q^2$ values. Components are extracted as long as both of the following conditions are met: (1) the $R^2$ of the new component exceeds that of the previous one by at least 0.01, and (2) the difference between the $Q^2$ of the new component and that of the previous one is positive. According to this criterion, the optimal number of components is `r mypls$ncomp`.
+
+We confirm in the $Q^2$ and $R^2$ plot that `r mypls$ncomp` is indeed an appropriate number of components, since the $Q^2$ value drops considerably after the third component.
+
+We can observe in the summary shown that the model with `r mypls$ncomp` components explains `r round(mypls$summary[2,"cumR2Y"],2)*100`% of the variability of the variables in **Y** and `r round(mypls$summary[2,"cumR2X"],2)*100`% of the variability of the variables in **X**, with a predictive capacity of $Q^2 =$ `r round(mypls$summary[2,"cumQ2"],2)`. It also shows the RMSE value, calculated as the sum of the RMSE for each variable in **Y**. In this case it serves to confirm that it decreases when adding the second component, but to better evaluate the goodness of the model's predictions, we will later calculate the RMSE per variable and other error metrics.
+
+
+
+
+## Validation of the PLS2 Model
+
+### Detection of Moderate Outliers with RSS (Distance to the Model)
+
+In the following plots we represent the Residual Sum of Squares (RSS) with confidence limits at 95% and 99%.
+
+```{r SCR, fig.width=7, fig.height=3.5}
+par(mfrow = c(1,2))
+anomalos = plsOutliers(mypls, method = "RSS", conf = 0.95)
+anomalos99 = plsOutliers(mypls, method = "RSS", conf = 0.99)
+```
+
+In this case, there is `r length(anomalos$ModerateOutliers)` oil that falls outside the 95% limit. This observation poorly explained by the model corresponds to oil `r anomalos$ModerateOutliers`. We will not exclude it, since it does not even exceed the 99% limit. However, we will generate the contribution plot for this observation to help us understand the reason for its anomalous behaviour:
+
+```{r, fig.width=3, fig.height=3}
+plsOutlierContrib(mypls, outliers = anomalos)
+```
+
+Oil G4 has an abnormally low value for the variable *DK* and a high value for *K270*. We should check whether these values are measurement errors or whether, although unusual, they could genuinely occur in practice.
+
+
+
+### Detection of Severe Outliers with Hotelling's T²
+
+The following plots for detecting severe outliers display the Hotelling $T^2$ values for each observation, with confidence limits at 95% and 99%, respectively.
+
+```{r T2b, fig.width=7, fig.height=3.5}
+par(mfrow = c(1,2))
+severos = plsOutliers(mypls, method = "T2", conf = 0.95)
+severos99 = plsOutliers(mypls, method = "T2", conf = 0.99)
+```
+
+In this case, no oil falls outside these limits, so there are no severe outliers.
+
+
+
+
+### Linear Relationship Between Scores
+
+We will now check the linearity relationship between the **X** and **Y** scores for each component using the following plots, which also include the Pearson linear correlation coefficient.
+
+```{r tu, fig.width=7, fig.height=3}
+p1 = plsPlot(mypls, type = "linearity", comp = 1)
+p2 = plsPlot(mypls, type = "linearity", comp = 2)
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+Based on the plots and the correlation coefficient, we can assume that the linearity assumption of the PLS model is satisfied.
+
+
+
+### Calculation of $R^2$ by Component and Variable
+
+We will analyse the $R^2$ values variable by variable and by component using the following plots, for both the $X$ and $Y$ spaces:
+
+```{r R2, fig.width=7, fig.height=3.5}
+p1 = plsPlot(mypls, type = "R2X")
+p2 = plsPlot(mypls, type = "R2Y")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+- In these plots, we are representing the proportion of variability explained by each component for each of the variables in both the X and Y spaces.
+
+- In the X space, we observe that variables such as *K270* or *K232* are mostly explained by component 1, unlike variables such as *Acidity*.
+
+- In the Y space, we can observe that variables such as *transp* or *glossy* are mostly explained by component 1. We know they will be highly correlated.
+
+
+
+
+### Model Validity
+
+The following PLS model validation plot is based on the permutation technique. The rows of **Y** are permuted $perm=20$ times (see the arguments given to the **pls()** function), while **X** is left unchanged, and a PLS model is obtained for each permuted **Y** ($Y_{perm}$). For each "permuted" model, the $R^2$ (*pR2Y*) and $Q^2$ (*pQ2*) values are calculated and represented with purple and green dots, respectively. The horizontal lines represent the $R^2$ and $Q^2$ values of the model without permuting **Y**. The X-axis represents the similarity (between 0 and 1) between the unpermuted **Y** and the $Y_{perm}$.
+
+```{r, fig.width=4, fig.height=3.5}
+plsPlot(mypls, type = "overfitting")
+```
+
+The results show that both the $R^2$ and $Q^2$ values of the PLS model obtained with the unpermuted data are much better than those obtained with the permuted data. We can therefore conclude that the obtained model is better than a randomly generated model, and there is evidence that no overfitting is present in the fitted PLS model.
+
+
+
+
+## Interpretation of the PLS2 Model
+
+Once the PLS2 model has been validated, we proceed to interpret it in depth. To do so, we can analyse various plots, including the score plots in X and Y, the loadings plots in X and Y (or correlation plots), the weights plot, and the regression coefficients plot.
+
+```{r interpre, fig.width=7, fig.height=3}
+# Score plots
+p1 = plsPlot(mypls, type = "scoresX", comp = 1:2, colBy = proced)
+p2 = plsPlot(mypls, type = "scoresY", comp = 1:2, colBy = proced)
+grid.arrange(p1, p2, nrow = 1)
+# Loading plots
+p1 = plsPlot(mypls, type = "loadingsX", comp = 1:2, colBy = "contrib")
+p2 = plsPlot(mypls, type = "loadingsY", comp = 1:2, colBy = "contrib")
+grid.arrange(p1, p2, nrow = 1)
+# Correlation plots
+p1 = plsPlot(mypls, type = "corrX", comp = 1:2, colBy = "contrib")
+p2 = plsPlot(mypls, type = "corrY", comp = 1:2, colBy = "contrib")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+First, we can see that, although we did not provide the model with information about the origin of each oil, the origins are fairly well separated in the first two components, both in the X and Y spaces. The first component clearly separates Italy and Spain, while the second helps to separate some Greek oils. Looking at the loadings or correlation plot for X, Italian oils tend to have higher *Peroxide* and *K232* content than Spanish ones, and Greek oils tend to have higher acidity than the rest. Therefore, although it was not the objective of the PLS2 model, in this case we could characterise the oils from each country using the loadings or correlation plots in X or Y.
+
+
+
+```{r interpre2, fig.width=3.5, fig.height=3.5}
+# Weights 
+plsPlot(mypls, type = "weights", comp = 1:2, col = c("red3", "blue4"))
+```
+
+Secondly, we focus on the main objective of PLS2, which is to study the relationships between the variables in **X** and the variables in **Y**. To do so, we will first analyse the *weights* plot.
+Among other things, we can observe that higher values of *Peroxide* and *K232* correspond to higher values of *brown* and *syrup*, and this will be especially true for Italian oils. Greek oils (especially G1 and G4) will have higher values of *Acidity* or *DK*, which in turn are related to higher values of *green*.
+
+
+```{r interpre3, fig.width=6.5, fig.height=7.5}
+# Regression coefficients
+plsPlot(mypls, type = "coef")
+```
+
+Finally, the regression coefficient plots allow us to see the relationship between each variable in **X** and each of the variables in **Y**. They also show the statistical significance of these coefficients, obtained through the Jackknife technique based on the cross-validation strategy used in the PLS model estimation. In this plot, variables are ordered from most to least significant. An * means that the p-value associated with the coefficient of that variable is less than the 5% significance level.
+
+
+
+
+## Variable Selection in PLS2
+
+Although the regression coefficient plots above allow us to select the most relevant variables based on the statistical significance of the coefficients obtained via Jackknife, *PLSandO* enables the application of other variable selection techniques through the **plsVarSel()** function: Jackknife via LOO, permutation, sMC (*Significance Multivariate Correlation*), or VIP.
+
+The following plot shows, for example, the results obtained for the VIP statistic, which measures the importance of each variable in **X** for explaining **Y**:
+
+```{r, fig.width=4, fig.height=3}
+plsVarSel(mypls, type='VIP', threshold = 1)
+```
+
+Using the VIP values, we confirm which variables in **X** are the most important overall for explaining **Y**: *Peroxide*, *K232*, and *K270* — the 3 variables that exceed the minimum value of 1 "recommended" for VIP.
+
+
+
+## Prediction Error Metrics
+
+The **pls()** function provides some error metrics such as the RMSE, but globally for all variables. Let us see how we can calculate our own error metrics and do so for each variable in **Y** independently, since the model might be explaining some response variables better than others.
+
+First, with the following code, we can predict the values of the response matrix **Y** from the PLS model obtained. However, since in this example we have no *test* data, we can only obtain error metrics on the training data, which, as we know, is not ideal since the metrics will not be as objective:
+
+
+```{r pred1, fig.width=7, fig.height=3.5}
+Ypred = predict(mypls, plot = FALSE)
+residuos = Y-Ypred
+myRMSE = sqrt(colMeans(residuos^2))
+CVrmse = myRMSE/colMeans(Y)
+par(mfrow = c(1,2))
+barplot(myRMSE, las = 2, main = "RMSE")
+barplot(CVrmse, las = 2, main = "CV-RMSE")
+```
+
+
+Finally, the following plots allow us to see in greater detail the observed values for each variable in **Y** versus those predicted by the PLS model, in order to identify the cases where the model's predictions deviate the most.
+
+```{r pred1b, fig.width=12, fig.height=8}
+par (mfrow = c(2,3))
+for (i in 1:ncol(Y)) {
+  plot(Y[,i], Ypred[,i], asp = 1, main = colnames(Y)[i],
+     xlab = "observed", ylab = "predicted", col = "white")
+  text(Y[,i], Ypred[,i], labels = rownames(Y))
+  abline(a=0, b=1, col = "red3", lwd = 2, lty = 2)
+}
+```
+
+
+
+
+# PLS1 Example
+
+
+## Data Loading and Preparation
+
+We load the cereal example dataset, already processed in the PCA tutorial. In this case, we will use a supervised regression model (PLS1) to explain the variable *rating* (**y**) as a function of the variables related to the nutritional content of the cereals (**X**).
+
+```{r datosCereales}
+load("cereals.RData")
+y = data.frame("rating" = cerePCA$rating)
+X = subset(cerePCA, select = -rating)
+```
+
+
+## Model Estimation and Number of Components
+
+We scale the **X** matrix, since the nutritional variables are measured in different units. We will do this directly within the **pls()** function.
+
+Since we only have `r nrow(X)` observations, we will not split the data into training and test sets, and we will estimate the optimal number of components using *k-fold* cross-validation with $k=10$ and 3 repetitions. Additionally, we will parallelise the model computation to make it more efficient.
+
+```{r selCompsC, fig.width=3.5, fig.height=3, message=FALSE}
+mypls = pls(x = X, y = y, ncomp = NULL, cvFolds = 10, rep = 3,
+            scaling = "standard", perm = 30, parallel = TRUE)
+kable(mypls$summary, digits = 2)
+```
+
+According to the criteria in the *PLSandO* library, the optimal number of components would be `r mypls$ncomp`.
+
+
+
+## Validation of the PLS1 Model
+
+
+### Detection of Outliers
+
+In the following plots we represent the Residual Sum of Squares and Hotelling's $T^2$ with their respective confidence limits (99%).
+
+```{r, fig.width=10, fig.height=5}
+anomalos = plsOutliers(mypls, conf = 0.99)
+anomalos$ModerateOutliers
+anomalos$SevereOutliers
+```
+
+We detect some anomalous cereals that should be studied further using contribution plots (see previous example). We will continue the analysis without excluding any observations.
+
+
+
+### Linear Relationship Between Scores
+
+```{r tuCer, fig.width=7, fig.height=3.5}
+p1 = plsPlot(mypls, type = "linearity", comp = 1)
+p2 = plsPlot(mypls, type = "linearity", comp = 2)
+grid.arrange(p1, p2, nrow = 1)
+```
+
+Both the linear relationship observed in the plots for the two components (especially for the first) and the respective correlation coefficients allow us to assume linearity between the scores of the X and Y spaces.
+
+
+
+
+### Validity of the PLS1 Model
+
+```{r, fig.width=5, fig.height=3}
+plsPlot(mypls, type = "overfitting")
+```
+
+
+The plot confirms that our model is better than the randomly generated models.
+
+
+
+## Interpretation of the PLS Model
+
+The following plots will help us interpret the PLS model.
+
+```{r, fig.width=8, fig.height=3.5}
+# Score & loading plots
+p1 = plsPlot(mypls, type = "scoresX", comp = 1:2, 
+             colBy = data.frame(shelf = estante), ellipses = FALSE)
+p2 = plsPlot(mypls, type = "loadingsX", comp = 1:2, colBy = "contrib")
+grid.arrange(p1, p2, nrow = 1)
+# Correlation in X and Weights
+p1 = plsPlot(mypls, type = "corrX", comp = 1:2, colBy = "contrib")
+p2 = plsPlot(mypls, type = "weights", comp = 1:2)
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+
+
+## Variable Selection in the PLS Model
+
+The PLS model provides, by default, the statistical significance of the regression coefficients for each predictor variable using the *jackknife* procedure:
+
+
+```{r, fig.width=5, fig.height=3.5}
+plsPlot(mypls, type = "coef", comp = 1:2)
+```
+
+We can also use the **plsVarSel()** function, which allows us to estimate statistical significance using other procedures, such as the permutation technique, or to change the significance level:
+
+
+```{r, fig.width=5, fig.height=3}
+# Jackknife with LOO
+plsVarSel(mypls, type = 'Jack', threshold = 0.05) 
+# Permutation
+plsVarSel(mypls, type = 'Perm', rep = 1000, threshold = 0.05)
+# VIP
+plsVarSel(mypls, type = 'VIP', threshold = 1)
+# Significance Multivariate Correlation
+plsVarSel(mypls, type = 'sMC', threshold = 0.05)
+```

@@ -9,6 +9,11 @@ Currently, the package can be installed directly from GitHub using the `devtools
 
     install.packages("devtools")
     devtools::install_github("BiostatOmics/PLSandO")
+    
+For R 4.6.0 and newer, it is recommended to use the `pak` package instead of `devtools` for the installation:
+
+    install.packages("pak")
+    pak::pkg_install("BiostatOmics/PLSandO")
 
 
 Although all dependencies should install automatically, you can manually install them if the process fails:
@@ -37,4 +42,8 @@ You can find the User Guide for the package in the vignettes folder or access it
 For more in-depth information, we provide extended tutorials for each specific model:
 
 * PCA: Detailed PCA model usage with PLSandO can be found [here](https://github.com/BiostatOmics/PLSandO/blob/master/vignettes/Tutorial_PCA_PLSandO.html).
+
+* PLS: Detailed PLS model usage with PLSandO can be found [here](https://github.com/BiostatOmics/PLSandO/blob/master/vignettes/Tutorial_PLS_PLSandO.html).
+
+* PLS-DA: Detailed PLS-DA model usage with PLSandO can be found [here](https://github.com/BiostatOmics/PLSandO/blob/master/vignettes/Tutorial_PLSDA_PLSandO.html).
 

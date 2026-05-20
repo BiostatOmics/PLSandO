@@ -114,8 +114,8 @@ We will study the distance to the PCA model using the Residual Sum of Squares (R
 
 ```{r, fig.width=8, fig.height=4}
 par(mfrow = c(1,2))
-anomSCR95 = pcaOutliers(mipca, method = "RSS", conf = 95)
-anomSCR99 = pcaOutliers(mipca, method = "RSS", conf = 99)
+anomSCR95 = pcaOutliers(mipca, method = "RSS", conf = 0.95)
+anomSCR99 = pcaOutliers(mipca, method = "RSS", conf = 0.99)
 ```
 
 At a 95% confidence level, the following cereals are moderate outliers:
@@ -173,8 +173,8 @@ Hotelling's $T^2$ statistic allows us to identify severe outliers that could be 
 
 ```{r T2, fig.width=8, fig.height=4}
 par(mfrow = c(1,2))
-anomSev95 = pcaOutliers(mipca, method = "T2", conf = 95)
-anomSev99 = pcaOutliers(mipca, method = "T2", conf = 99)
+anomSev95 = pcaOutliers(mipca, method = "T2", conf = 0.95)
+anomSev99 = pcaOutliers(mipca, method = "T2", conf = 0.99)
 anomSev95$T2[anomSev95$SevereOutliers]
 ```
 
