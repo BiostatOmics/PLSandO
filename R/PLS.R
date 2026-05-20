@@ -89,14 +89,14 @@ pls = function(x, y,
     if(!rownames_consistency){
       for (i in 2:length(x)) {
         if (!identical(rownames(x[[1]]), rownames(x[[i]]))) {
-          cat('Warning: Observations on x blocks contain different identifiers. We consider that they are ordered and we will consider the nomenclature of the first block to unify them\n')
+          message('Warning: Observations on x blocks contain different identifiers. We consider that they are ordered and we will consider the nomenclature of the first block to unify them\n')
           rownames(x[[i]]) = rownames(x[[1]])
         }
       }
     }
 
     if(any(rownames(x[[1]])!=rownames(y))){
-      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      message('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
       rownames(y) = rownames(x)
     }
 
@@ -509,7 +509,7 @@ pls = function(x, y,
     }
 
     if(any(rownames(x)!=rownames(y))){
-      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      message('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
       rownames(y) = rownames(x)
     }
 
@@ -1682,16 +1682,16 @@ plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
                          "eigenVal" = eigenvalues)
 
   if (num == 0) {
-    cat("There are no severe outliers in the data or they were not computed.\n")
+    message("There are no severe outliers in the data or they were not computed.\n")
     miscontrT2 = NULL
   } else {
-    cat (paste0("There are ", num, " severe outliers in the data.\n"))
+    message(paste0("There are ", num, " severe outliers in the data.\n"))
     miscontrT2 = contribT2(X = x$X, scores = x$scoresX, loadings = x$loadingsX,
                            eigenval = x$explVar$eigenVal, observ = severos,
                            cutoff = 2)
     colnames(miscontrT2) = severos
     if (num > 10) {
-      cat (paste0("Only the 10 most severe outliers will be plotted.\n"))
+      message(paste0("Only the 10 most severe outliers will be plotted.\n"))
       num = 10
       severos = rownames(sort(outliers$T2, decreasing = TRUE)[1:10])
     }
@@ -1715,14 +1715,14 @@ plsOutlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
   }
 
   if (num == 0) {
-    cat("There are no moderate outliers in the data or they were not computed.\n")
+    message("There are no moderate outliers in the data or they were not computed.\n")
     miscontrRSS = NULL
   } else {
-    cat (paste0("There are ", num, " moderate outliers in the data.\n"))
+    message(paste0("There are ", num, " moderate outliers in the data.\n"))
     miscontrRSS = ContriSCR(E = outliers$E, SCR = outliers$RSS)
     miscontrRSS = miscontrRSS[modera,,drop = FALSE]
     if (num > 10) {
-      cat (paste0("Only the 10 most moderate outliers will be plotted.\n"))
+      message(paste0("Only the 10 most moderate outliers will be plotted.\n"))
       num = 10
       modera = rownames(sort(outliers$RSS, decreasing = TRUE)[1:10])
     }

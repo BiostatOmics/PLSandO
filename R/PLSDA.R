@@ -77,14 +77,14 @@ plsda = function(x, y,
     if(!rownames_consistency){
       for (i in 2:length(x)) {
         if (!identical(rownames(x[[1]]), rownames(x[[i]]))) {
-          cat('Warning: Observations on x blocks contain different identifiers. We consider that they are ordered and we will consider the nomenclature of the first block to unify them\n')
+          message('Warning: Observations on x blocks contain different identifiers. We consider that they are ordered and we will consider the nomenclature of the first block to unify them\n')
           rownames(x[[i]]) = rownames(x[[1]])
         }
       }
     }
 
     if(any(rownames(x[[1]])!=rownames(y))){
-      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      message('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
       rownames(y) = rownames(x)
     }
 
@@ -515,7 +515,7 @@ plsda = function(x, y,
     }
 
     if(any(rownames(x)!=rownames(y))){
-      cat('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
+      message('Warning: Observations on x and y contain different identifiers. We consider that they are ordered and we will consider the nomenclature of x to unify them\n')
       rownames(y) = rownames(x)
     }
 

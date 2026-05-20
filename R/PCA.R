@@ -43,7 +43,7 @@ pca = function(x,
 
     P = lapply(x, function(y){
       if(!all(sapply(y, is.numeric))) {
-        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+        message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
         Preparing(y, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
       } else {
         Preparing(y, CVfilter = 0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
@@ -120,7 +120,7 @@ pca = function(x,
 
     if (!inherits(x, "list")){
       if(!all(sapply(x, is.numeric))) {
-        cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+        message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
         P = Preparing(x, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
         x = P$x
       } else {
@@ -137,7 +137,7 @@ pca = function(x,
       b_names = names(x)
       P = lapply(x, function(y){
         if(!all(sapply(y, is.numeric))) {
-          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           Preparing(y, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2)
         } else {
           Preparing(y, CVfilter = 0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
@@ -159,7 +159,7 @@ pca = function(x,
     if(!inherits(x, "list") && scaling %in% c('softBlock','hardBlock')) blocks = rep(1, times = ncol(x)) else blocks = NULL
 
     if (inherits(x, "list")) {
-      if (!scaling %in% c("softBlock", "hardBlock")) cat('Warning: When blocks are considered we recommend using either softBlock or hardBlock scaling\n')
+      if (!scaling %in% c("softBlock", "hardBlock")) message('Warning: When blocks are considered we recommend using either softBlock or hardBlock scaling\n')
       if (length(unique(sapply(x, nrow)))!=1) return(stop('All blocks must have the same observations'))
       blocks = rep(seq_along(x), times = sapply(x, ncol) )
       x = do.call(cbind, x)
@@ -530,16 +530,16 @@ outlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
   }
 
   if (num == 0) {
-    cat("There are no severe outliers in the data or they were not computed.\n")
+    message("There are no severe outliers in the data or they were not computed.\n")
     miscontrT2 = NULL
   } else {
-    cat (paste0("There are ", num, " severe outliers in the data provided.\n"))
+    message(paste0("There are ", num, " severe outliers in the data provided.\n"))
     miscontrT2 = contribT2(X = x$X, scores = x$scores, loadings = x$loadings,
                            eigenval = x$explVar$eigenVal, observ = severos,
                            cutoff = 2)
     colnames(miscontrT2) = severos
     if (num > 10) {
-      cat (paste0("Only the 10 most severe outliers will be plotted.\n"))
+      message(paste0("Only the 10 most severe outliers will be plotted.\n"))
       num = 10
       severos = rownames(sort(outliers$T2, decreasing = TRUE)[1:10])
     }
@@ -563,14 +563,14 @@ outlierContrib = function(x, outliers, labelSize = 1, specificObs = NULL) {
   }
 
   if (num == 0) {
-    cat("There are no moderate outliers in the data or they were not computed.\n")
+    message("There are no moderate outliers in the data or they were not computed.\n")
     miscontrRSS = NULL
   } else {
-    cat (paste0("There are ", num, " moderate outliers in the data provided.\n"))
+    message(paste0("There are ", num, " moderate outliers in the data provided.\n"))
     miscontrRSS = ContriSCR(E = outliers$E, SCR = outliers$RSS)
     miscontrRSS = miscontrRSS[modera,,drop = FALSE]
     if (num > 10) {
-      cat (paste0("Only the 10 most moderate outliers will be plotted.\n"))
+      message(paste0("Only the 10 most moderate outliers will be plotted.\n"))
       num = 10
       modera = rownames(sort(outliers$RSS, decreasing = TRUE)[1:10])
     }

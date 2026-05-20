@@ -41,7 +41,7 @@ Preparing = function(x, includeFactors = TRUE, CVfilter = 0.01, excludeNA = 0.2)
 
   if(all(!is.na(suppressWarnings(as.numeric(rownames(x)))))) {
     rownames(x) = paste0('r', rownames(x))
-    cat('Warning: To avoid problems with numeric identifiers, we added r prefix to the identifiers\n')
+    message('Warning: To avoid problems with numeric identifiers, we added r prefix to the identifiers\n')
   }
 
   # Guardar todo el proceso en una especie de summary para que lo puedan consultar en cualquier momento
@@ -1768,7 +1768,7 @@ scorePlot = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses, labelTop and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) message('Warning: shape, shapeBy, ellipses, labelTop and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
     labels = TRUE
     labelTop = 1
@@ -1783,7 +1783,7 @@ scorePlot = function(x,
 
       if (!inherits(newObs, "list")){
         if(!all(sapply(newObs, is.numeric))) {
-          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           P = Preparing(newObs, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
         } else {
           P = Preparing(newObs, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
@@ -1794,7 +1794,7 @@ scorePlot = function(x,
         b_names = names(newObs)
         P = lapply(newObs, function(y){
           if(!all(sapply(y, is.numeric))) {
-            cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+            message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
             Preparing(y, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
           } else {
             Preparing(y, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
@@ -2018,7 +2018,7 @@ scorePlotmb = function(x,
   if(is.null(comp) & x$ncomp!=1) comp = 1:2
 
   if(is.null(comp) | length(comp) == 1) {
-    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) cat('Warning: shape, shapeBy, ellipses, labelTop and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (!is.null(shapeBy) | shape!=18 | ellipses | !is.null(newObs)) message('Warning: shape, shapeBy, ellipses, labelTop and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
     for (i in 1:length(x$X)){
       x$value = x$Bscores[[i]][,comp,drop=FALSE]
@@ -2035,7 +2035,7 @@ scorePlotmb = function(x,
       newObs = setNames(lapply(seq_along(newObs), function(i){
         y = newObs[[i]]
         if(!all(sapply(y, is.numeric))) {
-          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           P = Preparing(y, includeFactors = T, CVfilter = -0.01, excludeNA = 0.2)
         } else {
           P = Preparing(y, CVfilter = -0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
@@ -2429,7 +2429,7 @@ loadingPlot = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (!is.null(selVars) | shape!=18 | !is.null(newObs)) cat('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (!is.null(selVars) | shape!=18 | !is.null(newObs)) message('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
     x$value = x$loadings[,comp,drop=FALSE]
     title = paste0('Loading Plot Comp', comp)
@@ -2575,7 +2575,7 @@ loadingPlotmb = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (shape!=18 | !is.null(selVars)) cat('Warning: shape and selVars parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (shape!=18 | !is.null(selVars)) message('Warning: shape and selVars parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
 
     for (i in 1:length(x$X)){
@@ -2788,7 +2788,7 @@ weightsPlot = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (!is.null(selVars) | shape!=18  | !is.null(newObs)) cat('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (!is.null(selVars) | shape!=18  | !is.null(newObs)) message('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
     loadingsX = x$weightStar[,comp,drop=FALSE]
     loadingsY = x$loadingsY[,comp,drop=FALSE]
@@ -2959,7 +2959,7 @@ weightsPlotmb = function(x,
 
   if(is.null(comp) | length(comp) == 1) {
 
-    if (shape!=18 | !is.null(selVars) | !is.null(newObs)) cat('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
+    if (shape!=18 | !is.null(selVars) | !is.null(newObs)) message('Warning: shape, selVars and newObs parameters not considered, for more complex visualizations please force the model to extract at least 2 components and consider only the results of the first component \n')
     if(is.null(comp)) comp = 1
 
     for (i in 1:length(x$X)){
@@ -3472,7 +3472,7 @@ biPlot = function(x,
     if(!is.null(newObs)){
       if (!inherits(newObs, "list")){
         if(!all(sapply(newObs, is.numeric))) {
-          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           P = Preparing(newObs, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
         } else {
           P = Preparing(newObs, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
@@ -3483,7 +3483,7 @@ biPlot = function(x,
         b_names = names(newObs)
         P = lapply(newObs, function(y){
           if(!all(sapply(y, is.numeric))) {
-            cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+            message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
             Preparing(y, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
           } else {
             Preparing(y, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
@@ -3745,7 +3745,7 @@ biPlotmb = function(x,
       newObs = setNames(lapply(seq_along(newObs), function(i){
         y = newObs[[i]]
         if(!all(sapply(y, is.numeric))) {
-          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           P = Preparing(y, includeFactors = T, CVfilter = -0.01, excludeNA = 0.2)
         } else {
           P = Preparing(y, CVfilter = -0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
@@ -4188,7 +4188,7 @@ biPlotPLS = function(x,
 
       if (!inherits(newObs, "list")){
         if(!all(sapply(newObs, is.numeric))) {
-          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           P = Preparing(newObs, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
         } else {
           P = Preparing(newObs, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
@@ -4199,7 +4199,7 @@ biPlotPLS = function(x,
         b_names = names(newObs)
         P = lapply(newObs, function(y){
           if(!all(sapply(y, is.numeric))) {
-            cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+            message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
             Preparing(y, includeFactors = T, CVfilter = -0.1, excludeNA = 0.2)
           } else {
             Preparing(y, CVfilter = -0.1, excludeNA = 1) #Evitar eliminar nearZeroVariance variables
@@ -4464,7 +4464,7 @@ biPlotPLSmb = function(x,
       newObs = setNames(lapply(seq_along(newObs), function(i){
         y = newObs[[i]]
         if(!all(sapply(y, is.numeric))) {
-          cat('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
+          message('Warning: Categorical variables automatically converted to dummy variables and default filters for NAs and CV applied.\n If the user does not want to use any default filtering, consider using Preparing function before executing pca to convert categorical variables into dummies.\n')
           P = Preparing(y, includeFactors = T, CVfilter = -0.01, excludeNA = 0.2)
         } else {
           P = Preparing(y, CVfilter = -0.00001, excludeNA = 1) #Evitar nearZeroVariance variables pero no aplicar ningun filtro extra
