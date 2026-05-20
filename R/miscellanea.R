@@ -1311,7 +1311,6 @@ crossForVal = function(iter, X, Y, ncomp, k = 5, scaling, scalingY, seed, method
   #R2
   if(any(is.na(X))) X = impute_nipals(X = X, mypls = plsr2)
   yhat = as.matrix(X) %*% plsr2$coefficients
-  yhat = yhat[rownames(Y),,drop=FALSE]
 
   SCR = sum((Y-yhat)^2)
   SCT = sum(Y^2)
