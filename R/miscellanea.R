@@ -5098,7 +5098,7 @@ validationPlot = function(x, col = col){
   R = x$input$perm
 
   pR2Y = sum(x$validation$R2 > x$summary$cumR2Y[x$ncomp])/ R
-  pQ2 = ifelse(x$summary$cumQ2[x$ncomp] > 0, (sum(x$validation$Q2 > x$summary$cumQ2[x$ncomp]) + sum(x$validation$Q2 < -x$summary$cumQ2[x$ncomp]) )/ R, (sum(x$validation$Q2 < x$summary$cumQ2[x$ncomp]) + sum(x$validation$Q2 > -x$summary$cumQ2[x$ncomp])) / R)
+  pQ2 = sum(x$validation$Q2 > x$summary$cumQ2[x$ncomp])/ R
 
   validation_long = data.frame(
     Similarity = rep(x$validation$Similarity, 2),
