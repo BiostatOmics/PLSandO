@@ -5341,9 +5341,8 @@ multilevelPredict = function(x, design = NULL, new = NULL, plot = TRUE) {
 
   if(x$input$method == 'pls'){
     prediction = sweep(prediction, 2, x$model$scaling$scaleY, FUN = "*")
-    prediction = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
-    #TO DO: Cual es el Yb de los datos?
-    yPred = prediction + x$Ym
+    yPred = sweep(prediction, 2, x$model$scaling$centerY, FUN = "+")
+
     return(yPred)
   }
 }

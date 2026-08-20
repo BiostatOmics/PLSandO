@@ -87,25 +87,28 @@ multilevel = function(x, y = NULL, design =NULL,
 
     if (scalingY != 'none') {
       escalado = Scaling(y, scaling= 'center', blocks = NULL)
-      y = escalado$x
+      Y = escalado$x
     }
 
-    #Calculate the offset
-    Ym = Y - y
-    Yw = y
+    # #Calculate the offset
+    # Ym = Y - y (este y era el escalado)
+    # Yw = y
+    #
+    # for (g in unique(design$group)){
+    #   idx <- g == design$group
+    #   Yw[idx,] = sweep(Yw[idx,,drop=FALSE],2, colMeans(Yw[idx,,drop=FALSE]))
+    # }
+    #
+    # #Calculate the between subject variation (differences across groups of subjects)
+    # Yb = y - Yw
 
-    for (g in unique(design$group)){
-      idx <- g == design$group
-      Yw[idx,] = sweep(Yw[idx,,drop=FALSE],2, colMeans(Yw[idx,,drop=FALSE]))
-    }
+    mypls = pls(Xw, Y, ncomp = ncomp, scaling = scaling, scalingY = scalingY, cvFolds = cvFolds, rep = rep, perm = perm, train = train, alpha = alpha, parallel = parallel)
 
-    #Calculate the between subject variation (differences across groups of subjects)
-    Yb = y - Yw
-
-    mypls = pls(Xw, Yw, ncomp = ncomp, scaling = scaling, scalingY = scalingY, cvFolds = cvFolds, rep = rep, perm = perm, train = train, alpha = alpha, parallel = parallel)
-
-    return(list('model' = mypls, 'Xm' = Xm, 'Xw' = Xw, 'Xb' = Xb, 'Ym' = Ym, 'Yw' = Yw, 'Yb' = Yb, 'input' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'scalingY'= scalingY, 'design' = design, 'model' = 'multi')))
+    return(list('model' = mypls, 'Xm' = Xm, 'Xw' = Xw, 'Xb' = Xb, 'input' = list('method' = method,'algo' = algo, 'scaling' = scaling, 'scalingY'= scalingY, 'design' = design, 'model' = 'multi')))
   } else{
+
+    Py = suppressWarnings(Preparing(y, includeFactors = T, CVfilter = 0.01, excludeNA = 0.2))
+    Y = Py$x
 
     mypls = plsda(Xw, Y, ncomp = ncomp, scaling = scaling, scalingY = scalingY, cvFolds = cvFolds, rep = rep, perm = perm, train = train, alpha = alpha, parallel = parallel)
 
